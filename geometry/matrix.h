@@ -27,6 +27,14 @@ class Matrix {
   }
   Matrix() {}
 
+  explicit Matrix(T value) {
+    for (size_t i = 0; i < ROWS; ++i) {
+      for (size_t j = 0; j < COLS; ++j) {
+        at(i, j) = value;
+      }
+    }
+  }
+
   static constexpr Matrix<ROWS, COLS, T>& Eye() {
     SimularMatrix result;
     for (size_t i = 0; i < ROWS; ++i) {
@@ -166,7 +174,7 @@ class Matrix {
 
   template <typename ReturnType>
   Matrix<ROWS, COLS, ReturnType> map(
-      std::function<ReturnType(const T&)> function) {
+      const std::function<ReturnType(const T&)>& function) {
     Matrix<ROWS, COLS, ReturnType> result;
     for (size_t i = 0; i < ROWS; ++i) {
       for (size_t j = 0; j < COLS; ++j) {
