@@ -3,22 +3,32 @@
 
 #include <algorithm>
 #include <cctype>
+#include <experimental/optional>
+#include <iostream>
+#include <utility>
 
 namespace symbolic {
 
-std::unique_ptr<Expression> CreateExpression(std::string expression) {  
+  Expression CreateExpression(
+    std::string expression) {
   auto isspace = [](unsigned char const c) { return std::isspace(c); };
-  expression.erase(std::remove_if(expression.begin(), expression.end(), isspace), expression.end());
+  expression.erase(
+      std::remove_if(expression.begin(), expression.end(), isspace),
+      expression.end());
   for (size_t i = 0; i < expression.size(); ++i) {
     if (expression[i] == '+') {
-      auto exprs = {CreateExpression(expression.substr(0, i)).release(), CreateExpression(expression.substr(i+1, expression.size() - (i + 1))).release()};
-      return std::move(std::make_unique<AdditionExpression>(exprs));
+      auto lhs = CreateExpression(expression.substr(0, i));
+      auto rhs = CreateExpression(
+          expression.substr(i + 1, expression.size() - (i + 1)));
+      return lhs + rhs;
     }
   }
   for (size_t i = 0; i < expression.size(); ++i) {
     if (expression[i] == '*') {
-      auto exprs = {CreateExpression(expression.substr(0, i)).release(), CreateExpression(expression.substr(i+1, expression.size() - (i + 1))).release()};
-      return std::move(std::make_unique<MultiplicationExpression>(exprs));
+      auto lhs = CreateExpression(expression.substr(0, i));
+      auto rhs = CreateExpression(
+          expression.substr(i + 1, expression.size() - (i + 1)));
+      return lhs * rhs;
     }
   }
 
@@ -28,17 +38,68 @@ std::unique_ptr<Expression> CreateExpression(std::string expression) {
     // Try to sscanf an unbound variable NumericValue.
     std::string variable(expression.size(), ' ');
     if (sscanf(expression.c_str(), "%s", &variable[0]) == 0) {
-      return nullptr;
+      std::cerr << "Could not parse token as variable name: " << expression << std::endl;
+      std::exit(1); 
     }
-    return std::make_unique<NumericValue>(variable);
+    return Expression(std::make_unique<NumericValue>(variable));
   }
 
   // Special case for imaginary values.
   if (suffix == 'i') {
-    return std::move(std::make_unique<NumericValue>(0, value));
+    return Expression(std::make_unique<NumericValue>(0, value));
   }
-  
-  return std::move(std::make_unique<NumericValue>(value));
+
+  return Expression(std::make_unique<NumericValue>(value));
+}
+
+// Expression Impl.
+
+Expression::Expression(std::unique_ptr<ExpressionNode>&& root)
+    : expression_root_(std::move(root)) {}
+
+Expression::Expression(const Expression& other)
+    : expression_root_(other.expression_root_->Clone()) {}
+
+Expression::Expression(Expression&& rhs)
+    : expression_root_(std::move(rhs.expression_root_)) {}
+
+Expression Expression::operator+(const Expression& rhs) const {
+  auto lhscopy = expression_root_->Clone();
+  auto rhscopy = rhs.expression_root_->Clone();
+  return Expression(
+      std::make_unique<AdditionExpression>(
+          std::initializer_list<ExpressionNode*>(
+              {lhscopy.release(), rhscopy.release()})));
+}
+
+Expression Expression::operator*(const Expression& rhs) const {
+  auto lhscopy = expression_root_->Clone();
+  auto rhscopy = rhs.expression_root_->Clone();
+  return Expression(std::make_unique<MultiplicationExpression>(
+      std::initializer_list<ExpressionNode*>(
+          {lhscopy.release(), rhscopy.release()})));
+}
+
+Expression& Expression::operator=(const Expression& rhs) {
+  expression_root_ = rhs.expression_root_->Clone();
+  return *this;
+}
+
+// Variables which need to be resolved in order to evaluate the expression.
+std::set<std::string> Expression::variables() const {
+  return expression_root_->variables();
+}
+
+void Expression::Bind(const std::string& name, NumericValue value) {
+  expression_root_ = expression_root_->Bind({{name, value}});
+}
+
+std::experimental::optional<NumericValue> Expression::Evaluate() const {
+  return expression_root_->TryEvaluate();
+}
+
+std::string Expression::to_string() const {
+  return expression_root_->to_string();
 }
 
 // CompoundExpression impl.
@@ -52,11 +113,12 @@ std::set<std::string> CompoundExpression::variables() const {
   return variables;
 }
 
-void CompoundExpression::add(std::unique_ptr<Expression> child) {
+void CompoundExpression::add(std::unique_ptr<ExpressionNode> child) {
   children_.push_back(std::move(child));
 }
 
-std::experimental::optional<NumericValue> CompoundExpression::TryEvaluate() const {
+std::experimental::optional<NumericValue> CompoundExpression::TryEvaluate()
+    const {
   NumericValue result = identity();
   for (const auto& expression : children_) {
     const auto val_or_fail = expression->TryEvaluate();
@@ -82,45 +144,45 @@ std::string CompoundExpression::to_string() const {
 // AdditionExpression Implementation.
 
 NumericValue AdditionExpression::reduce(const NumericValue& a,
-                    const NumericValue& b) const {
+                                        const NumericValue& b) const {
   NumericValue result;
   result.real() = a.real() + b.real();
   result.imag() = a.imag() + b.imag();
   return result;
 }
 
-std::unique_ptr<Expression> AdditionExpression::Bind(
+std::unique_ptr<ExpressionNode> AdditionExpression::Bind(
     std::unordered_map<std::string, NumericValue> env) const {
-  std::unique_ptr<AdditionExpression> b = std::make_unique<AdditionExpression>();
+  std::unique_ptr<AdditionExpression> b =
+      std::make_unique<AdditionExpression>();
   for (const auto& expression : children_) {
     b->add(std::move(expression->Bind(env)));
   }
   return std::move(b);
 }
 
-NumericValue AdditionExpression::identity() const {
-  return NumericValue(0);
-}
+NumericValue AdditionExpression::identity() const { return NumericValue(0); }
 
 // MultiplicationExpression Implementation.
 
 NumericValue MultiplicationExpression::reduce(const NumericValue& a,
-                    const NumericValue& b) const {
+                                              const NumericValue& b) const {
   NumericValue result;
   result.real() = a.real() * b.real() - a.imag() * b.imag();
   result.imag() = a.real() * b.imag() + b.real() * a.imag();
   return result;
 }
 
-std::unique_ptr<Expression> MultiplicationExpression::Bind(
+std::unique_ptr<ExpressionNode> MultiplicationExpression::Bind(
     std::unordered_map<std::string, NumericValue> env) const {
-  std::unique_ptr<MultiplicationExpression> b = std::make_unique<MultiplicationExpression>();
+  std::unique_ptr<MultiplicationExpression> b =
+      std::make_unique<MultiplicationExpression>();
   for (const auto& expression : children_) {
     b->add(std::move(expression->Bind(env)));
   }
   return std::move(b);
 }
-  
+
 NumericValue MultiplicationExpression::identity() const {
   return NumericValue(1);
 }

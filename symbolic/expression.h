@@ -10,18 +10,52 @@
 
 namespace symbolic {
 
-class NumericValue;
+class AdditionExpression;
 class Expression;
+class ExpressionNode;
+class NumericValue;
 
-std::unique_ptr<Expression> CreateExpression(std::string expression);
+Expression CreateExpression(std::string expression);
 
-// Abstract class which defines the expression interface.
+// Class which holds the ExpressionNode tree and provides an easy-to-use
+// interface.
 class Expression {
+ public:
+  Expression() {}
+
+  Expression(std::unique_ptr<ExpressionNode>&& root);
+
+  Expression(const Expression& other);
+
+  explicit Expression(Expression&& rhs);
+
+  Expression operator+(const Expression& rhs) const;
+
+  Expression operator*(const Expression& rhs) const;
+
+  Expression& operator=(const Expression& rhs);
+
+  // Variables which need to be resolved in order to evaluate the expression.
+  std::set<std::string> variables() const;
+
+  void Bind(const std::string& name, NumericValue value);
+
+  std::experimental::optional<NumericValue> Evaluate() const;
+
+  std::string to_string() const;
+
+ private:
+  std::unique_ptr<ExpressionNode> expression_root_;
+};
+
+// Abstract class which defines the expression interface. Interface is limited
+// to prevent accidental copies (inefficiencies). Not optimized for ease of use.
+class ExpressionNode {
  public:
   // Variables which need to be resolved in order to evaluate the expression.
   virtual std::set<std::string> variables() const = 0;
   // Bind variables to values to create an expression which can be evaluated.
-  virtual std::unique_ptr<Expression> Bind(
+  virtual std::unique_ptr<ExpressionNode> Bind(
       std::unordered_map<std::string, NumericValue>) const = 0;
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
@@ -29,17 +63,17 @@ class Expression {
 
   virtual std::string to_string() const = 0;
 
-  virtual std::unique_ptr<Expression> Clone() const = 0;
+  virtual std::unique_ptr<ExpressionNode> Clone() const = 0;
 };
 
-class CompoundExpression : public Expression {
+class CompoundExpression : public ExpressionNode {
  public:
   std::set<std::string> variables() const override;
 
-  virtual std::unique_ptr<Expression> Bind(
+  virtual std::unique_ptr<ExpressionNode> Bind(
       std::unordered_map<std::string, NumericValue> env) const = 0;
 
-  void add(std::unique_ptr<Expression> child);
+  void add(std::unique_ptr<ExpressionNode> child);
 
   std::experimental::optional<NumericValue> TryEvaluate() const override;
 
@@ -50,29 +84,30 @@ class CompoundExpression : public Expression {
 
   virtual std::string operator_to_string() const = 0;
 
-  virtual std::unique_ptr<Expression> Clone() const = 0;
+  virtual std::unique_ptr<ExpressionNode> Clone() const = 0;
 
   virtual NumericValue identity() const = 0;
-protected:
-  CompoundExpression(std::initializer_list<Expression*> arguments) {
-    for (Expression* exp : arguments) {
+
+ protected:
+  CompoundExpression(std::initializer_list<ExpressionNode*> arguments) {
+    for (ExpressionNode* exp : arguments) {
       children_.emplace_back(exp);
     }
   }
   CompoundExpression() {}
-  std::vector<std::unique_ptr<Expression>> children_;
+  std::vector<std::unique_ptr<ExpressionNode>> children_;
 };
 
 class AdditionExpression : public CompoundExpression {
  public:
-  AdditionExpression(std::initializer_list<Expression*> arguments)
+  AdditionExpression(std::initializer_list<ExpressionNode*> arguments)
       : CompoundExpression(arguments) {}
   AdditionExpression() : CompoundExpression() {}
   NumericValue reduce(const NumericValue& a,
                       const NumericValue& b) const override;
   std::string operator_to_string() const override { return "+"; }
 
-  std::unique_ptr<Expression> Clone() const override {
+  std::unique_ptr<ExpressionNode> Clone() const override {
     std::unique_ptr<AdditionExpression> clone =
         std::make_unique<AdditionExpression>();
     for (auto& child : children_) {
@@ -81,22 +116,22 @@ class AdditionExpression : public CompoundExpression {
     return std::move(clone);
   }
 
-  std::unique_ptr<Expression> Bind(
+  std::unique_ptr<ExpressionNode> Bind(
       std::unordered_map<std::string, NumericValue> env) const override;
-  
+
   NumericValue identity() const override;
 };
 
 class MultiplicationExpression : public CompoundExpression {
  public:
-  MultiplicationExpression(std::initializer_list<Expression*> arguments)
+  MultiplicationExpression(std::initializer_list<ExpressionNode*> arguments)
       : CompoundExpression(arguments) {}
   MultiplicationExpression() : CompoundExpression() {}
   NumericValue reduce(const NumericValue& a,
                       const NumericValue& b) const override;
   std::string operator_to_string() const override { return "*"; }
 
-  std::unique_ptr<Expression> Clone() const override {
+  std::unique_ptr<ExpressionNode> Clone() const override {
     std::unique_ptr<MultiplicationExpression> clone =
         std::make_unique<MultiplicationExpression>();
     for (auto& child : children_) {
@@ -105,9 +140,9 @@ class MultiplicationExpression : public CompoundExpression {
     return std::move(clone);
   }
 
-  std::unique_ptr<Expression> Bind(
+  std::unique_ptr<ExpressionNode> Bind(
       std::unordered_map<std::string, NumericValue> env) const override;
-  
+
   NumericValue identity() const override;
 };
 

@@ -13,9 +13,9 @@ namespace symbolic {
 
 using Number = double;
 
-class Expression;
+class ExpressionNode;
 
-class NumericValue : public Expression {
+class NumericValue : public ExpressionNode {
  public:
   explicit NumericValue(Number a) : is_bound_(true), a_(a), b_(0) {}
   NumericValue(Number a, Number b) : is_bound_(true), a_(a), b_(b) {}
@@ -25,7 +25,7 @@ class NumericValue : public Expression {
   Number& imag() { return b_; }
   Number real() const { return a_; }
   Number imag() const { return b_; }
-  virtual std::unique_ptr<Expression> Bind(std::unordered_map<std::string, NumericValue> env) const override {
+  virtual std::unique_ptr<ExpressionNode> Bind(std::unordered_map<std::string, NumericValue> env) const override {
     if (!is_bound_) {
       if (env.count(name_) == 1) {
         Number a = env[name_].real();
@@ -58,7 +58,7 @@ class NumericValue : public Expression {
     return result;
   }
  
-  virtual std::unique_ptr<Expression> Clone() const override {
+  virtual std::unique_ptr<ExpressionNode> Clone() const override {
     if (is_bound_) {
       return std::move(std::make_unique<NumericValue>(a_, b_));
     } else {
