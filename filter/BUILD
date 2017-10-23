@@ -1,9 +1,10 @@
 cc_library(
-    name = "kalman",
+    name = "kalman_filter",
     visibility = ["//math"],
-    hdrs = ["kalman.h"],
-    srcs = ["kalman.cc"],
+    hdrs = ["kalman_filter.h"],
+    srcs = ["kalman_filter.cc"],
     deps = [
         "//math/geometry:matrix",
+        "//math/symbolic:symbolic",
     ],
 )

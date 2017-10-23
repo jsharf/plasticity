@@ -25,7 +25,16 @@ class Matrix {
       i++;
     }
   }
+
   Matrix() {}
+
+  Matrix(const Matrix<ROWS, COLS, T>& other) {
+    for (size_t i = 0; i < ROWS; ++i) {
+      for (size_t j = 0; j < COLS; ++j) {
+        at(i, j) = other.at(i, j);
+      }
+    }
+  }
 
   explicit Matrix(T value) {
     for (size_t i = 0; i < ROWS; ++i) {
@@ -129,7 +138,7 @@ class Matrix {
     return x;
   }
 
-  constexpr Matrix<ROWS, COLS, T> Invert() {
+  constexpr Matrix<ROWS, COLS, T> invert() {
     using Colvec = Matrix<ROWS, 1, T>;
     std::array<Colvec, COLS> columns{};
     for (size_t i = 0; i < COLS; ++i) {

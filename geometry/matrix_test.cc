@@ -56,7 +56,6 @@ int main() {
     if (!value) {
       std::cerr << "Failed to evaluate expression." << std::endl;
 
-      std::cerr << "Remaining variables: " << s << std::endl;
       std::exit(1);
     }
     return value->real();
