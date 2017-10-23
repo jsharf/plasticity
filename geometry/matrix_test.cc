@@ -1,7 +1,6 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <unordered_map>
 
 #include "math/symbolic/expression.h"
 #include "math/symbolic/numeric_value.h"
@@ -61,7 +60,7 @@ int main() {
     return value->real();
   };
 
-  Matrix<3, 3, Number> myscalematrix = scale.map(evaluator);
+  Matrix<3, 3, Number> myscalematrix = scale.Map(evaluator);
 
   std::cout << myscalematrix.to_string() << std::endl;
 }
