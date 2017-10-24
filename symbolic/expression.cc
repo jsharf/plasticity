@@ -3,14 +3,14 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <experimental/optional>
 #include <iostream>
 #include <utility>
 
 namespace symbolic {
 
-  Expression CreateExpression(
-    std::string expression) {
+Expression CreateExpression(std::string expression) {
   auto isspace = [](unsigned char const c) { return std::isspace(c); };
   expression.erase(
       std::remove_if(expression.begin(), expression.end(), isspace),
@@ -96,6 +96,14 @@ void Expression::Bind(const std::string& name, NumericValue value) {
 
 std::experimental::optional<NumericValue> Expression::Evaluate() const {
   return expression_root_->TryEvaluate();
+}
+
+std::unique_ptr<ExpressionNode> Expression::Release() {
+  return std::move(expression_root_);
+}
+
+void Expression::Reset(std::unique_ptr<ExpressionNode> root) {
+  expression_root_ = std::move(root);
 }
 
 std::string Expression::to_string() const {
@@ -185,6 +193,66 @@ std::unique_ptr<ExpressionNode> MultiplicationExpression::Bind(
 
 NumericValue MultiplicationExpression::identity() const {
   return NumericValue(1);
+}
+
+// DivisionExpression Implementation.
+
+std::set<std::string> DivisionExpression::variables() const {
+  std::set<std::string> variables;
+  std::set<std::string> numerator_variables = numerator_->variables();
+  std::set<std::string> denominator_variables = denominator_->variables();
+
+  variables.insert(numerator_variables.begin(), numerator_variables.end());
+  variables.insert(denominator_variables.begin(), denominator_variables.end());
+  return variables;
+}
+
+std::unique_ptr<ExpressionNode> DivisionExpression::Bind(
+    std::unordered_map<std::string, NumericValue> env) const {
+  std::unique_ptr<DivisionExpression> result =
+      std::make_unique<DivisionExpression>();
+  result->set_numerator(numerator_->Bind(env));
+  result->set_denominator(denominator_->Bind(env));
+  return std::move(result);
+}
+
+std::experimental::optional<NumericValue> DivisionExpression::TryEvaluate()
+    const {
+  NumericValue result;
+
+
+  std::experimental::optional<NumericValue> numerator_result =
+      numerator_->TryEvaluate();
+  
+  std::experimental::optional<NumericValue> denominator_result =
+      denominator_->TryEvaluate();
+  
+  if (!(denominator_result && numerator_result)) {
+    return std::experimental::nullopt;
+  }
+
+  NumericValue a = *numerator_result;
+  NumericValue b = *denominator_result;
+  
+  // Fail if denominator is zero.
+  if (pow(b.real(), 2) + pow(b.imag(), 2) == 0) {
+    return std::experimental::nullopt;
+  }
+
+  result.real() = (a.real() * b.real() + a.imag() * b.imag()) /
+                  (pow(b.real(), 2) + pow(b.imag(), 2));
+  result.imag() = (a.imag() * b.real() - a.real() * b.imag()) /
+                  (pow(b.real(), 2) + pow(b.imag(), 2));
+  return result;
+}
+
+std::string DivisionExpression::to_string() const {
+  std::string result = "(";
+  result += numerator_->to_string();
+  result += ") / (";
+  result += denominator_->to_string();
+  result += ")";
+  return result;
 }
 
 }  // namespace symbolic
