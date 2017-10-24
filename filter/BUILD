@@ -10,3 +10,17 @@ cc_library(
         "//math/symbolic:symbolic",
     ],
 )
+
+cc_binary(
+  name = "kalman_test",
+  srcs = ["kalman_filter_test.cc"],
+  copts = [
+    "-std=c++1z",
+  ],
+  deps = [
+      ":kalman_filter",
+      "//math/geometry:matrix",
+      "//math/symbolic:symbolic",
+  ],
+)
+
