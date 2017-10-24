@@ -66,6 +66,9 @@ class NumericValue : public ExpressionNode {
     }
   }
 
+  static const NumericValue pi;
+  static const NumericValue e;
+
  private:
   bool is_bound_;
 

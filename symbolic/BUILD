@@ -7,6 +7,7 @@ cc_library(
     ],
     srcs = [
         "expression.cc",
+        "numeric_value.cc",
     ],
     copts = [
         "-std=c++1z",
