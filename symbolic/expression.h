@@ -65,7 +65,8 @@ class ExpressionNode {
   // numerical evaluation of the expression.
   virtual std::experimental::optional<NumericValue> TryEvaluate() const = 0;
 
-  //virtual std::unique_ptr<ExpressionNode> PartialDerivative(std::string variable) const = 0;
+  // virtual std::unique_ptr<ExpressionNode> PartialDerivative(std::string
+  // variable) const = 0;
 
   virtual std::string to_string() const = 0;
 
@@ -157,15 +158,15 @@ class MultiplicationExpression : public CompoundExpression {
 
 class DivisionExpression : public ExpressionNode {
  public:
-  DivisionExpression(ExpressionNode* numerator, ExpressionNode* denominator) :
-  numerator_(numerator), denominator_(denominator) {}
+  DivisionExpression(ExpressionNode* numerator, ExpressionNode* denominator)
+      : numerator_(numerator), denominator_(denominator) {}
 
   DivisionExpression() {}
 
   void set_numerator(std::unique_ptr<ExpressionNode>&& numerator) {
     numerator_ = std::move(numerator);
   }
-  
+
   void set_denominator(std::unique_ptr<ExpressionNode>&& denominator) {
     denominator_ = std::move(denominator);
   }
@@ -194,6 +195,37 @@ class DivisionExpression : public ExpressionNode {
  private:
   std::unique_ptr<ExpressionNode> numerator_;
   std::unique_ptr<ExpressionNode> denominator_;
+};
+
+class FunctionExpression : public ExpressionNode {
+ public:
+  struct Function {
+    std::string name;
+    NumericValue (*function)(NumericValue);
+    Function* derivative = nullptr;
+  };
+
+  FunctionExpression(const Function& function_entry, ExpressionNode* child)
+      : function_entry_(function_entry), child_(child) {}
+  // Variables which need to be resolved in order to evaluate the expression.
+  std::set<std::string> variables() const override;
+  // Bind variables to values to create an expression which can be evaluated.
+  std::unique_ptr<ExpressionNode> Bind(
+      std::unordered_map<std::string, NumericValue>) const override;
+  // If all variables in the expression have been bound, this produces a
+  // numerical evaluation of the expression.
+  std::experimental::optional<NumericValue> TryEvaluate() const override;
+
+  // virtual std::unique_ptr<ExpressionNode> PartialDerivative(std::string
+  // variable) const = 0;
+
+  std::string to_string() const override;
+
+  std::unique_ptr<ExpressionNode> Clone() const override;
+
+ private:
+  Function function_entry_;
+  std::unique_ptr<ExpressionNode> child_;
 };
 
 }  // namespace symbolic
