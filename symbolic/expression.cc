@@ -38,8 +38,9 @@ Expression CreateExpression(std::string expression) {
     // Try to sscanf an unbound variable NumericValue.
     std::string variable(expression.size(), ' ');
     if (sscanf(expression.c_str(), "%s", &variable[0]) == 0) {
-      std::cerr << "Could not parse token as variable name: " << expression << std::endl;
-      std::exit(1); 
+      std::cerr << "Could not parse token as variable name: " << expression
+                << std::endl;
+      std::exit(1);
     }
     return Expression(std::make_unique<NumericValue>(variable));
   }
@@ -52,7 +53,7 @@ Expression CreateExpression(std::string expression) {
   return Expression(std::make_unique<NumericValue>(value));
 }
 
-// Expression Impl.
+// Expression Implementation.
 
 Expression::Expression(std::unique_ptr<ExpressionNode>&& root)
     : expression_root_(std::move(root)) {}
@@ -66,10 +67,9 @@ Expression::Expression(Expression&& rhs)
 Expression Expression::operator+(const Expression& rhs) const {
   auto lhscopy = expression_root_->Clone();
   auto rhscopy = rhs.expression_root_->Clone();
-  return Expression(
-      std::make_unique<AdditionExpression>(
-          std::initializer_list<ExpressionNode*>(
-              {lhscopy.release(), rhscopy.release()})));
+  return Expression(std::make_unique<AdditionExpression>(
+      std::initializer_list<ExpressionNode*>(
+          {lhscopy.release(), rhscopy.release()})));
 }
 
 Expression Expression::operator*(const Expression& rhs) const {
@@ -220,20 +220,19 @@ std::experimental::optional<NumericValue> DivisionExpression::TryEvaluate()
     const {
   NumericValue result;
 
-
   std::experimental::optional<NumericValue> numerator_result =
       numerator_->TryEvaluate();
-  
+
   std::experimental::optional<NumericValue> denominator_result =
       denominator_->TryEvaluate();
-  
+
   if (!(denominator_result && numerator_result)) {
     return std::experimental::nullopt;
   }
 
   NumericValue a = *numerator_result;
   NumericValue b = *denominator_result;
-  
+
   // Fail if denominator is zero.
   if (pow(b.real(), 2) + pow(b.imag(), 2) == 0) {
     return std::experimental::nullopt;
@@ -255,6 +254,34 @@ std::string DivisionExpression::to_string() const {
   return result;
 }
 
+// FunctionExpression Implementation.
 
+std::set<std::string> FunctionExpression::variables() const {
+  return child_->variables();
+}
+
+std::unique_ptr<ExpressionNode> FunctionExpression::Bind(
+    std::unordered_map<std::string, NumericValue> env) const {
+  std::unique_ptr<ExpressionNode> bound_clone = child_->Bind(env);
+  return std::make_unique<FunctionExpression>(function_entry_, bound_clone.release());
+}
+
+std::experimental::optional<NumericValue> FunctionExpression::TryEvaluate()
+    const {
+  std::experimental::optional<NumericValue> child_result =
+      child_->TryEvaluate();
+  if (!child_result) {
+    return std::experimental::nullopt;
+  }
+  return function_entry_.function(*child_result);
+}
+
+std::string FunctionExpression::to_string() const {
+  return function_entry_.name + "(" + child_->to_string() + ")";
+}
+
+std::unique_ptr<ExpressionNode> FunctionExpression::Clone() const {
+  return std::make_unique<FunctionExpression>(function_entry_, child_->Clone().release());
+}
 
 }  // namespace symbolic

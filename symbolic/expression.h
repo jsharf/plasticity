@@ -201,7 +201,7 @@ class FunctionExpression : public ExpressionNode {
  public:
   struct Function {
     std::string name;
-    NumericValue (*function)(NumericValue);
+    std::function<NumericValue(NumericValue)> function;
     Function* derivative = nullptr;
   };
 
