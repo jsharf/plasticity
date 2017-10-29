@@ -46,6 +46,15 @@ class NumericValue : public ExpressionNode {
     }
     return *this;
   }
+  
+  // Returns the symbolic partial derivative of this expression.
+  std::unique_ptr<ExpressionNode> Derive(
+      const std::string& x) const override {
+    if (!is_bound_ && (name_ == x)) {
+      return std::make_unique<NumericValue>(1);
+    }
+    return std::make_unique<NumericValue>(0); 
+  }
 
   virtual std::string to_string() const override {
     if (!is_bound_) {

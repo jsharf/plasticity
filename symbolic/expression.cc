@@ -68,7 +68,7 @@ Expression Expression::operator+(const Expression& rhs) const {
   auto lhscopy = expression_root_->Clone();
   auto rhscopy = rhs.expression_root_->Clone();
   return Expression(std::make_unique<AdditionExpression>(
-      std::initializer_list<ExpressionNode*>(
+      std::initializer_list<const ExpressionNode*>(
           {lhscopy.release(), rhscopy.release()})));
 }
 
@@ -76,7 +76,7 @@ Expression Expression::operator*(const Expression& rhs) const {
   auto lhscopy = expression_root_->Clone();
   auto rhscopy = rhs.expression_root_->Clone();
   return Expression(std::make_unique<MultiplicationExpression>(
-      std::initializer_list<ExpressionNode*>(
+      std::initializer_list<const ExpressionNode*>(
           {lhscopy.release(), rhscopy.release()})));
 }
 
@@ -171,7 +171,8 @@ std::unique_ptr<ExpressionNode> AdditionExpression::Bind(
 
 std::unique_ptr<ExpressionNode> AdditionExpression::Derive(
     const std::string& x) const {
-  auto derivative_expression = std::make_unique<AdditionExpression>();
+  std::unique_ptr<AdditionExpression> derivative_expression =
+      std::make_unique<AdditionExpression>();
   for (const auto& expression : children_) {
     auto derivative = expression->Derive(x);
     // Try to evaluate the derivative. If it results in 0, discard the
@@ -181,9 +182,9 @@ std::unique_ptr<ExpressionNode> AdditionExpression::Derive(
     if (evaluation && evaluation->real() == evaluation->imag() == 0) {
       continue;
     }
-    derivative_expression->add(derivative);
+    derivative_expression->add(std::move(derivative));
   }
-  return derivative_exression;
+  return std::move(derivative_expression);
 }
 
 NumericValue AdditionExpression::identity() const { return NumericValue(0); }
@@ -206,6 +207,35 @@ std::unique_ptr<ExpressionNode> MultiplicationExpression::Bind(
     b->add(std::move(expression->Bind(env)));
   }
   return std::move(b);
+}
+
+std::unique_ptr<ExpressionNode> MultiplicationExpression::Derive(
+    const std::string& x) const {
+  if (children_.size() < 2) {
+    return children_[0]->Derive(x);
+  }
+
+  // Split A * B * C * ... into A * (B * C * ...) and use the product rule
+  // recursively.
+
+  std::vector<std::unique_ptr<ExpressionNode>> tail;
+  for (size_t i = 1; i < children_.size(); ++i) {
+    tail.emplace_back(children_[0]->Clone());
+  }
+
+  std::unique_ptr<const ExpressionNode> A = children_[0]->Clone();
+  std::unique_ptr<const ExpressionNode> B =
+      std::make_unique<MultiplicationExpression>(tail);
+
+  std::unique_ptr<const ExpressionNode> dA = A->Derive(x);
+  std::unique_ptr<const ExpressionNode> dB = B->Derive(x);  // Recursive call.
+
+  std::unique_ptr<const ExpressionNode> A_dB =
+      std::make_unique<MultiplicationExpression>(A, dB);
+  std::unique_ptr<const ExpressionNode> B_dA =
+      std::make_unique<MultiplicationExpression>(B, dA);
+
+  return std::make_unique<AdditionExpression>(A_dB, B_dA);
 }
 
 NumericValue MultiplicationExpression::identity() const {
@@ -262,6 +292,35 @@ std::experimental::optional<NumericValue> DivisionExpression::TryEvaluate()
   return result;
 }
 
+// Returns the symbolic partial derivative of this expression.
+std::unique_ptr<ExpressionNode> DivisionExpression::Derive(
+    const std::string& x) const {
+  // Apply the quotient rule.
+  const std::unique_ptr<const ExpressionNode>& g = numerator_;
+  const std::unique_ptr<const ExpressionNode>& h = denominator_;
+
+  std::unique_ptr<const ExpressionNode> dg = numerator_->Derive(x);
+  std::unique_ptr<const ExpressionNode> dh = denominator_->Derive(x);
+
+  std::unique_ptr<const ExpressionNode> dg_h =
+      std::make_unique<MultiplicationExpression>(dg, h);
+  std::unique_ptr<const ExpressionNode> g_dh =
+      std::make_unique<MultiplicationExpression>(g, dh);
+
+  std::unique_ptr<const ExpressionNode> neg =
+      std::make_unique<NumericValue>(-1);
+  std::unique_ptr<const ExpressionNode> neg_g_dh =
+      std::make_unique<MultiplicationExpression>(neg, g_dh);
+
+  std::unique_ptr<const ExpressionNode> h_squared =
+      std::make_unique<MultiplicationExpression>(h, h);
+
+  std::unique_ptr<const ExpressionNode> new_numerator =
+      std::make_unique<AdditionExpression>(dg_h, neg_g_dh);
+
+  return std::make_unique<DivisionExpression>(new_numerator, h_squared);
+}
+
 std::string DivisionExpression::to_string() const {
   std::string result = "(";
   result += numerator_->to_string();
@@ -269,38 +328,6 @@ std::string DivisionExpression::to_string() const {
   result += denominator_->to_string();
   result += ")";
   return result;
-}
-
-// FunctionExpression Implementation.
-
-std::set<std::string> FunctionExpression::variables() const {
-  return child_->variables();
-}
-
-std::unique_ptr<ExpressionNode> FunctionExpression::Bind(
-    std::unordered_map<std::string, NumericValue> env) const {
-  std::unique_ptr<ExpressionNode> bound_clone = child_->Bind(env);
-  return std::make_unique<FunctionExpression>(function_entry_,
-                                              bound_clone.release());
-}
-
-std::experimental::optional<NumericValue> FunctionExpression::TryEvaluate()
-    const {
-  std::experimental::optional<NumericValue> child_result =
-      child_->TryEvaluate();
-  if (!child_result) {
-    return std::experimental::nullopt;
-  }
-  return function_entry_.function(*child_result);
-}
-
-std::string FunctionExpression::to_string() const {
-  return function_entry_.name + "(" + child_->to_string() + ")";
-}
-
-std::unique_ptr<ExpressionNode> FunctionExpression::Clone() const {
-  return std::make_unique<FunctionExpression>(function_entry_,
-                                              child_->Clone().release());
 }
 
 }  // namespace symbolic

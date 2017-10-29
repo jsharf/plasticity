@@ -100,10 +100,21 @@ class CompoundExpression : public ExpressionNode {
   virtual NumericValue identity() const = 0;
 
  protected:
-  CompoundExpression(std::initializer_list<ExpressionNode*> arguments) {
-    for (ExpressionNode* exp : arguments) {
-      children_.emplace_back(exp);
+  CompoundExpression(std::initializer_list<const ExpressionNode*> arguments) {
+    for (const ExpressionNode* exp : arguments) {
+      children_.emplace_back(exp->Clone());
     }
+  }
+  CompoundExpression(
+      const std::vector<std::unique_ptr<ExpressionNode>>& children) {
+    for (const std::unique_ptr<ExpressionNode>& child : children) {
+      children_.emplace_back(child->Clone());
+    }
+  }
+  CompoundExpression(const std::unique_ptr<const ExpressionNode>& a,
+                     const std::unique_ptr<const ExpressionNode>& b) {
+    children_.emplace_back(a->Clone());
+    children_.emplace_back(b->Clone());
   }
   CompoundExpression() {}
   std::vector<std::unique_ptr<ExpressionNode>> children_;
@@ -111,8 +122,14 @@ class CompoundExpression : public ExpressionNode {
 
 class AdditionExpression : public CompoundExpression {
  public:
-  AdditionExpression(std::initializer_list<ExpressionNode*> arguments)
+  AdditionExpression(std::initializer_list<const ExpressionNode*> arguments)
       : CompoundExpression(arguments) {}
+  AdditionExpression(
+      const std::vector<std::unique_ptr<ExpressionNode>>& children)
+      : CompoundExpression(children) {}
+  AdditionExpression(const std::unique_ptr<const ExpressionNode>& a,
+                     const std::unique_ptr<const ExpressionNode>& b)
+      : CompoundExpression(a, b) {}
   AdditionExpression() : CompoundExpression() {}
   NumericValue reduce(const NumericValue& a,
                       const NumericValue& b) const override;
@@ -138,8 +155,15 @@ class AdditionExpression : public CompoundExpression {
 
 class MultiplicationExpression : public CompoundExpression {
  public:
-  MultiplicationExpression(std::initializer_list<ExpressionNode*> arguments)
+  MultiplicationExpression(
+      std::initializer_list<const ExpressionNode*> arguments)
       : CompoundExpression(arguments) {}
+  MultiplicationExpression(
+      const std::vector<std::unique_ptr<ExpressionNode>>& children)
+      : CompoundExpression(children) {}
+  MultiplicationExpression(const std::unique_ptr<const ExpressionNode>& a,
+                           const std::unique_ptr<const ExpressionNode>& b)
+      : CompoundExpression(a, b) {}
 
   MultiplicationExpression() : CompoundExpression() {}
 
@@ -168,8 +192,9 @@ class MultiplicationExpression : public CompoundExpression {
 
 class DivisionExpression : public ExpressionNode {
  public:
-  DivisionExpression(ExpressionNode* numerator, ExpressionNode* denominator)
-      : numerator_(numerator), denominator_(denominator) {}
+  DivisionExpression(const std::unique_ptr<const ExpressionNode>& numerator,
+                     const std::unique_ptr<const ExpressionNode>& denominator)
+      : numerator_(numerator->Clone()), denominator_(denominator->Clone()) {}
 
   DivisionExpression() {}
 
@@ -206,42 +231,8 @@ class DivisionExpression : public ExpressionNode {
   }
 
  private:
-  std::unique_ptr<ExpressionNode> numerator_;
-  std::unique_ptr<ExpressionNode> denominator_;
-};
-
-class FunctionExpression : public ExpressionNode {
- public:
-  struct Function {
-    std::string name;
-    std::function<NumericValue(NumericValue)> function;
-    Function* derivative = nullptr;
-  };
-
-  FunctionExpression(const Function& function_entry, ExpressionNode* child)
-      : function_entry_(function_entry), child_(child) {}
-  // Variables which need to be resolved in order to evaluate the expression.
-  std::set<std::string> variables() const override;
-  // Bind variables to values to create an expression which can be evaluated.
-  std::unique_ptr<ExpressionNode> Bind(
-      std::unordered_map<std::string, NumericValue>) const override;
-  // If all variables in the expression have been bound, this produces a
-  // numerical evaluation of the expression.
-  std::experimental::optional<NumericValue> TryEvaluate() const override;
-
-  // Returns the symbolic partial derivative of this expression.
-  std::unique_ptr<ExpressionNode> Derive(const std::string& x) const override;
-
-  // virtual std::unique_ptr<ExpressionNode> PartialDerivative(std::string
-  // variable) const = 0;
-
-  std::string to_string() const override;
-
-  std::unique_ptr<ExpressionNode> Clone() const override;
-
- private:
-  Function function_entry_;
-  std::unique_ptr<ExpressionNode> child_;
+  std::unique_ptr<const ExpressionNode> numerator_;
+  std::unique_ptr<const ExpressionNode> denominator_;
 };
 
 }  // namespace symbolic
