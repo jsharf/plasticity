@@ -33,6 +33,8 @@ class Expression {
 
   Expression operator*(const Expression& rhs) const;
 
+  Expression operator/(const Expression& rhs) const;
+
   Expression& operator=(const Expression& rhs);
 
   // Variables which need to be resolved in order to evaluate the expression.

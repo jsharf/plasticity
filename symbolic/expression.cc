@@ -80,6 +80,12 @@ Expression Expression::operator*(const Expression& rhs) const {
           {lhscopy.release(), rhscopy.release()})));
 }
 
+Expression Expression::operator/(const Expression& rhs) const {
+  std::unique_ptr<const ExpressionNode> lhscopy = expression_root_->Clone();
+  std::unique_ptr<const ExpressionNode> rhscopy = rhs.expression_root_->Clone();
+  return Expression(std::make_unique<DivisionExpression>(lhscopy, rhscopy));
+}
+
 Expression& Expression::operator=(const Expression& rhs) {
   expression_root_ = rhs.expression_root_->Clone();
   return *this;
