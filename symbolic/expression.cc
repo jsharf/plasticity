@@ -169,6 +169,23 @@ std::unique_ptr<ExpressionNode> AdditionExpression::Bind(
   return std::move(b);
 }
 
+std::unique_ptr<ExpressionNode> AdditionExpression::Derive(
+    const std::string& x) const {
+  auto derivative_expression = std::make_unique<AdditionExpression>();
+  for (const auto& expression : children_) {
+    auto derivative = expression->Derive(x);
+    // Try to evaluate the derivative. If it results in 0, discard the
+    // expression. This is so that if the derivative is taken often, terms which
+    // are now equal to zero don't accumulate memory.
+    auto evaluation = derivative->TryEvaluate();
+    if (evaluation && evaluation->real() == evaluation->imag() == 0) {
+      continue;
+    }
+    derivative_expression->add(derivative);
+  }
+  return derivative_exression;
+}
+
 NumericValue AdditionExpression::identity() const { return NumericValue(0); }
 
 // MultiplicationExpression Implementation.
@@ -263,7 +280,8 @@ std::set<std::string> FunctionExpression::variables() const {
 std::unique_ptr<ExpressionNode> FunctionExpression::Bind(
     std::unordered_map<std::string, NumericValue> env) const {
   std::unique_ptr<ExpressionNode> bound_clone = child_->Bind(env);
-  return std::make_unique<FunctionExpression>(function_entry_, bound_clone.release());
+  return std::make_unique<FunctionExpression>(function_entry_,
+                                              bound_clone.release());
 }
 
 std::experimental::optional<NumericValue> FunctionExpression::TryEvaluate()
@@ -281,7 +299,8 @@ std::string FunctionExpression::to_string() const {
 }
 
 std::unique_ptr<ExpressionNode> FunctionExpression::Clone() const {
-  return std::make_unique<FunctionExpression>(function_entry_, child_->Clone().release());
+  return std::make_unique<FunctionExpression>(function_entry_,
+                                              child_->Clone().release());
 }
 
 }  // namespace symbolic

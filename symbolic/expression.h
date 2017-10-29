@@ -65,6 +65,10 @@ class ExpressionNode {
   // numerical evaluation of the expression.
   virtual std::experimental::optional<NumericValue> TryEvaluate() const = 0;
 
+  // Returns the symbolic partial derivative of this expression.
+  virtual std::unique_ptr<ExpressionNode> Derive(
+      const std::string& x) const = 0;
+
   // virtual std::unique_ptr<ExpressionNode> PartialDerivative(std::string
   // variable) const = 0;
 
@@ -126,6 +130,9 @@ class AdditionExpression : public CompoundExpression {
   std::unique_ptr<ExpressionNode> Bind(
       std::unordered_map<std::string, NumericValue> env) const override;
 
+  // Returns the symbolic partial derivative of this expression.
+  std::unique_ptr<ExpressionNode> Derive(const std::string& x) const override;
+
   NumericValue identity() const override;
 };
 
@@ -152,6 +159,9 @@ class MultiplicationExpression : public CompoundExpression {
 
   std::unique_ptr<ExpressionNode> Bind(
       std::unordered_map<std::string, NumericValue> env) const override;
+
+  // Returns the symbolic partial derivative of this expression.
+  std::unique_ptr<ExpressionNode> Derive(const std::string& x) const override;
 
   NumericValue identity() const override;
 };
@@ -181,6 +191,9 @@ class DivisionExpression : public ExpressionNode {
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
   std::experimental::optional<NumericValue> TryEvaluate() const override;
+
+  // Returns the symbolic partial derivative of this expression.
+  std::unique_ptr<ExpressionNode> Derive(const std::string& x) const override;
 
   std::string to_string() const override;
 
@@ -215,6 +228,9 @@ class FunctionExpression : public ExpressionNode {
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
   std::experimental::optional<NumericValue> TryEvaluate() const override;
+
+  // Returns the symbolic partial derivative of this expression.
+  std::unique_ptr<ExpressionNode> Derive(const std::string& x) const override;
 
   // virtual std::unique_ptr<ExpressionNode> PartialDerivative(std::string
   // variable) const = 0;
