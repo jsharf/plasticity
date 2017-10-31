@@ -15,6 +15,17 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "symbolic_util",
+    visibility = ["//math"],
+    hdrs = [
+        "symbolic_util.h",
+    ],
+    deps = [
+        ":symbolic",
+    ],
+)
+
 cc_binary(
     name = "symbolic_test",
     srcs = ["symbolic_test.cc"],
