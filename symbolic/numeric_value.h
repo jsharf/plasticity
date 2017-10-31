@@ -1,19 +1,17 @@
 #ifndef NUMERIC_VALUE_H
 #define NUMERIC_VALUE_H
 
+#include "math/symbolic/expression_node.h"
+
 #include <experimental/optional>
+#include <iostream>
 #include <set>
 #include <string>
 #include <unordered_map>
-#include <iostream>
-
-#include "expression.h"
 
 namespace symbolic {
 
 using Number = double;
-
-class ExpressionNode;
 
 class NumericValue : public ExpressionNode {
  public:
@@ -25,55 +23,20 @@ class NumericValue : public ExpressionNode {
   Number& imag() { return b_; }
   Number real() const { return a_; }
   Number imag() const { return b_; }
-  virtual std::unique_ptr<ExpressionNode> Bind(std::unordered_map<std::string, NumericValue> env) const override {
-    if (!is_bound_) {
-      if (env.count(name_) == 1) {
-        Number a = env[name_].real();
-        Number b = env[name_].imag();
-        return std::move(std::make_unique<NumericValue>(a, b));
-      }
-    }
-    return Clone();
-  }
 
-  virtual std::set<std::string> variables() const override {
-    return std::set<std::string>{name_};
-  }
+  std::unique_ptr<ExpressionNode> Bind(
+      std::unordered_map<std::string, NumericValue> env) const override;
 
-  virtual std::experimental::optional<NumericValue> TryEvaluate() const override {
-    if (!is_bound_) {
-      return std::experimental::nullopt;
-    }
-    return *this;
-  }
-  
+  std::set<std::string> variables() const override;
+
+  std::experimental::optional<NumericValue> TryEvaluate() const override;
+
   // Returns the symbolic partial derivative of this expression.
-  std::unique_ptr<ExpressionNode> Derive(
-      const std::string& x) const override {
-    if (!is_bound_ && (name_ == x)) {
-      return std::make_unique<NumericValue>(1);
-    }
-    return std::make_unique<NumericValue>(0); 
-  }
+  std::unique_ptr<ExpressionNode> Derive(const std::string& x) const override;
 
-  virtual std::string to_string() const override {
-    if (!is_bound_) {
-      return name_;
-    }
-    std::string result = std::to_string(a_);
-    if (b_ != 0) {
-      result += " + " + std::to_string(b_) + "i";
-    }
-    return result;
-  }
- 
-  virtual std::unique_ptr<ExpressionNode> Clone() const override {
-    if (is_bound_) {
-      return std::move(std::make_unique<NumericValue>(a_, b_));
-    } else {
-      return std::move(std::make_unique<NumericValue>(name_));
-    }
-  }
+  std::string to_string() const override;
+
+  std::unique_ptr<ExpressionNode> Clone() const override;
 
   static const NumericValue pi;
   static const NumericValue e;

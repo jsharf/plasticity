@@ -336,4 +336,63 @@ std::string DivisionExpression::to_string() const {
   return result;
 }
 
+// ExponentExpression Impl.
+
+std::set<std::string> ExponentExpression::variables() const {
+  return child_->variables();
+}
+
+std::unique_ptr<ExpressionNode> ExponentExpression::Bind(
+    std::unordered_map<std::string, NumericValue> env) const {
+  return std::make_unique<ExponentExpression>(b_, child_->Bind(env));
+}
+
+std::experimental::optional<NumericValue> ExponentExpression::TryEvaluate()
+    const {
+  std::experimental::optional<NumericValue> child_result =
+      child_->TryEvaluate();
+  if (!child_result) {
+    return std::experimental::nullopt;
+  }
+
+  // Variable names reflect the formula here:
+  // http://mathworld.wolfram.com/ComplexExponentiation.html
+  Number a = b_.real();
+  Number b = b_.imag();
+
+  Number c = child_result->real();
+  Number d = child_result->imag();
+
+  Number phase = atan(b / a);
+  Number common = pow(a * a + b * b, c / 2) * exp(-d * phase);
+  Number real = common * cos(c * phase + 0.5 * d * log(a * a + b * b));
+  Number imag = common * sin(c * phase + 0.5 * d * log(a * a + b * b));
+
+  return NumericValue(real, imag);
+}
+
+std::unique_ptr<ExpressionNode> ExponentExpression::Derive(
+    const std::string& x) const {
+  Number norm = sqrt(b_.real() * b_.real() + b_.imag() * b_.imag());
+  Number phase = atan(b_.imag() / b_.real());
+
+  const std::unique_ptr<const ExpressionNode> multiplier =
+      std::make_unique<NumericValue>(log(norm), phase);
+
+  std::unique_ptr<const ExpressionNode> derivative =
+      std::make_unique<MultiplicationExpression>(Clone(), multiplier);
+
+  std::unique_ptr<const ExpressionNode> chain_rule = child_->Derive(x);
+
+  return std::make_unique<MultiplicationExpression>(derivative, chain_rule);
+}
+
+std::string ExponentExpression::to_string() const {
+  return "pow(b, " + child_->to_string() + ")";
+}
+
+std::unique_ptr<ExpressionNode> ExponentExpression::Clone() const {
+  return std::make_unique<ExponentExpression>(b_, child_->Clone());
+}
+
 }  // namespace symbolic

@@ -1,6 +1,9 @@
 #ifndef EXPRESSION_H
 #define EXPRESSION_H
 
+#include "math/symbolic/numeric_value.h"
+#include "math/symbolic/expression_node.h"
+
 #include <experimental/optional>
 #include <memory>
 #include <set>
@@ -12,8 +15,6 @@ namespace symbolic {
 
 class AdditionExpression;
 class Expression;
-class ExpressionNode;
-class NumericValue;
 
 Expression CreateExpression(std::string expression);
 
@@ -52,31 +53,6 @@ class Expression {
 
  private:
   std::unique_ptr<ExpressionNode> expression_root_;
-};
-
-// Abstract class which defines the expression interface. Interface is limited
-// to prevent accidental copies (inefficiencies). Not optimized for ease of use.
-class ExpressionNode {
- public:
-  // Variables which need to be resolved in order to evaluate the expression.
-  virtual std::set<std::string> variables() const = 0;
-  // Bind variables to values to create an expression which can be evaluated.
-  virtual std::unique_ptr<ExpressionNode> Bind(
-      std::unordered_map<std::string, NumericValue>) const = 0;
-  // If all variables in the expression have been bound, this produces a
-  // numerical evaluation of the expression.
-  virtual std::experimental::optional<NumericValue> TryEvaluate() const = 0;
-
-  // Returns the symbolic partial derivative of this expression.
-  virtual std::unique_ptr<ExpressionNode> Derive(
-      const std::string& x) const = 0;
-
-  // virtual std::unique_ptr<ExpressionNode> PartialDerivative(std::string
-  // variable) const = 0;
-
-  virtual std::string to_string() const = 0;
-
-  virtual std::unique_ptr<ExpressionNode> Clone() const = 0;
 };
 
 class CompoundExpression : public ExpressionNode {
@@ -235,6 +211,33 @@ class DivisionExpression : public ExpressionNode {
  private:
   std::unique_ptr<const ExpressionNode> numerator_;
   std::unique_ptr<const ExpressionNode> denominator_;
+};
+
+// b^x.
+class ExponentExpression : public ExpressionNode {
+ public:
+  ExponentExpression(const NumericValue& b,
+                     std::unique_ptr<const ExpressionNode> child)
+      : b_(b), child_(child->Clone()) {}
+  // Variables which need to be resolved in order to evaluate the expression.
+  std::set<std::string> variables() const override;
+  // Bind variables to values to create an expression which can be evaluated.
+  std::unique_ptr<ExpressionNode> Bind(
+      std::unordered_map<std::string, NumericValue>) const override;
+  // If all variables in the expression have been bound, this produces a
+  // numerical evaluation of the expression.
+  std::experimental::optional<NumericValue> TryEvaluate() const override;
+
+  // Returns the symbolic partial derivative of this expression.
+  std::unique_ptr<ExpressionNode> Derive(const std::string& x) const override;
+
+  std::string to_string() const override;
+
+  std::unique_ptr<ExpressionNode> Clone() const override;
+
+ private:
+  NumericValue b_;
+  std::unique_ptr<const ExpressionNode> child_;
 };
 
 }  // namespace symbolic

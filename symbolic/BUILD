@@ -3,6 +3,7 @@ cc_library(
     visibility = ["//math"],
     hdrs = [
         "expression.h",
+        "expression_node.h",
         "numeric_value.h",
     ],
     srcs = [
