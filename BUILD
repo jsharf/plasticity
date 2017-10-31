@@ -10,6 +10,6 @@ package_group(
 
 package_group(
     name = "math_users",
-    packages = [],
+    packages = ["//graphics/..."],
     includes = [],
 )
