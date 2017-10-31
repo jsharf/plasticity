@@ -96,8 +96,8 @@ std::set<std::string> Expression::variables() const {
   return expression_root_->variables();
 }
 
-void Expression::Bind(const std::string& name, NumericValue value) {
-  expression_root_ = expression_root_->Bind({{name, value}});
+Expression Expression::Bind(const std::string& name, NumericValue value) const {
+  return Expression(expression_root_->Bind({{name, value}}));
 }
 
 std::experimental::optional<NumericValue> Expression::Evaluate() const {

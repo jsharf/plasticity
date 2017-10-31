@@ -18,9 +18,9 @@ int main() {
 
   std::cout << "Binding..." << std::endl;
 
-  equation.Bind("a", NumericValue(1));
-  equation.Bind("b", NumericValue(1));
-  equation.Bind("x", NumericValue(1));
+  equation = equation.Bind("a", NumericValue(1));
+  equation = equation.Bind("b", NumericValue(1));
+  equation = equation.Bind("x", NumericValue(1));
   
   std::cout << "Fixed Equation: \n" << equation.to_string() << std::endl;
 

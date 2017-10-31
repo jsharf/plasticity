@@ -41,7 +41,7 @@ class Expression {
   // Variables which need to be resolved in order to evaluate the expression.
   std::set<std::string> variables() const;
 
-  void Bind(const std::string& name, NumericValue value);
+  Expression Bind(const std::string& name, NumericValue value) const;
 
   std::experimental::optional<NumericValue> Evaluate() const;
 
