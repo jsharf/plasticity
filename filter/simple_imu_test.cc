@@ -147,7 +147,7 @@ int main() {
       });
 
   Matrix<kNumStates, kNumStates, double> const_process_noise =
-      Matrix<kNumStates, kNumStates, double>::Eye() * 0.05;
+      Matrix<kNumStates, kNumStates, double>::Eye() * 0.005;
 
   KalmanFilter::ProcessNoiseMatrix process_noise =
       const_process_noise.Map(expressifier);
@@ -158,9 +158,9 @@ int main() {
   // This uses the small angle theorem to approximate sin(theta) for converting
   // orientation to acceleration readings. Not very accurate.
   KalmanFilter::SensorTransform sensor_transform = {
-      {9.87 / 277, 0, 0, 0},
-      {0, 9.87 / 277, 0, 0, 0},
-      {0, 0, 9.87 / 277.0, 0, 0, 0},
+      {227.0 / 9.87, 0, 0, 0},
+      {0, 277.0 / 9.87, 0, 0, 0},
+      {0, 0, 277.0 / 9.87, 0, 0, 0},
       {0, 0, 0, (180 / (6.28 * 0.00875)), 0, 0},
       {0, 0, 0, 0, (180 / (6.28 * 0.00875)), 0},
       {0, 0, 0, 0, 0, 180 / (6.28 * 0.00875)},
@@ -210,7 +210,7 @@ int main() {
         time,
         KalmanFilter::SensorVector{
             {ax}, {ay}, {az}, {dthetax}, {dthetay}, {dthetaz}},
-        KalmanFilter::SensorCovariance::Eye() * 0.9);
+        KalmanFilter::SensorCovariance::Eye() * 0.75);
 
     if (timer.started()) {
       auto result =
