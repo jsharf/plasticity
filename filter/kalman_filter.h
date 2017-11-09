@@ -45,12 +45,14 @@ class KalmanFilter {
   }
 
   void ReportControl(Time time_s, ControlVector controls) {
-    auto expression_evaluator = [time_s,
-                                 this](symbolic::Expression exp) -> Number {
-      symbolic::Expression copy = exp;
-      copy.Bind("t", symbolic::NumericValue(time_s - last_sample_time_));
-      return *copy.Evaluate();
-    };
+    std::function<Number(const symbolic::Expression&)> expression_evaluator =
+        [time_s, this](const symbolic::Expression& exp) {
+          symbolic::Expression copy = exp;
+          copy.Bind("t", symbolic::NumericValue(time_s - last_sample_time_));
+          symbolic::NumericValue v = *copy.Evaluate();
+          Number norm = sqrt(pow(v.real(), 2) + pow(v.imag(), 2));
+          return norm;
+        };
 
     Matrix<kNumStates, kNumStates, Number> state_transition =
         state_transition_.Map(expression_evaluator);
@@ -70,12 +72,14 @@ class KalmanFilter {
   }
 
   std::tuple<StateVector, StateCovariance> PredictState(Time time_s) const {
-    auto expression_evaluator = [time_s,
-                                 this](symbolic::Expression exp) -> Number {
-      symbolic::Expression copy = exp;
-      copy.Bind("t", symbolic::NumericValue(time_s - last_sample_time_));
-      return *copy.Evaluate();
-    };
+    std::function<Number(const symbolic::Expression&)> expression_evaluator =
+        [time_s, this](const symbolic::Expression& exp) {
+          symbolic::Expression copy = exp;
+          copy.Bind("t", symbolic::NumericValue(time_s - last_sample_time_));
+          symbolic::NumericValue v = *copy.Evaluate();
+          Number norm = sqrt(pow(v.real(), 2) + pow(v.imag(), 2));
+          return norm;
+        };
 
     Matrix<kNumStates, kNumStates, Number> state_transition =
         state_transition_.Map(expression_evaluator);
@@ -89,7 +93,7 @@ class KalmanFilter {
     StateVector estimation =
         state_transition * state_ + control_matrix * last_control_;
     StateCovariance certainty =
-        state_transition * certainty_ * state_transition.transepose() +
+        state_transition * certainty_ * state_transition.Transpose() +
         process_noise;
 
     return std::make_tuple(estimation, certainty);
@@ -98,8 +102,8 @@ class KalmanFilter {
   void ReportSensorReading(Time time_s, SensorVector sensors,
                            SensorCovariance sensor_covariance) {
     auto state_and_cov = PredictState(time_s);
-    StateVector estimation = state_and_cov.first;
-    StateCovariance certainty = state_and_cov.second;
+    StateVector estimation = std::get<0>(state_and_cov);
+    StateCovariance certainty = std::get<1>(state_and_cov);
 
     GainMatrix kalman_gain =
         certainty * sensor_transform_.Transpose() *

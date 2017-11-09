@@ -50,4 +50,6 @@ Vector3 operator*(const Vector3& rhs, Number lhs);
 Vector2 operator*(Number lhs, const Vector2& rhs);
 Vector2 operator*(const Vector2& rhs, Number lhs);
 
+
+Vector3 operator+(const Vector3& lhs, const Vector3& rhs);
 #endif /* VECTOR_H */

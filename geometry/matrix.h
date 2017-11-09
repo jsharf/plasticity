@@ -44,7 +44,7 @@ class Matrix {
     }
   }
 
-  static constexpr Matrix<ROWS, COLS, T>& Eye() {
+  static constexpr Matrix<ROWS, COLS, T> Eye() {
     SimularMatrix result;
     for (size_t i = 0; i < ROWS; ++i) {
       result.at(i, i) = 1;
@@ -52,7 +52,7 @@ class Matrix {
     return result;
   }
 
-  constexpr Matrix<ROWS, COLS, T>& operator*(T n) {
+  constexpr Matrix<ROWS, COLS, T> operator*(T n) const {
     SimularMatrix res;
     for (size_t i = 0; i < ROWS; ++i) {
       for (size_t j = 0; j < COLS; ++j) {
@@ -62,7 +62,7 @@ class Matrix {
     return res;
   }
 
-  constexpr Matrix<ROWS, COLS, T> operator+(Matrix<ROWS, COLS, T> rhs) {
+  constexpr Matrix<ROWS, COLS, T> operator+(Matrix<ROWS, COLS, T> rhs) const {
     SimularMatrix res;
     for (size_t i = 0; i < ROWS; ++i) {
       for (size_t j = 0; j < COLS; ++j) {
@@ -72,7 +72,7 @@ class Matrix {
     return res;
   }
 
-  constexpr Matrix<ROWS, COLS, T> operator-(Matrix<ROWS, COLS, T> rhs) {
+  constexpr Matrix<ROWS, COLS, T> operator-(Matrix<ROWS, COLS, T> rhs) const {
     SimularMatrix res;
     for (size_t i = 0; i < ROWS; ++i) {
       for (size_t j = 0; j < COLS; ++j) {
@@ -167,7 +167,7 @@ class Matrix {
 
   // Matrix multiplication is only possible if # COLS of LHS = # ROWS of RHS
   template <size_t RHSCOLS>
-  Matrix<ROWS, RHSCOLS, T> operator*(Matrix<COLS, RHSCOLS, T> rhs) {
+  Matrix<ROWS, RHSCOLS, T> operator*(Matrix<COLS, RHSCOLS, T> rhs) const {
     Matrix<ROWS, RHSCOLS, T> result;
     for (size_t i = 0; i < ROWS; ++i) {
       for (size_t j = 0; j < RHSCOLS; ++j) {
@@ -181,7 +181,7 @@ class Matrix {
     return result;
   }
 
-  Matrix<COLS, ROWS, T> Transpose() {
+  Matrix<COLS, ROWS, T> Transpose() const {
     Matrix<COLS, ROWS, T> result;
     for (size_t i = 0; i < ROWS; ++i) {
       for (size_t j = 0; j < COLS; ++j) {
@@ -193,7 +193,7 @@ class Matrix {
 
   template <typename ReturnType>
   Matrix<ROWS, COLS, ReturnType> Map(
-      const std::function<ReturnType(const T&)>& function) {
+      const std::function<ReturnType(const T&)>& function) const {
     Matrix<ROWS, COLS, ReturnType> result;
     for (size_t i = 0; i < ROWS; ++i) {
       for (size_t j = 0; j < COLS; ++j) {

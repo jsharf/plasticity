@@ -81,3 +81,9 @@ Vector2 operator*(const Vector2& rhs, Number lhs)
     ret.j = lhs * rhs.j;
     return ret;
 }
+
+// Vector3 = Vector3 + Vector3.
+Vector3 operator+(const Vector3& lhs, const Vector3& rhs) {
+  return Vector3(lhs.i + rhs.i, lhs.j + rhs.j, lhs.k + rhs.k);
+}
+

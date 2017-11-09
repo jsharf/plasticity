@@ -24,3 +24,25 @@ cc_binary(
   ],
 )
 
+cc_binary(
+  name = "simple_imu_test",
+  srcs = ["simple_imu_test.cc"],
+  copts = [
+    "-std=c++1z",
+      "-I/Library/Frameworks/SDL2.framework/Headers",
+  ],
+  deps = [
+      ":kalman_filter",
+      "//math/geometry:matrix",
+      "//math/geometry:matrix4",
+      "//math/geometry:vector",
+      "//math/symbolic:symbolic",
+      "//graphics:sdl_canvas",
+      "//graphics:scene",
+      "//graphics:perspective_camera",
+      "//graphics:camera_3d",
+      "//graphics:types",
+      "//graphics:utah_data",
+  ],
+)
+
