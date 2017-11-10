@@ -47,11 +47,10 @@ class KalmanFilter {
   void ReportControl(Time time_s, ControlVector controls) {
     std::function<Number(const symbolic::Expression&)> expression_evaluator =
         [time_s, this](const symbolic::Expression& exp) {
-          symbolic::Expression copy = exp;
-          copy.Bind("t", symbolic::NumericValue(time_s - last_sample_time_));
+          symbolic::Expression copy =
+              exp.Bind("t", symbolic::NumericValue(time_s - last_sample_time_));
           symbolic::NumericValue v = *copy.Evaluate();
-          Number norm = sqrt(pow(v.real(), 2) + pow(v.imag(), 2));
-          return norm;
+          return v.real();
         };
 
     Matrix<kNumStates, kNumStates, Number> state_transition =
@@ -74,11 +73,10 @@ class KalmanFilter {
   std::tuple<StateVector, StateCovariance> PredictState(Time time_s) const {
     std::function<Number(const symbolic::Expression&)> expression_evaluator =
         [time_s, this](const symbolic::Expression& exp) {
-          symbolic::Expression copy = exp;
-          copy.Bind("t", symbolic::NumericValue(time_s - last_sample_time_));
+          symbolic::Expression copy =
+              exp.Bind("t", symbolic::NumericValue(time_s - last_sample_time_));
           symbolic::NumericValue v = *copy.Evaluate();
-          Number norm = sqrt(pow(v.real(), 2) + pow(v.imag(), 2));
-          return norm;
+          return v.real();
         };
 
     Matrix<kNumStates, kNumStates, Number> state_transition =
@@ -95,6 +93,11 @@ class KalmanFilter {
     StateCovariance certainty =
         state_transition * certainty_ * state_transition.Transpose() +
         process_noise;
+
+    std::function<std::string(const symbolic::Expression& exp)>
+        stringifier_debug = [](const symbolic::Expression& exp) -> std::string {
+      return exp.to_string();
+    };
 
     return std::make_tuple(estimation, certainty);
   }
@@ -114,7 +117,17 @@ class KalmanFilter {
     state_ =
         estimation + kalman_gain * (sensors - sensor_transform_ * estimation);
     certainty_ = certainty - kalman_gain * sensor_transform_ * certainty;
-    last_sample_time_ = 0;
+
+    //std::cerr << "Sensor update: " << std::endl;
+    //std::cerr << "Time gap: " << time_s - last_sample_time_ << std::endl;
+    //std::cerr << "Gain: " << kalman_gain.to_string() << std::endl;
+    //std::cerr << "Sensor-space prediction: "
+    //          << (sensor_transform_ * estimation).to_string() << std::endl;
+    //std::cerr << "Sensor transform: " << sensor_transform_.to_string();
+    //std::cerr << "Sensors: " << sensors.to_string() << std::endl;
+    //std::cerr << "certainty: " << certainty.to_string() << std::endl;
+
+    last_sample_time_ = time_s;
   }
 
  private:

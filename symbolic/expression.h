@@ -1,10 +1,11 @@
 #ifndef EXPRESSION_H
 #define EXPRESSION_H
 
-#include "math/symbolic/numeric_value.h"
 #include "math/symbolic/expression_node.h"
+#include "math/symbolic/numeric_value.h"
 
 #include <experimental/optional>
+#include <iostream>
 #include <memory>
 #include <set>
 #include <string>
@@ -37,6 +38,11 @@ class Expression {
   Expression operator/(const Expression& rhs) const;
 
   Expression& operator=(const Expression& rhs);
+
+  friend std::ostream& operator<<(std::ostream& output, const Expression& exp) {
+    output << exp.to_string();
+    return output;
+  }
 
   // Variables which need to be resolved in order to evaluate the expression.
   std::set<std::string> variables() const;

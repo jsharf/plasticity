@@ -110,7 +110,7 @@ class Timer {
   }
 
   double seconds() {
-    return ((std::chrono::system_clock::now() - start_) + offset_).count();
+    return (std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(std::chrono::system_clock::now() - start_) + offset_).count();
   }
 
  private:
@@ -146,8 +146,14 @@ int main() {
         return CreateExpression(std::to_string(value));
       });
 
-  Matrix<kNumStates, kNumStates, double> const_process_noise =
-      Matrix<kNumStates, kNumStates, double>::Eye() * 0.005;
+  Matrix<kNumStates, kNumStates, double> const_process_noise = {
+    {0.05, 0, 0, 0, 0, 0},
+    {0, 0.05, 0, 0, 0, 0},
+    {0, 0, 0.05, 0, 0, 0},
+    {0, 0, 0, 1, 0, 0},
+    {0, 0, 0, 0, 1, 0},
+    {0, 0, 0, 0, 0, 1},
+  };
 
   KalmanFilter::ProcessNoiseMatrix process_noise =
       const_process_noise.Map(expressifier);
@@ -158,12 +164,12 @@ int main() {
   // This uses the small angle theorem to approximate sin(theta) for converting
   // orientation to acceleration readings. Not very accurate.
   KalmanFilter::SensorTransform sensor_transform = {
-      {227.0 / 9.87, 0, 0, 0},
-      {0, 277.0 / 9.87, 0, 0, 0},
-      {0, 0, 277.0 / 9.87, 0, 0, 0},
-      {0, 0, 0, (180 / (6.28 * 0.00875)), 0, 0},
-      {0, 0, 0, 0, (180 / (6.28 * 0.00875)), 0},
-      {0, 0, 0, 0, 0, 180 / (6.28 * 0.00875)},
+      {227.0 / 3.1415, 0, 0, 0},
+      {0, 277.0 / 3.1415, 0, 0, 0},
+      {0, 0, 277.0 / 3.1415, 0, 0, 0},
+      {0, 0, 0, (180 / (3.1415 * 0.00875)), 0, 0},
+      {0, 0, 0, 0, (180 / (3.1415 * 0.00875)), 0},
+      {0, 0, 0, 0, 0, 180 / (3.1415 * 0.00875)},
   };
 
   KalmanFilter simple_imu_demo(state_matrix, control_matrix, process_noise,
@@ -171,7 +177,7 @@ int main() {
 
   // Initialize at state = 0, cov = Identity matrix.
   simple_imu_demo.initialize(0, KalmanFilter::StateVector{},
-                             KalmanFilter::StateCovariance::Eye());
+                             KalmanFilter::StateCovariance::Eye() * 0.5);
 
   //  std::cout << line << std::endl;
   //}
@@ -195,28 +201,29 @@ int main() {
     SDL_Delay(1);
 
     std::stringstream sample(line);
-    float dthetax = 0, dthetay = 0, dthetaz = 0;
-    float ax = 0, ay = 0, az = 0;
-    float time = 0;
+    double dthetax = 0, dthetay = 0, dthetaz = 0;
+    double ax = 0, ay = 0, az = 0;
+    double time = 0;
+
+    scanf("%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t", &dthetax, &dthetay, &dthetaz, &ax,
+          &ay, &az, &time);
 
     if (!timer.started()) {
       timer.StartAt((double)time);
     }
 
-    scanf("%f\t%f\t%f\t%f\t%f\t%f\t%f\t", &dthetax, &dthetay, &dthetaz, &ax,
-          &ay, &az, &time);
-
     simple_imu_demo.ReportSensorReading(
         time,
         KalmanFilter::SensorVector{
             {ax}, {ay}, {az}, {dthetax}, {dthetay}, {dthetaz}},
-        KalmanFilter::SensorCovariance::Eye() * 0.75);
+        KalmanFilter::SensorCovariance::Eye() * 0.85);
 
     if (timer.started()) {
       auto result =
           simple_imu_demo.PredictState(timer.seconds());
       KalmanFilter::StateVector prediction = std::get<0>(result);
-      box.set_orientation(prediction.at(0, 0), prediction.at(1, 0), prediction.at(2, 0));
+      std::cout << prediction.to_string() << std::endl;
+      box.set_offset(prediction.at(0, 0), prediction.at(1, 0), prediction.at(2, 0));
     }
   }
 };

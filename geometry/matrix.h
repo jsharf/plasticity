@@ -5,6 +5,7 @@
 #include <functional>
 #include <iostream>
 #include <string>
+#include <sstream>
 
 using std::string;
 
@@ -204,20 +205,20 @@ class Matrix {
   }
 
   string to_string() const {
-    string result = "{\n";
+    std::stringstream out;
+    out << "{\n";
     for (size_t i = 0; i < ROWS; ++i) {
-      string row = "{";
+      out << "{";
       for (size_t j = 0; j < COLS; ++j) {
-        row += std::to_string(at(i, j));
+        out << at(i, j);
         if (j != COLS - 1) {
-          row += ", ";
+          out << ", ";
         }
       }
-      row += "}";
-      result += row + "\n";
+      out << "}\n";
     }
-    result += "}\n";
-    return result;
+    out << "}\n";
+    return out.str();
   }
 
  private:
