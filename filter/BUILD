@@ -11,6 +11,19 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "ekf",
+    visibility = ["//math"],
+    hdrs = ["ekf.h"],
+    copts = [
+        "-std=c++1z",
+    ],
+    deps = [
+        "//math/geometry:matrix",
+        "//math/symbolic:symbolic",
+    ],
+)
+
 cc_binary(
   name = "kalman_test",
   srcs = ["kalman_filter_test.cc"],
