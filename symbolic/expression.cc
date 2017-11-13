@@ -65,10 +65,10 @@ Expression::Expression(Expression&& rhs)
     : expression_root_(std::move(rhs.expression_root_)) {}
 
 Expression::Expression(const NumericValue& rhs)
-    : Expression(std::make_unique<NumericValue>(rhs)) {}
+    : expression_root_(std::make_unique<NumericValue>(rhs)) {}
 
 Expression::Expression(Number a)
-    : Expression(std::make_unique<NumericValue>(a)) {}
+    : expression_root_(std::make_unique<NumericValue>(a)) {}
 
 Expression Expression::operator+(const Expression& rhs) const {
   auto lhscopy = expression_root_->Clone();
@@ -92,7 +92,7 @@ Expression Expression::operator/(const Expression& rhs) const {
   return Expression(std::make_unique<DivisionExpression>(lhscopy, rhscopy));
 }
 
-Expression& Expression::operator=(const Expression& rhs) {
+Expression Expression::operator=(const Expression& rhs) {
   expression_root_ = rhs.expression_root_->Clone();
   return *this;
 }

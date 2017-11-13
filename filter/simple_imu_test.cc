@@ -124,8 +124,10 @@ int main() {
 
   // Noise is small but grows exponentially with time.
   auto exponential_noise = CreateExpression("0.05 * t * t * t");
-  KalmanFilter::ProcessNoiseMatrix process_noise =
-      KalmanFilter::ProcessNoiseMatrix::Eye(); // * exponential_noise;
+  KalmanFilter::ProcessNoiseMatrix process_noise;
+  for (size_t i = 0; i < kNumStates; ++i) {
+    process_noise.at(i, i) = exponential_noise;
+  }
 
   // Matrix<kNumSensors, kNumStates, Number> sensor_transform = {
   // Sensor vector is Transpose([Ax, Ay, Az, Gx, Gy, Gz])
@@ -140,15 +142,19 @@ int main() {
       {0, 0, 0, 0, (180 / (3.1415 * 0.00875)), 0},
       {0, 0, 0, 0, 0, 180 / (3.1415 * 0.00875)},
   };
+  std::cout << "hi" << std::endl;
 
   KalmanFilter simple_imu_demo(state_matrix, control_matrix, process_noise,
                                sensor_transform);
+  std::cout << "hi" << std::endl;
 
   // Initialize at state = 0. We don't know actual initial condition, so make
   // the covariance super large and the sensor will pick up the slack in future
   // updates.
   simple_imu_demo.initialize(0, KalmanFilter::StateVector{},
                              KalmanFilter::StateCovariance::Eye() * 100);
+
+  std::cout << "Done init filter." << std::endl;
 
   const int width = 320;
   const int height = 240;

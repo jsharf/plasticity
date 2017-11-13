@@ -49,7 +49,7 @@ class Expression {
 
   Expression operator/(const Expression& rhs) const;
 
-  Expression& operator=(const Expression& rhs);
+  Expression operator=(const Expression& rhs);
 
   friend std::ostream& operator<<(std::ostream& output, const Expression& exp) {
     output << exp.to_string();
