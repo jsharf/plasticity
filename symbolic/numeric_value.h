@@ -25,7 +25,7 @@ class NumericValue : public ExpressionNode {
   Number imag() const { return b_; }
 
   std::unique_ptr<ExpressionNode> Bind(
-      std::unordered_map<std::string, NumericValue> env) const override;
+      const std::unordered_map<std::string, NumericValue>& env) const override;
 
   std::set<std::string> variables() const override;
 

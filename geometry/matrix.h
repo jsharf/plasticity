@@ -6,6 +6,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <tuple>
 
 using std::string;
 
@@ -43,6 +44,10 @@ class Matrix {
         at(i, j) = value;
       }
     }
+  }
+
+  std::tuple<size_t, size_t> size() const {
+    return std::make_tuple(ROWS, COLS);
   }
 
   static constexpr Matrix<ROWS, COLS, T> Eye() {

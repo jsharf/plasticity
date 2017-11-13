@@ -3,11 +3,11 @@
 namespace symbolic {
 
 std::unique_ptr<ExpressionNode> NumericValue::Bind(
-    std::unordered_map<std::string, NumericValue> env) const {
+    const std::unordered_map<std::string, NumericValue>& env) const {
   if (!is_bound_) {
     if (env.count(name_) == 1) {
-      Number a = env[name_].real();
-      Number b = env[name_].imag();
+      Number a = env.at(name_).real();
+      Number b = env.at(name_).imag();
       return std::move(std::make_unique<NumericValue>(a, b));
     }
   }
@@ -18,8 +18,7 @@ std::set<std::string> NumericValue::variables() const {
   return std::set<std::string>{name_};
 }
 
-std::experimental::optional<NumericValue> NumericValue::TryEvaluate()
-    const {
+std::experimental::optional<NumericValue> NumericValue::TryEvaluate() const {
   if (!is_bound_) {
     return std::experimental::nullopt;
   }

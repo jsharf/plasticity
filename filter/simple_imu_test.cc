@@ -23,26 +23,26 @@ typedef double Number;
 
 using Quad = std::array<Vector3, 4>;
 
-class BoxScene : public Scene {
+class ArrowScene : public Scene {
  public:
   std::vector<Triangle3> GetPrimitives() override {
     std::vector<Triangle3> triangles;
-    for (size_t i = 0; i < box_.size(); ++i) {
-      auto quadtris = QuadToTriangles(box_[i]);
-      for (const Triangle3& triangle : quadtris) {
-        triangles.push_back(OffsetTriangle(offset_, RotateTriangle(orientation_, triangle)));
-      }
+    for (size_t i = 0; i < arrow_.size(); ++i) {
+      triangles.push_back(
+          OffsetTriangle(offset_, RotateTriangle(orientation_, arrow_[i])));
     }
     return triangles;
   }
 
-  void set_orientation(double x, double y, double z) {
-    orientation_ = Matrix4::RotI(x) * Matrix4::RotJ(y) * Matrix4::RotK(z);
+  void set_orientation(Quaternion orientation) {
+    orientation_ = Matrix4::Rot(orientation);
   }
 
-  void set_offset(double x, double y, double z) {
-    offset_ = Vector3(x, y, z);
+  void set_orientation(double pitch, double roll) {
+    orientation_ = Matrix4::RotI(pitch) * Matrix4::RotJ(roll);
   }
+
+  void set_offset(double x, double y, double z) { offset_ = Vector3(x, y, z); }
 
  private:
   Triangle3 RotateTriangle(Matrix4 rot, Triangle3 tri) {
@@ -61,34 +61,11 @@ class BoxScene : public Scene {
     return result;
   }
 
-  static std::vector<Triangle3> QuadToTriangles(Quad quad) {
-    Triangle3 a;
-    Triangle3 b;
-    std::vector<Triangle3> result;
-    std::get<0>(a) = std::get<0>(quad);
-    std::get<1>(a) = std::get<1>(quad);
-    std::get<2>(a) = std::get<3>(quad);
-    std::get<0>(b) = std::get<1>(quad);
-    std::get<1>(b) = std::get<2>(quad);
-    std::get<2>(b) = std::get<3>(quad);
-    result.push_back(a);
-    result.push_back(b);
-    return result;
-  }
-
-  std::array<Quad, 6> box_ = {{
-      {{Vector3(0, 0, 0), Vector3(1, 0, 0), Vector3(1, 1, 0),
-        Vector3(0, 1, 0)}},
-      {{Vector3(0, 0, 0), Vector3(1, 0, 0), Vector3(1, 0, 1),
-        Vector3(0, 0, 1)}},
-      {{Vector3(0, 0, 0), Vector3(0, 1, 0), Vector3(0, 1, 1),
-        Vector3(0, 0, 1)}},
-      {{Vector3(0, 0, 1), Vector3(1, 0, 1), Vector3(1, 1, 1),
-        Vector3(0, 1, 1)}},
-      {{Vector3(0, 1, 0), Vector3(1, 1, 0), Vector3(1, 1, 1),
-        Vector3(0, 1, 1)}},
-      {{Vector3(1, 0, 0), Vector3(1, 1, 0), Vector3(1, 1, 1),
-        Vector3(1, 0, 1)}},
+  std::array<Triangle3, 6> arrow_ = {{
+      {{Vector3(0, -0.5, -0.3), Vector3(0, -0.5, 0.3), Vector3(0, 0.5, 0)}},
+      {{Vector3(0, -0.5, 0.3), Vector3(2, 0, 0), Vector3(0, 0.5, 0)}},
+      {{Vector3(0, -0.5, -0.3), Vector3(2, 0, 0), Vector3(0, -0.5, 0.3)}},
+      {{Vector3(0, 0.5, 0), Vector3(2, 0, 0), Vector3(0, -0.5, -0.3)}},
   }};
 
   Matrix4 orientation_ = Matrix4::eye();
@@ -110,7 +87,11 @@ class Timer {
   }
 
   double seconds() {
-    return (std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(std::chrono::system_clock::now() - start_) + offset_).count();
+    return (std::chrono::duration_cast<
+                std::chrono::duration<double, std::ratio<1>>>(
+                std::chrono::system_clock::now() - start_) +
+            offset_)
+        .count();
   }
 
  private:
@@ -141,22 +122,12 @@ int main() {
   // Matrix<kNumStates, kNumControls, symbolic::Expression> control_matrix = {
   KalmanFilter::ControlMatrix control_matrix = {};
 
-  auto expressifier = std::function<symbolic::Expression(const double&)>(
-      [](const double& value) -> symbolic::Expression {
-        return CreateExpression(std::to_string(value));
-      });
+  std::cout << "about to setup process noise" << std::endl;
 
-  Matrix<kNumStates, kNumStates, double> const_process_noise = {
-    {0.05, 0, 0, 0, 0, 0},
-    {0, 0.05, 0, 0, 0, 0},
-    {0, 0, 0.05, 0, 0, 0},
-    {0, 0, 0, 1, 0, 0},
-    {0, 0, 0, 0, 1, 0},
-    {0, 0, 0, 0, 0, 1},
-  };
-
+  // Noise is small but grows exponentially with time.
+  auto exponential_noise = CreateExpression("0.05 * t * t * t");
   KalmanFilter::ProcessNoiseMatrix process_noise =
-      const_process_noise.Map(expressifier);
+      KalmanFilter::ProcessNoiseMatrix::Eye() * exponential_noise;
 
   // Matrix<kNumSensors, kNumStates, Number> sensor_transform = {
   // Sensor vector is Transpose([Ax, Ay, Az, Gx, Gy, Gz])
@@ -164,66 +135,100 @@ int main() {
   // This uses the small angle theorem to approximate sin(theta) for converting
   // orientation to acceleration readings. Not very accurate.
   KalmanFilter::SensorTransform sensor_transform = {
-      {227.0 / 3.1415, 0, 0, 0},
-      {0, 277.0 / 3.1415, 0, 0, 0},
-      {0, 0, 277.0 / 3.1415, 0, 0, 0},
+      {1, 0, 0, 0},
+      {0, 1, 0, 0, 0},
+      {0, 0, 1, 0, 0, 0},
       {0, 0, 0, (180 / (3.1415 * 0.00875)), 0, 0},
       {0, 0, 0, 0, (180 / (3.1415 * 0.00875)), 0},
       {0, 0, 0, 0, 0, 180 / (3.1415 * 0.00875)},
   };
+  std::cout << "matrices setup" << std::endl;
 
   KalmanFilter simple_imu_demo(state_matrix, control_matrix, process_noise,
                                sensor_transform);
 
-  // Initialize at state = 0, cov = Identity matrix.
+  // Initialize at state = 0. We don't know actual initial condition, so make
+  // the covariance super large and the sensor will pick up the slack in future
+  // updates.
   simple_imu_demo.initialize(0, KalmanFilter::StateVector{},
-                             KalmanFilter::StateCovariance::Eye() * 0.5);
+                             KalmanFilter::StateCovariance::Eye() * 100);
 
-  //  std::cout << line << std::endl;
-  //}
-  const int width = 640;
-  const int height = 480;
+  std::cout << "Filter setup" << std::endl;
+  const int width = 320;
+  const int height = 240;
+  SdlCanvas raw_canvas(width, height);
   SdlCanvas canvas(width, height);
-  BoxScene box;
+  ArrowScene raw_visualize, visualize;
   PerspectiveCamera camera;
-  camera.SetPosition(0, -2, 1);
+  PerspectiveCamera raw_camera;
+  camera.SetPosition(0, -2, 0);
   camera.SetOrientation(Matrix4::RotI(M_PI / 2.0));
+  raw_camera.SetPosition(0, -2, 0);
+  raw_camera.SetOrientation(Matrix4::RotI(M_PI / 2.0));
   SDL_Event e;
+  std::cout << "canvas setup" << std::endl;
 
   Timer timer;
+
+  double last_frame = 0;
+  double frame_rate = 30;
+
   for (std::string line; std::getline(std::cin, line);) {
     SDL_PollEvent(&e);
     if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) break;
-    // Transformation matrix: each point rotates around origin 2PI/second.
-    canvas.Clear();
-    camera.CaptureWorld(&box, &canvas);
-    canvas.Render();
-    SDL_Delay(1);
+    if ((timer.started()) &&
+        (timer.seconds() - last_frame) > (1 / frame_rate)) {
+      canvas.Clear();
+      raw_canvas.Clear();
+      raw_camera.CaptureWorld(&raw_visualize, &raw_canvas);
+      camera.CaptureWorld(&visualize, &canvas);
+      canvas.Render();
+      raw_canvas.Render();
+      last_frame = timer.seconds();
+    }
 
     std::stringstream sample(line);
     double dthetax = 0, dthetay = 0, dthetaz = 0;
     double ax = 0, ay = 0, az = 0;
     double time = 0;
 
-    scanf("%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t", &dthetax, &dthetay, &dthetaz, &ax,
-          &ay, &az, &time);
+    scanf("%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t", &dthetax, &dthetay, &dthetaz,
+          &ax, &ay, &az, &time);
+
+    std::cout << "ax: " << ax << ", ay: " << ay << ", az: " << az << std::endl;
 
     if (!timer.started()) {
-      timer.StartAt((double)time);
+      timer.StartAt(time);
     }
+
+    const Vector3 k = Vector3(0, 0, 1);
+    const Vector3 acceleration = Vector3(ax, ay, az).Normalize();
+
+    Quaternion orientation(k.Cross(acceleration), k.AngleTo(acceleration));
+
+    raw_visualize.set_orientation(orientation);
+
+    double pitch = atan2(acceleration.j,
+                         sqrt(pow(acceleration.i, 2) + pow(acceleration.k, 2)));
+    double roll = atan2(-acceleration.i, acceleration.k);
 
     simple_imu_demo.ReportSensorReading(
         time,
         KalmanFilter::SensorVector{
-            {ax}, {ay}, {az}, {dthetax}, {dthetay}, {dthetaz}},
-        KalmanFilter::SensorCovariance::Eye() * 0.85);
+            {roll}, {pitch}, {0}, {dthetax}, {dthetay}, {dthetaz}},
+        {
+            {0.1, 0, 0, 0, 0, 0},
+            {0, 0.1, 0, 0, 0, 0},
+            {0, 0, 1000, 0, 0, 0},
+            {0, 0, 0, 0.05, 0, 0},
+            {0, 0, 0, 0, 0.05, 0},
+            {0, 0, 0, 0, 0, 0.05},
+        });
 
-    if (timer.started()) {
-      auto result =
-          simple_imu_demo.PredictState(timer.seconds());
-      KalmanFilter::StateVector prediction = std::get<0>(result);
-      std::cout << prediction.to_string() << std::endl;
-      box.set_offset(prediction.at(0, 0), prediction.at(1, 0), prediction.at(2, 0));
-    }
+    auto result = simple_imu_demo.PredictState(time);
+    KalmanFilter::StateVector prediction = std::get<0>(result);
+    std::cout << prediction.to_string() << std::endl;
+    visualize.set_orientation(prediction.at(0, 0), prediction.at(1, 0));
   }
+  return 0;
 };

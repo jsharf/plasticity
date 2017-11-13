@@ -64,6 +64,12 @@ Expression::Expression(const Expression& other)
 Expression::Expression(Expression&& rhs)
     : expression_root_(std::move(rhs.expression_root_)) {}
 
+Expression::Expression(const NumericValue& rhs)
+    : Expression(std::make_unique<NumericValue>(rhs)) {}
+
+Expression::Expression(Number a)
+    : Expression(std::make_unique<NumericValue>(a)) {}
+
 Expression Expression::operator+(const Expression& rhs) const {
   auto lhscopy = expression_root_->Clone();
   auto rhscopy = rhs.expression_root_->Clone();
@@ -98,6 +104,14 @@ std::set<std::string> Expression::variables() const {
 
 Expression Expression::Bind(const std::string& name, NumericValue value) const {
   return Expression(expression_root_->Bind({{name, value}}));
+}
+
+Expression Expression::Bind(const Environment& env) const {
+  return Expression(expression_root_->Bind(env));
+}
+
+Expression Expression::Derive(const std::string& x) const {
+  return Expression(expression_root_->Derive(x));
 }
 
 std::experimental::optional<NumericValue> Expression::Evaluate() const {
@@ -166,7 +180,7 @@ NumericValue AdditionExpression::reduce(const NumericValue& a,
 }
 
 std::unique_ptr<ExpressionNode> AdditionExpression::Bind(
-    std::unordered_map<std::string, NumericValue> env) const {
+    const Environment& env) const {
   std::unique_ptr<AdditionExpression> b =
       std::make_unique<AdditionExpression>();
   for (const auto& expression : children_) {
@@ -206,7 +220,7 @@ NumericValue MultiplicationExpression::reduce(const NumericValue& a,
 }
 
 std::unique_ptr<ExpressionNode> MultiplicationExpression::Bind(
-    std::unordered_map<std::string, NumericValue> env) const {
+    const Environment& env) const {
   std::unique_ptr<MultiplicationExpression> b =
       std::make_unique<MultiplicationExpression>();
   for (const auto& expression : children_) {
@@ -261,7 +275,7 @@ std::set<std::string> DivisionExpression::variables() const {
 }
 
 std::unique_ptr<ExpressionNode> DivisionExpression::Bind(
-    std::unordered_map<std::string, NumericValue> env) const {
+    const Environment& env) const {
   std::unique_ptr<DivisionExpression> result =
       std::make_unique<DivisionExpression>();
   result->set_numerator(numerator_->Bind(env));
@@ -343,7 +357,7 @@ std::set<std::string> ExponentExpression::variables() const {
 }
 
 std::unique_ptr<ExpressionNode> ExponentExpression::Bind(
-    std::unordered_map<std::string, NumericValue> env) const {
+    const Environment& env) const {
   return std::make_unique<ExponentExpression>(b_, child_->Bind(env));
 }
 

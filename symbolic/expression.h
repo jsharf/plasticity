@@ -14,6 +14,13 @@
 
 namespace symbolic {
 
+// Used to map the environment in which an expression is evaluated (binds
+// variable names to their values).
+//
+// For instance, x^2 + y evaluated in the environment { x: "2", y: "3"} becomes
+// 2^2 + 3, or 7.
+using Environment = std::unordered_map<std::string, symbolic::NumericValue>;
+
 class AdditionExpression;
 class Expression;
 
@@ -23,6 +30,7 @@ Expression CreateExpression(std::string expression);
 // interface.
 class Expression {
  public:
+
   Expression() {}
 
   Expression(std::unique_ptr<ExpressionNode>&& root);
@@ -30,6 +38,10 @@ class Expression {
   Expression(const Expression& other);
 
   explicit Expression(Expression&& rhs);
+
+  Expression(const NumericValue& value);
+
+  Expression(Number a);
 
   Expression operator+(const Expression& rhs) const;
 
@@ -49,6 +61,10 @@ class Expression {
 
   Expression Bind(const std::string& name, NumericValue value) const;
 
+  Expression Bind(const Environment& env) const;
+
+  Expression Derive(const std::string& x) const;
+
   std::experimental::optional<NumericValue> Evaluate() const;
 
   std::unique_ptr<ExpressionNode> Release();
@@ -66,7 +82,7 @@ class CompoundExpression : public ExpressionNode {
   std::set<std::string> variables() const override;
 
   virtual std::unique_ptr<ExpressionNode> Bind(
-      std::unordered_map<std::string, NumericValue> env) const = 0;
+      const Environment& env) const = 0;
 
   void add(std::unique_ptr<ExpressionNode> child);
 
@@ -128,8 +144,7 @@ class AdditionExpression : public CompoundExpression {
     return std::move(clone);
   }
 
-  std::unique_ptr<ExpressionNode> Bind(
-      std::unordered_map<std::string, NumericValue> env) const override;
+  std::unique_ptr<ExpressionNode> Bind(const Environment& env) const override;
 
   // Returns the symbolic partial derivative of this expression.
   std::unique_ptr<ExpressionNode> Derive(const std::string& x) const override;
@@ -165,8 +180,7 @@ class MultiplicationExpression : public CompoundExpression {
     return std::move(clone);
   }
 
-  std::unique_ptr<ExpressionNode> Bind(
-      std::unordered_map<std::string, NumericValue> env) const override;
+  std::unique_ptr<ExpressionNode> Bind(const Environment& env) const override;
 
   // Returns the symbolic partial derivative of this expression.
   std::unique_ptr<ExpressionNode> Derive(const std::string& x) const override;
@@ -194,8 +208,7 @@ class DivisionExpression : public ExpressionNode {
   std::set<std::string> variables() const override;
 
   // Bind variables to values to create an expression which can be evaluated.
-  std::unique_ptr<ExpressionNode> Bind(
-      std::unordered_map<std::string, NumericValue>) const override;
+  std::unique_ptr<ExpressionNode> Bind(const Environment& env) const override;
 
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
@@ -228,8 +241,7 @@ class ExponentExpression : public ExpressionNode {
   // Variables which need to be resolved in order to evaluate the expression.
   std::set<std::string> variables() const override;
   // Bind variables to values to create an expression which can be evaluated.
-  std::unique_ptr<ExpressionNode> Bind(
-      std::unordered_map<std::string, NumericValue>) const override;
+  std::unique_ptr<ExpressionNode> Bind(const Environment& env) const override;
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
   std::experimental::optional<NumericValue> TryEvaluate() const override;

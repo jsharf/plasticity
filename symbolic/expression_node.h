@@ -19,7 +19,7 @@ class ExpressionNode {
   virtual std::set<std::string> variables() const = 0;
   // Bind variables to values to create an expression which can be evaluated.
   virtual std::unique_ptr<ExpressionNode> Bind(
-      std::unordered_map<std::string, NumericValue>) const = 0;
+      const std::unordered_map<std::string, NumericValue>&) const = 0;
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
   virtual std::experimental::optional<NumericValue> TryEvaluate() const = 0;

@@ -40,44 +40,21 @@ class KalmanFilter {
   void initialize(Time time_s, StateVector initial_state,
                   StateCovariance state_covariance) {
     state_ = initial_state;
-    certainty_ = state_covariance;
+    uncertainty_ = state_covariance;
     last_sample_time_ = time_s;
   }
 
   void ReportControl(Time time_s, ControlVector controls) {
-    std::function<Number(const symbolic::Expression&)> expression_evaluator =
-        [time_s, this](const symbolic::Expression& exp) {
-          symbolic::Expression copy =
-              exp.Bind("t", symbolic::NumericValue(time_s - last_sample_time_));
-          symbolic::NumericValue v = *copy.Evaluate();
-          return v.real();
-        };
-
-    Matrix<kNumStates, kNumStates, Number> state_transition =
-        state_transition_.Map(expression_evaluator);
-
-    Matrix<kNumStates, kNumControls, Number> control_matrix =
-        control_matrix_.Map(expression_evaluator);
-
-    Matrix<kNumStates, kNumStates, Number> process_noise =
-        process_noise_.Map(expression_evaluator);
-
-    state_ = state_transition * state_ + control_matrix * controls;
-    certainty_ = state_transition * certainty_ * state_transition.Transpose() +
-                 process_noise;
+    auto state_cov = PredictState(time_s);
+    state_ = std::get<0>(state_cov);
+    uncertainty_ = std::get<1>(state_cov);
 
     last_control_ = controls;
     last_sample_time_ = time_s;
   }
 
   std::tuple<StateVector, StateCovariance> PredictState(Time time_s) const {
-    std::function<Number(const symbolic::Expression&)> expression_evaluator =
-        [time_s, this](const symbolic::Expression& exp) {
-          symbolic::Expression copy =
-              exp.Bind("t", symbolic::NumericValue(time_s - last_sample_time_));
-          symbolic::NumericValue v = *copy.Evaluate();
-          return v.real();
-        };
+    auto expression_evaluator = evaluator(time_s);
 
     Matrix<kNumStates, kNumStates, Number> state_transition =
         state_transition_.Map(expression_evaluator);
@@ -91,7 +68,7 @@ class KalmanFilter {
     StateVector estimation =
         state_transition * state_ + control_matrix * last_control_;
     StateCovariance certainty =
-        state_transition * certainty_ * state_transition.Transpose() +
+        state_transition * uncertainty_ * state_transition.Transpose() +
         process_noise;
 
     std::function<std::string(const symbolic::Expression& exp)>
@@ -116,28 +93,37 @@ class KalmanFilter {
 
     state_ =
         estimation + kalman_gain * (sensors - sensor_transform_ * estimation);
-    certainty_ = certainty - kalman_gain * sensor_transform_ * certainty;
+    uncertainty_ = certainty - kalman_gain * sensor_transform_ * certainty;
 
-    //std::cerr << "Sensor update: " << std::endl;
-    //std::cerr << "Time gap: " << time_s - last_sample_time_ << std::endl;
-    //std::cerr << "Gain: " << kalman_gain.to_string() << std::endl;
-    //std::cerr << "Sensor-space prediction: "
+    // std::cerr << "Sensor update: " << std::endl;
+    // std::cerr << "Time gap: " << time_s - last_sample_time_ << std::endl;
+    // std::cerr << "Gain: " << kalman_gain.to_string() << std::endl;
+    // std::cerr << "Sensor-space prediction: "
     //          << (sensor_transform_ * estimation).to_string() << std::endl;
-    //std::cerr << "Sensor transform: " << sensor_transform_.to_string();
-    //std::cerr << "Sensors: " << sensors.to_string() << std::endl;
-    //std::cerr << "certainty: " << certainty.to_string() << std::endl;
+    // std::cerr << "Sensor transform: " << sensor_transform_.to_string();
+    // std::cerr << "Sensors: " << sensors.to_string() << std::endl;
+    // std::cerr << "certainty: " << certainty.to_string() << std::endl;
 
     last_sample_time_ = time_s;
   }
 
  private:
+  std::function<Number(const symbolic::Expression&)> evaluator(double time_s) const {
+    return [time_s, this](const symbolic::Expression& exp) {
+      symbolic::Expression copy =
+          exp.Bind("t", symbolic::NumericValue(time_s - last_sample_time_));
+      symbolic::NumericValue v = *copy.Evaluate();
+      return v.real();
+    };
+  }
+
   const StateMatrix state_transition_;
   const ControlMatrix control_matrix_;
   const ProcessNoiseMatrix process_noise_;
   const SensorTransform sensor_transform_;
 
   StateVector state_ = {};
-  StateCovariance certainty_ = {};
+  StateCovariance uncertainty_ = {};
   ControlVector last_control_ = {};
   Time last_sample_time_ = 0;
 };

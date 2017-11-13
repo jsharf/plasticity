@@ -19,6 +19,19 @@ struct Vector3 {
     const Number mag = Magnitude();
     return Vector3(i / mag, j / mag, k / mag);
   }
+  Vector3 Cross(const Vector3& rhs) const {
+    return Vector3 {
+      (j * rhs.k) - (rhs.j * k), -((i * rhs.k) - (rhs.i * k)),
+          (i * rhs.j) - (rhs.i * j)
+    };
+  }
+  Number Dot(const Vector3& rhs) const {
+    return i * rhs.i + j * rhs.j + k * rhs.k;
+  }
+  double AngleTo(const Vector3& rhs) const {
+    return acos(Dot(rhs) / (Magnitude() * rhs.Magnitude()));
+  }
+
   Number i, j, k;
 };
 
@@ -49,7 +62,6 @@ Vector3 operator*(Number lhs, const Vector3& rhs);
 Vector3 operator*(const Vector3& rhs, Number lhs);
 Vector2 operator*(Number lhs, const Vector2& rhs);
 Vector2 operator*(const Vector2& rhs, Number lhs);
-
 
 Vector3 operator+(const Vector3& lhs, const Vector3& rhs);
 #endif /* VECTOR_H */
