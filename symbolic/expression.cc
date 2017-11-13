@@ -75,7 +75,7 @@ Expression Expression::operator+(const Expression& rhs) const {
   auto rhscopy = rhs.expression_root_->Clone();
   return Expression(std::make_unique<AdditionExpression>(
       std::initializer_list<const ExpressionNode*>(
-          {lhscopy.release(), rhscopy.release()})));
+          {lhscopy.get(), rhscopy.get()})));
 }
 
 Expression Expression::operator*(const Expression& rhs) const {
@@ -83,7 +83,7 @@ Expression Expression::operator*(const Expression& rhs) const {
   auto rhscopy = rhs.expression_root_->Clone();
   return Expression(std::make_unique<MultiplicationExpression>(
       std::initializer_list<const ExpressionNode*>(
-          {lhscopy.release(), rhscopy.release()})));
+          {lhscopy.get(), rhscopy.get()})));
 }
 
 Expression Expression::operator/(const Expression& rhs) const {
@@ -92,7 +92,7 @@ Expression Expression::operator/(const Expression& rhs) const {
   return Expression(std::make_unique<DivisionExpression>(lhscopy, rhscopy));
 }
 
-Expression Expression::operator=(const Expression& rhs) {
+Expression& Expression::operator=(const Expression& rhs) {
   expression_root_ = rhs.expression_root_->Clone();
   return *this;
 }
