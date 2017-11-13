@@ -122,12 +122,10 @@ int main() {
   // Matrix<kNumStates, kNumControls, symbolic::Expression> control_matrix = {
   KalmanFilter::ControlMatrix control_matrix = {};
 
-  std::cout << "about to setup process noise" << std::endl;
-
   // Noise is small but grows exponentially with time.
   auto exponential_noise = CreateExpression("0.05 * t * t * t");
   KalmanFilter::ProcessNoiseMatrix process_noise =
-      KalmanFilter::ProcessNoiseMatrix::Eye() * exponential_noise;
+      KalmanFilter::ProcessNoiseMatrix::Eye(); // * exponential_noise;
 
   // Matrix<kNumSensors, kNumStates, Number> sensor_transform = {
   // Sensor vector is Transpose([Ax, Ay, Az, Gx, Gy, Gz])
@@ -142,7 +140,6 @@ int main() {
       {0, 0, 0, 0, (180 / (3.1415 * 0.00875)), 0},
       {0, 0, 0, 0, 0, 180 / (3.1415 * 0.00875)},
   };
-  std::cout << "matrices setup" << std::endl;
 
   KalmanFilter simple_imu_demo(state_matrix, control_matrix, process_noise,
                                sensor_transform);
@@ -153,7 +150,6 @@ int main() {
   simple_imu_demo.initialize(0, KalmanFilter::StateVector{},
                              KalmanFilter::StateCovariance::Eye() * 100);
 
-  std::cout << "Filter setup" << std::endl;
   const int width = 320;
   const int height = 240;
   SdlCanvas raw_canvas(width, height);
@@ -166,7 +162,6 @@ int main() {
   raw_camera.SetPosition(0, -2, 0);
   raw_camera.SetOrientation(Matrix4::RotI(M_PI / 2.0));
   SDL_Event e;
-  std::cout << "canvas setup" << std::endl;
 
   Timer timer;
 
