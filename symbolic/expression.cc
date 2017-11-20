@@ -78,6 +78,14 @@ Expression Expression::operator+(const Expression& rhs) const {
           {lhscopy.get(), rhscopy.get()})));
 }
 
+Expression Expression::operator-(const Expression& rhs) const {
+  auto lhscopy = expression_root_->Clone();
+  Expression rhs_neg = CreateExpression("-1") * rhs.expression_root_->Clone();
+  return Expression(std::make_unique<AdditionExpression>(
+      std::initializer_list<const ExpressionNode*>(
+          {lhscopy.get(), (rhs_neg).Release().get()})));
+}
+
 Expression Expression::operator*(const Expression& rhs) const {
   auto lhscopy = expression_root_->Clone();
   auto rhscopy = rhs.expression_root_->Clone();
@@ -159,23 +167,21 @@ std::experimental::optional<NumericValue> CompoundExpression::TryEvaluate()
 }
 
 std::string CompoundExpression::to_string() const {
-  std::string result = "";
+  std::string result = "(";
   for (size_t i = 0; i < children_.size(); ++i) {
     result += children_[i]->to_string();
     if (i != children_.size() - 1) {
       result += " " + operator_to_string() + " ";
     }
   }
-  return result;
+  return result + ")";
 }
 
 // AdditionExpression Implementation.
 
 NumericValue AdditionExpression::reduce(const NumericValue& a,
                                         const NumericValue& b) const {
-  NumericValue result;
-  result.real() = a.real() + b.real();
-  result.imag() = a.imag() + b.imag();
+  NumericValue result(a.real() + b.real(), a.imag() + b.imag());
   return result;
 }
 
@@ -184,7 +190,7 @@ std::unique_ptr<ExpressionNode> AdditionExpression::Bind(
   std::unique_ptr<AdditionExpression> b =
       std::make_unique<AdditionExpression>();
   for (const auto& expression : children_) {
-    b->add(std::move(expression->Bind(env)));
+    b->add(expression->Bind(env));
   }
   return std::move(b);
 }
@@ -196,7 +202,8 @@ std::unique_ptr<ExpressionNode> AdditionExpression::Derive(
   for (const auto& expression : children_) {
     auto derivative = expression->Derive(x);
     // Try to evaluate the derivative. If it results in 0, discard the
-    // expression. This is so that if the derivative is taken often, terms which
+    // expression. This is so that if the derivative is taken often, terms
+    // which
     // are now equal to zero don't accumulate memory.
     auto evaluation = derivative->TryEvaluate();
     if (evaluation && evaluation->real() == evaluation->imag() == 0) {
@@ -213,9 +220,8 @@ NumericValue AdditionExpression::identity() const { return NumericValue(0); }
 
 NumericValue MultiplicationExpression::reduce(const NumericValue& a,
                                               const NumericValue& b) const {
-  NumericValue result;
-  result.real() = a.real() * b.real() - a.imag() * b.imag();
-  result.imag() = a.real() * b.imag() + b.real() * a.imag();
+  NumericValue result(a.real() * b.real() - a.imag() * b.imag(),
+                      a.real() * b.imag() + b.real() * a.imag());
   return result;
 }
 
@@ -224,7 +230,7 @@ std::unique_ptr<ExpressionNode> MultiplicationExpression::Bind(
   std::unique_ptr<MultiplicationExpression> b =
       std::make_unique<MultiplicationExpression>();
   for (const auto& expression : children_) {
-    b->add(std::move(expression->Bind(env)));
+    b->add(expression->Bind(env));
   }
   return std::move(b);
 }
@@ -285,8 +291,6 @@ std::unique_ptr<ExpressionNode> DivisionExpression::Bind(
 
 std::experimental::optional<NumericValue> DivisionExpression::TryEvaluate()
     const {
-  NumericValue result;
-
   std::experimental::optional<NumericValue> numerator_result =
       numerator_->TryEvaluate();
 
@@ -305,11 +309,11 @@ std::experimental::optional<NumericValue> DivisionExpression::TryEvaluate()
     return std::experimental::nullopt;
   }
 
-  result.real() = (a.real() * b.real() + a.imag() * b.imag()) /
-                  (pow(b.real(), 2) + pow(b.imag(), 2));
-  result.imag() = (a.imag() * b.real() - a.real() * b.imag()) /
-                  (pow(b.real(), 2) + pow(b.imag(), 2));
-  return result;
+  Number real = (a.real() * b.real() + a.imag() * b.imag()) /
+                (pow(b.real(), 2) + pow(b.imag(), 2));
+  Number imag = (a.imag() * b.real() - a.real() * b.imag()) /
+                (pow(b.real(), 2) + pow(b.imag(), 2));
+  return NumericValue(real, imag);
 }
 
 // Returns the symbolic partial derivative of this expression.
@@ -402,7 +406,7 @@ std::unique_ptr<ExpressionNode> ExponentExpression::Derive(
 }
 
 std::string ExponentExpression::to_string() const {
-  return "pow(b, " + child_->to_string() + ")";
+  return "pow(" + b_.to_string() + ", " + child_->to_string() + ")";
 }
 
 std::unique_ptr<ExpressionNode> ExponentExpression::Clone() const {

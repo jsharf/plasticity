@@ -179,7 +179,7 @@ class Matrix {
       for (size_t j = 0; j < RHSCOLS; ++j) {
         T kSum = 0;
         for (size_t k = 0; k < COLS; ++k) {
-          kSum += at(i, k) * rhs.at(k, j);
+          kSum = kSum + at(i, k) * rhs.at(k, j);
         }
         result.at(i, j) = kSum;
       }

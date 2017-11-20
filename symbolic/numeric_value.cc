@@ -8,7 +8,7 @@ std::unique_ptr<ExpressionNode> NumericValue::Bind(
     if (env.count(name_) == 1) {
       Number a = env.at(name_).real();
       Number b = env.at(name_).imag();
-      return std::move(std::make_unique<NumericValue>(a, b));
+      return std::make_unique<NumericValue>(a, b);
     }
   }
   return Clone();
@@ -47,9 +47,9 @@ std::string NumericValue::to_string() const {
 
 std::unique_ptr<ExpressionNode> NumericValue::Clone() const {
   if (is_bound_) {
-    return std::move(std::make_unique<NumericValue>(a_, b_));
+    return std::make_unique<NumericValue>(a_, b_);
   } else {
-    return std::move(std::make_unique<NumericValue>(name_));
+    return std::make_unique<NumericValue>(name_);
   }
 }
 

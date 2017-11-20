@@ -43,6 +43,7 @@ class Expression {
   Expression(Number a);
 
   Expression operator+(const Expression& rhs) const;
+  Expression operator-(const Expression& rhs) const;
 
   Expression operator*(const Expression& rhs) const;
 
@@ -81,7 +82,7 @@ class CompoundExpression : public ExpressionNode {
   std::set<std::string> variables() const override;
 
   virtual std::unique_ptr<ExpressionNode> Bind(
-      const Environment& env) const = 0;
+      const Environment& env) const override = 0;
 
   void add(std::unique_ptr<ExpressionNode> child);
 
@@ -94,7 +95,7 @@ class CompoundExpression : public ExpressionNode {
 
   virtual std::string operator_to_string() const = 0;
 
-  virtual std::unique_ptr<ExpressionNode> Clone() const = 0;
+  virtual std::unique_ptr<ExpressionNode> Clone() const override = 0;
 
   virtual NumericValue identity() const = 0;
 

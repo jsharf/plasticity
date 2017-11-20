@@ -7,11 +7,14 @@
 #include <memory>
 
 namespace symbolic {
+
 Expression Sigmoid(Expression a) {
   return CreateExpression("1") /
          (CreateExpression("1") +
-          ExponentExpression(NumericValue::e, CreateExpression("-1 * x")));
+          Expression(std::make_unique<ExponentExpression>(
+              NumericValue::e, (CreateExpression("-1") * a).Release())));
 }
+
 }  // namespace symbolic
 
 #endif /* SYMBOLIC_UTIL_H */

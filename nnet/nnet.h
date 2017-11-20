@@ -6,6 +6,9 @@
 
 typedef double Number;
 
+// TODO(sharf): Things like I(), W(), weights, and evaluators should be
+// encapsulated in some sort of interface.
+
 // Creates a neural network symbolically. The input layer has no weights. There
 // are kNumHiddenLayers + 2 layers with weights (+1 for output layer, +1 for
 // first layer which has kInputSize number of weights per neuron).
@@ -14,18 +17,45 @@ typedef double Number;
 template <size_t kNumHiddenLayers, size_t kLayerSize, size_t kOutputSize,
           size_t kInputSize>
 class Nnet {
-  using InputVector = Matrix<kInputSize, 1, symbolic::Expression>;
-  using OutputVector = Matrix<kOutputSize, 1, symbolic::Expression>;
-  using HiddenVector = Matrix<kOutputSize, 1, symbolic::Expression>;
+ public:
+  using SymbolicInputVector = Matrix<kInputSize, 1, symbolic::Expression>;
+  using SymbolicOutputVector = Matrix<kOutputSize, 1, symbolic::Expression>;
+  using InputVector = Matrix<kInputSize, 1, Number>;
+  using OutputVector = Matrix<kOutputSize, 1, Number>;
+  using HiddenVector = Matrix<kLayerSize, 1, symbolic::Expression>;
   using OutputWeights = Matrix<kOutputSize, kLayerSize, symbolic::Expression>;
   using HiddenWeights = Matrix<kLayerSize, kLayerSize, symbolic::Expression>;
   using InputWeights = Matrix<kLayerSize, kInputSize, symbolic::Expression>;
 
+  static constexpr size_t kNumLayers = kNumHiddenLayers + 2;
+
   struct LearningParameters {
-    Number learning_rate = 0.1;
+    Number learning_rate;
   };
 
-  static Nnet XavierInitializedNnet() {}
+  // TODO(sharf): move this to private.
+  // Zero initialization is bad. Must use factory function with name which is
+  // more descriptive of what's going on (e.x., XavierInitializedNnet()).
+  Nnet() {
+    std::function<symbolic::Expression(const symbolic::Expression&)>
+        activation_function = [](const symbolic::Expression& exp) {
+          return symbolic::Sigmoid(exp);
+        };
+
+    SymbolicInputVector inputs = GenInputLayer();
+
+    HiddenVector layer =
+        (GenInputLayerWeights() * inputs).Map(activation_function);
+
+    for (size_t i = 1; i <= kNumHiddenLayers; ++i) {
+      layer = (GenHiddenLayerWeights(i) * layer).Map(activation_function);
+    }
+
+    neural_network_ =
+        (GenOutputLayerWeights() * layer).Map(activation_function);
+  }
+
+  void Initialize() { CalculateInitialWeights(); }
 
   static std::string I(size_t i) { return "I(" + std::to_string(i) + ")"; }
 
@@ -34,87 +64,84 @@ class Nnet {
            std::to_string(k) + ")";
   }
 
-  OutputVector Evaluate(InputVector in) const {
-    // This variable countains the bindings for all inputs and weights in the
-    // network.
-    std::unordered_map<std::string, NumericValue> bindings;
-
+  Matrix<kOutputSize, 1, Number> Evaluate(
+      Matrix<kInputSize, 1, Number> in) const {
+    // Modify weights_ in-place to avoid copying them. This is guaranteed to
+    // never have stale inputs (from previous eval) as long as I follow naming
+    // conventions and don't fuck up (I probably will).
     for (size_t i = 0; i < kInputSize; ++i) {
-      bindings[I(i)] = in.at(i, 0);
+      weights_[I(i)] = in.at(i, 0);
     }
 
-    bindings.insert(weights_);
+    std::function<symbolic::Expression(const symbolic::Expression&)> binder =
+        [this](const symbolic::Expression& exp) { return exp.Bind(weights_); };
 
     Matrix<kOutputSize, 1, symbolic::Expression> bound_network =
-        neural_network_.Bind(bindings);
+        neural_network_.Map(binder);
 
-    auto real_evaluator =
-        [](symbolic::Expression exp) {
-          auto maybe_value = exp.Evaluate();
-          if (!maybe_value) {
-            // Shit.
-            std::cerr << "Well, fuck, not sure how this happened" << std::endl;
-          }
-          return maybe_value->real();
-        }
+    auto real_evaluator = [](const symbolic::Expression& exp) {
+      auto maybe_value = exp.Evaluate();
+      if (!maybe_value) {
+        // Shit.
+        std::cerr << "Well, fuck, not sure how this happened" << std::endl;
+      }
+      return maybe_value->real();
+    };
 
-    Matrix<kOutputSize, 1, Number>
-        results = bound_network.Map(real_evaluator);
+    Matrix<kOutputSize, 1, Number> results = bound_network.Map(real_evaluator);
 
     return results;
   }
 
   // Back propagation
-  void Train(InputVector v, OutputVector v, const LearningParameters&) const {}
-
- private:
-  // Zero initialization is bad. Must use factory function with name which is
-  // more descriptive of what's going on (e.x., XavierInitializedNnet()).
-  Nnet() {
-    //// Activation function.
-    // auto sigmoid = [](Number x) -> Number {
-    //  return 1 / (1 + powf(e, -x))
-    //}
-
-    // HiddenVector v = input_weights * in;
-    // v = v.Map(sigmoid);
-    // for (size_t i = 0; i < kNumLayers; ++i) {
-    //  v = hidden_weights[i] * v;
-    //  v = v.Map(sigmoid);
-    //}
-    // OutputVector out = output_weights * v;
-    // return out.Map(sigmoid);
-
-    auto activation_function =
-        [](symbolic::Expression exp) { return symbolic::Sigmoid(exp); }
-
-    Matrix<kInputSize, 1, symbolic::Expression>
-        inputs;
-
+  void Train(InputVector in, OutputVector o, const LearningParameters& params) {
     for (size_t i = 0; i < kInputSize; ++i) {
-      inputs.at(i, 0) = symbolic::CreateExpression(I(i));
+      weights_[I(i)].real() = in.at(i, 0);
     }
 
-    Matrix<kLayerSize, kInputSize, symbolic::Expression> input_layer;
-    for (size_t i = 0; i < kLayerSize; ++i) {
-      for (size_t j = 0; j < kInputSize; ++j) {
-        input_layer.at(i, j) = symbolic::CreateExpression(W(0, j));
-      }
-    }
-    input_layer = input_layer.Map(activation_function);
-
-    Matrix<kLayerSize, kLayerSize, symbolic::Expression> layer;
-    for (size_t i = 0; i < kLayerSize; ++i) {
-      for (size_t j = 0; j < kLayerSize; ++j) {
-        hidden_layer.at(i, j) = symbolic::CreateExpression(W(0, i, j));
-      }
-    }
+    symbolic::Expression error = GetErrorExpression(o);
 
     for (size_t layer = 0; layer < kNumHiddenLayers; ++layer) {
-      Matrix<kLayerSize, kLayerSize, symbolic::Expression> hidden_layer;
-      for (size_t i = 0; i < kLayerSize; ++i) {
-        for (size_t j = 0; j < kLayerSize; ++j) {
-          hidden_layer.at(i, j) = symbolic::CreateExpression(W(i, j, k));
+      for (size_t node = 0; node < LayerSize(layer); ++node) {
+        for (size_t edge = 0; edge < LayerSize(layer - 1); ++edge) {
+          symbolic::Expression symbolic_gradient =
+              error.Derive(W(layer, node, edge));
+          symbolic::Expression gradient = symbolic_gradient.Bind(weights_);
+          auto gradient_value = gradient.Evaluate();
+          if (!gradient_value) {
+            std::cerr << "Shit" << std::endl;
+          }
+          Number weight_update = gradient_value->real() * params.learning_rate;
+          weights_[W(layer, node, edge)].real() += weight_update;
+        }
+      }
+    }
+  }
+
+  symbolic::Expression GetErrorExpression(OutputVector o) const {
+    symbolic::Expression error;
+    for (size_t out_idx = 0; out_idx < kOutputSize; ++out_idx) {
+      symbolic::Expression output_error =
+          neural_network_.at(out_idx,0) - symbolic::Expression(o.at(out_idx, 0));
+      error = error + (output_error * output_error);
+    }
+    return error;
+  }
+
+  SymbolicOutputVector GetExpression() const { return neural_network_; }
+
+  std::string to_string() const { return neural_network_.to_string(); }
+
+ private:
+  static constexpr size_t LayerSize(size_t layer_idx) {
+    return (layer_idx < 1) ? kInputSize : kLayerSize;
+  }
+
+  void CalculateInitialWeights() {
+    for (size_t layer = 0; layer < kNumHiddenLayers; ++layer) {
+      for (size_t node = 0; node < LayerSize(layer); ++node) {
+        for (size_t edge = 0; edge < LayerSize(layer - 1); ++edge) {
+          weights_[W(layer, node, edge)] = 0;
         }
       }
     }
@@ -123,40 +150,44 @@ class Nnet {
   OutputWeights GenOutputLayerWeights() const {
     OutputWeights results;
     for (size_t i = 0; i < kOutputSize; ++i) {
-      for (size_t j = 0; j < kHiddenLayerSize; ++j) {
+      for (size_t j = 0; j < kLayerSize; ++j) {
         // The final layer, which is layer kNumHiddenLayers, is the output
         // layer.
-        // There are kNumHiddenLayers + 1 layers, and since they're 0-indexed,
+        // There are kNumHiddenLayers + 2 layers, and since they're 0-indexed,
         // this is the final (output) index.
         results.at(i, j) =
-            symbolic::CreateExpression(W(kNumHiddenLayers, i, j));
+            symbolic::CreateExpression(W(kNumHiddenLayers + 1, i, j));
       }
     }
+    return results;
   }
 
   HiddenWeights GenHiddenLayerWeights(const int layer_idx) const {
     HiddenWeights results;
-    for (size_t i = 0; i < kHiddenLayerSize; ++i) {
-      for (size_t j = 0; j < kHiddenLayerSize; ++j) {
+    for (size_t i = 0; i < kLayerSize; ++i) {
+      for (size_t j = 0; j < kLayerSize; ++j) {
         results.at(i, j) = symbolic::CreateExpression(W(layer_idx, i, j));
       }
     }
+    return results;
   }
 
-  InputWeights GenInputLayerWeights(const int layer_idx) const {
+  InputWeights GenInputLayerWeights() const {
     InputWeights results;
-    for (size_t i = 0; i < kHiddenLayerSize; ++i) {
+    for (size_t i = 0; i < kLayerSize; ++i) {
       for (size_t j = 0; j < kInputSize; ++j) {
-        results.at(i, j) = symbolic::CreateExpression(W(layer_idx, i, j));
+        results.at(i, j) = symbolic::CreateExpression(W(0, i, j));
       }
     }
+    return results;
   }
 
-  InputVector GenInputLayer() const {
-    InputVector results;
+  SymbolicInputVector GenInputLayer() const {
+    SymbolicInputVector result;
     for (size_t i = 0; i < kInputSize; ++i) {
       result.at(i, 0) = symbolic::CreateExpression(I(i));
     }
+    return result;
   }
 
   // The entire neural network is stored symbolically, in a column vector of
@@ -164,8 +195,10 @@ class Nnet {
   // expressions in the column vector and bind weights and inputs.
   //
   // Weight names are of the form:
-  // W(i,j,k) -- i is layer number, j is the index of the neuron in that layer.
-  // k Is the index of the neuron in the previous layer that's connected to this
+  // W(i,j,k) -- i is layer number, j is the index of the neuron in that
+  // layer.
+  // k Is the index of the neuron in the previous layer that's connected to
+  // this
   // one (or for the input layer's case, the index of the input).
   // I(i) -- i is the index of the input.
   //
@@ -173,10 +206,11 @@ class Nnet {
   //
   // The first layer has kInputSize nuerons. Every Hidden layer has kLayerSize
   // neurons. The output layer has kOutputSize neurons. There are
-  // kNumHiddenLayers + 1 layers with weights (the hidden layers and the output
+  // kNumHiddenLayers + 1 layers with weights (the hidden layers and the
+  // output
   // layer).
   Matrix<kOutputSize, 1, symbolic::Expression> neural_network_;
-  std::unordered_map<std::string, NumericValue> weights_;
+  symbolic::Environment weights_;
 };
 
 #endif /* NNET_H */
