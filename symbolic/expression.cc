@@ -83,7 +83,7 @@ Expression Expression::operator-(const Expression& rhs) const {
   Expression rhs_neg = CreateExpression("-1") * rhs.expression_root_->Clone();
   return Expression(std::make_unique<AdditionExpression>(
       std::initializer_list<const ExpressionNode*>(
-          {lhscopy.get(), (rhs_neg).Release().get()})));
+          {lhscopy.get(), rhs_neg.expression_root_.get()})));
 }
 
 Expression Expression::operator*(const Expression& rhs) const {
