@@ -57,9 +57,9 @@ int main() {
     .learning_rate = 0.1,
   };
 
-  std::cout << "Training";
+  std::cout << "Training" << std::endl;
   for (const auto& example : flw) {
-    std::cout << ".";
+    std::cout << "." << std::endl;
     // example.first is input vector. example.second is score.
     test_net.Train(ConvertToSample(example.first), Nnet::OutputVector({{example.second}}), params);
   }

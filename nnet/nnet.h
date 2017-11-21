@@ -53,9 +53,9 @@ class Nnet {
 
     neural_network_ =
         (GenOutputLayerWeights() * layer).Map(activation_function);
-  }
 
-  void Initialize() { CalculateInitialWeights(); }
+    CalculateInitialWeights();
+  }
 
   static std::string I(size_t i) { return "I(" + std::to_string(i) + ")"; }
 
@@ -102,16 +102,19 @@ class Nnet {
     symbolic::Expression error = GetErrorExpression(o);
 
     for (size_t layer = 0; layer < kNumHiddenLayers; ++layer) {
-      for (size_t node = 0; node < LayerSize(layer); ++node) {
-        for (size_t edge = 0; edge < LayerSize(layer - 1); ++edge) {
+      for (size_t node = 0; node < kLayerSize; ++node) {
+        for (size_t edge = 0; edge < PrevLayerSize(layer); ++edge) {
           symbolic::Expression symbolic_gradient =
               error.Derive(W(layer, node, edge));
           symbolic::Expression gradient = symbolic_gradient.Bind(weights_);
           auto gradient_value = gradient.Evaluate();
           if (!gradient_value) {
             std::cerr << "Shit" << std::endl;
+            for (const std::string& variable : gradient.variables()) {
+              std::cerr << variable << std::endl;
+            }
           }
-          Number weight_update = gradient_value->real() * params.learning_rate;
+          Number weight_update = -gradient_value->real() * params.learning_rate;
           weights_[W(layer, node, edge)].real() += weight_update;
         }
       }
@@ -133,15 +136,15 @@ class Nnet {
   std::string to_string() const { return neural_network_.to_string(); }
 
  private:
-  static constexpr size_t LayerSize(size_t layer_idx) {
-    return (layer_idx < 1) ? kInputSize : kLayerSize;
+  static constexpr size_t PrevLayerSize(size_t layer_idx) {
+    return (layer_idx == 0) ? kInputSize : kLayerSize;
   }
 
   void CalculateInitialWeights() {
-    for (size_t layer = 0; layer < kNumHiddenLayers; ++layer) {
-      for (size_t node = 0; node < LayerSize(layer); ++node) {
-        for (size_t edge = 0; edge < LayerSize(layer - 1); ++edge) {
-          weights_[W(layer, node, edge)] = 0;
+    for (size_t layer = 0; layer < kNumLayers; ++layer) {
+      for (size_t node = 0; node < kLayerSize; ++node) {
+        for (size_t edge = 0; edge < PrevLayerSize(layer); ++edge) {
+          weights_[W(layer, node, edge)].real() = static_cast<double>(std::rand() / RAND_MAX);
         }
       }
     }
