@@ -1,5 +1,5 @@
 #ifndef EXPRESSION_NODE_H
-#define EXPRESSION_NODE_H 
+#define EXPRESSION_NODE_H
 
 #include <experimental/optional>
 #include <memory>
@@ -18,7 +18,7 @@ class ExpressionNode {
   // Variables which need to be resolved in order to evaluate the expression.
   virtual std::set<std::string> variables() const = 0;
   // Bind variables to values to create an expression which can be evaluated.
-  virtual std::unique_ptr<ExpressionNode> Bind(
+  virtual std::unique_ptr<const ExpressionNode> Bind(
       const std::unordered_map<std::string, NumericValue>&) const = 0;
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
@@ -30,7 +30,9 @@ class ExpressionNode {
 
   virtual std::string to_string() const = 0;
 
-  virtual std::unique_ptr<ExpressionNode> Clone() const = 0;
+  virtual std::unique_ptr<const ExpressionNode> Clone() const = 0;
+
+  virtual ~ExpressionNode() {}
 };
 
 }  // namespace symbolic

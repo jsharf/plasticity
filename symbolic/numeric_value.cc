@@ -2,7 +2,7 @@
 
 namespace symbolic {
 
-std::unique_ptr<ExpressionNode> NumericValue::Bind(
+std::unique_ptr<const ExpressionNode> NumericValue::Bind(
     const std::unordered_map<std::string, NumericValue>& env) const {
   if (!is_bound_) {
     if (env.count(name_) == 1) {
@@ -45,7 +45,7 @@ std::string NumericValue::to_string() const {
   return result;
 }
 
-std::unique_ptr<ExpressionNode> NumericValue::Clone() const {
+std::unique_ptr<const ExpressionNode> NumericValue::Clone() const {
   if (is_bound_) {
     return std::make_unique<NumericValue>(a_, b_);
   } else {
