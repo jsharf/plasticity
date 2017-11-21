@@ -39,20 +39,28 @@ class Nnet {
   Nnet() {
     std::function<symbolic::Expression(const symbolic::Expression&)>
         activation_function = [](const symbolic::Expression& exp) {
+          std::cout << "activating" << std::endl;
           return symbolic::Sigmoid(exp);
         };
 
+    std::cout << "A" << std::endl;
     SymbolicInputVector inputs = GenInputLayer();
 
+    std::cout << "B" << std::endl;
     HiddenVector layer =
         (GenInputLayerWeights() * inputs).Map(activation_function);
 
+    std::cout << "C" << std::endl;
     for (size_t i = 1; i <= kNumHiddenLayers; ++i) {
       layer = (GenHiddenLayerWeights(i) * layer).Map(activation_function);
     }
+    std::cout << "D" << std::endl;
+    std::cout << layer.to_string() << std::endl;
 
     neural_network_ =
         (GenOutputLayerWeights() * layer).Map(activation_function);
+
+    std::cout << "E" << std::endl;
 
     CalculateInitialWeights();
   }

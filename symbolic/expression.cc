@@ -71,10 +71,8 @@ Expression::Expression(Number a)
     : expression_root_(std::make_unique<NumericValue>(a)) {}
 
 Expression Expression::operator+(const Expression& rhs) const {
-  auto lhscopy = expression_root_->Clone();
-  auto rhscopy = rhs.expression_root_->Clone();
-  return Expression(std::make_unique<AdditionExpression>(std::move(lhscopy),
-                                                         std::move(rhscopy)));
+  return Expression(std::make_unique<AdditionExpression>(
+      expression_root_->Clone(), rhs.expression_root_->Clone()));
 }
 
 Expression Expression::operator-(const Expression& rhs) const {
@@ -141,10 +139,8 @@ std::string Expression::to_string() const {
 
 std::set<std::string> CompoundExpression::variables() const {
   std::set<std::string> variables;
-  if (head_) {
-    std::set<std::string> head_variables = head_->variables();
-    variables.insert(head_variables.begin(), head_variables.end());
-  }
+  std::set<std::string> head_variables = head_->variables();
+  variables.insert(head_variables.begin(), head_variables.end());
   if (tail_) {
     std::set<std::string> tail_variables = tail_->variables();
     variables.insert(tail_variables.begin(), tail_variables.end());
@@ -215,7 +211,8 @@ std::unique_ptr<ExpressionNode> MultiplicationExpression::Derive(
   }
 
   std::unique_ptr<const ExpressionNode> dhead = head_->Derive(x);
-  std::unique_ptr<const ExpressionNode> dtail = tail_->Derive(x);  // Recursive call.
+  std::unique_ptr<const ExpressionNode> dtail =
+      tail_->Derive(x);  // Recursive call.
 
   std::unique_ptr<const ExpressionNode> head_dtail =
       std::make_unique<MultiplicationExpression>(head_, dtail);
@@ -367,6 +364,7 @@ std::string ExponentExpression::to_string() const {
 }
 
 std::unique_ptr<const ExpressionNode> ExponentExpression::Clone() const {
+  std::cerr << "Cloned." << std::endl;
   return std::make_unique<ExponentExpression>(b_, child_->Clone());
 }
 

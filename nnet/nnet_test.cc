@@ -33,6 +33,8 @@ int main() {
   constexpr int kOutputSize = 1;
   constexpr int kInputSize = kSampleSize;
 
+  std::cout << "Starting... " << std::endl;
+
   using Nnet = Nnet<kNumHiddenLayers, kLayerSize, kOutputSize, kInputSize>;
   Nnet test_net;
   std::cout << "Expr: " << std::endl << test_net.to_string() << std::endl;
@@ -60,7 +62,6 @@ int main() {
   std::cout << "Training" << std::endl;
   for (const auto& example : flw) {
     std::cout << "." << std::endl;
-    // example.first is input vector. example.second is score.
     test_net.Train(ConvertToSample(example.first), Nnet::OutputVector({{example.second}}), params);
   }
   std::cout << std::endl;
