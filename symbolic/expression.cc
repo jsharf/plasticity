@@ -71,30 +71,37 @@ Expression::Expression(Number a)
     : expression_root_(std::make_unique<NumericValue>(a)) {}
 
 Expression Expression::operator+(const Expression& rhs) const {
-  return Expression(std::make_unique<AdditionExpression>(
-      expression_root_->Clone(), rhs.expression_root_->Clone()));
+  return Expression(std::make_unique<AdditionExpression>(expression_root_,
+                                                         rhs.expression_root_));
 }
 
 Expression Expression::operator-(const Expression& rhs) const {
-  auto lhscopy = expression_root_->Clone();
-  auto neg = std::make_unique<symbolic::NumericValue>(-1);
-  auto rhs_neg = std::make_unique<MultiplicationExpression>(
-      std::move(neg), rhs.expression_root_->Clone());
-  return Expression(std::make_unique<AdditionExpression>(std::move(lhscopy),
-                                                         std::move(rhs_neg)));
+  std::unique_ptr<const symbolic::ExpressionNode> neg = std::make_unique<symbolic::NumericValue>(-1);
+  std::unique_ptr<const symbolic::ExpressionNode> rhs_neg =
+      std::make_unique<MultiplicationExpression>(neg, rhs.expression_root_);
+  return Expression(
+      std::make_unique<AdditionExpression>(expression_root_, rhs_neg));
 }
 
 Expression Expression::operator*(const Expression& rhs) const {
-  auto lhscopy = expression_root_->Clone();
-  auto rhscopy = rhs.expression_root_->Clone();
+  auto lhsresult = expression_root_->TryEvaluate();
+  auto rhsresult = rhs.expression_root_->TryEvaluate();
+  if (lhsresult && rhsresult && ((lhsresult->real() == 0) || (rhsresult->real() == 0))) {
+    std::cerr << "optimizing out mul with zero: " << std::endl;
+    return Expression(0);
+  }
   return Expression(std::make_unique<MultiplicationExpression>(
-      std::move(lhscopy), std::move(rhscopy)));
+      expression_root_, rhs.expression_root_));
 }
 
 Expression Expression::operator/(const Expression& rhs) const {
-  std::unique_ptr<const ExpressionNode> lhscopy = expression_root_->Clone();
-  std::unique_ptr<const ExpressionNode> rhscopy = rhs.expression_root_->Clone();
-  return Expression(std::make_unique<DivisionExpression>(lhscopy, rhscopy));
+  auto numresult = expression_root_->TryEvaluate();
+  if (numresult && (numresult->real() == 0)) {
+    std::cerr << "optimizing out 0/X." << std::endl;
+    return Expression(0);
+  }
+  return Expression(std::make_unique<DivisionExpression>(expression_root_,
+                                                         rhs.expression_root_));
 }
 
 Expression& Expression::operator=(const Expression& rhs) {
@@ -364,8 +371,7 @@ std::string ExponentExpression::to_string() const {
 }
 
 std::unique_ptr<const ExpressionNode> ExponentExpression::Clone() const {
-  std::cerr << "Cloned." << std::endl;
-  return std::make_unique<ExponentExpression>(b_, child_->Clone());
+  return std::make_unique<ExponentExpression>(b_, child_);
 }
 
 }  // namespace symbolic

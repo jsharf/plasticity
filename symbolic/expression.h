@@ -44,9 +44,7 @@ class Expression {
 
   Expression operator+(const Expression& rhs) const;
   Expression operator-(const Expression& rhs) const;
-
   Expression operator*(const Expression& rhs) const;
-
   Expression operator/(const Expression& rhs) const;
 
   Expression& operator=(const Expression& rhs);
@@ -70,6 +68,10 @@ class Expression {
   std::unique_ptr<const ExpressionNode> Release();
 
   void Reset(std::unique_ptr<const ExpressionNode> root);
+
+  std::unique_ptr<const ExpressionNode>& GetPointer() {
+    return expression_root_;
+  }
 
   std::string to_string() const;
 
@@ -119,11 +121,10 @@ class AdditionExpression : public CompoundExpression {
   std::string operator_to_string() const override { return "+"; }
 
   std::unique_ptr<const ExpressionNode> Clone() const override {
-    std::cerr << "Cloned." << std::endl;
     if (!tail_) {
-      return std::make_unique<AdditionExpression>(head_->Clone());
+      return std::make_unique<AdditionExpression>(head_);
     }
-    return std::make_unique<AdditionExpression>(head_->Clone(), tail_->Clone());
+    return std::make_unique<AdditionExpression>(head_, tail_);
   }
 
   std::unique_ptr<const ExpressionNode> Bind(
@@ -131,7 +132,6 @@ class AdditionExpression : public CompoundExpression {
 
   // Returns the symbolic partial derivative of this expression.
   std::unique_ptr<ExpressionNode> Derive(const std::string& x) const override;
-
 };
 
 class MultiplicationExpression : public CompoundExpression {
@@ -151,12 +151,10 @@ class MultiplicationExpression : public CompoundExpression {
   std::string operator_to_string() const override { return "*"; }
 
   std::unique_ptr<const ExpressionNode> Clone() const override {
-    std::cerr << "Cloned." << std::endl;
     if (!tail_) {
-      return std::make_unique<MultiplicationExpression>(head_->Clone());
+      return std::make_unique<MultiplicationExpression>(head_);
     }
-    return std::make_unique<MultiplicationExpression>(
-        head_->Clone(), tail_->Clone());
+    return std::make_unique<MultiplicationExpression>(head_, tail_);
   }
 
   std::unique_ptr<const ExpressionNode> Bind(
@@ -199,11 +197,8 @@ class DivisionExpression : public ExpressionNode {
   std::string to_string() const override;
 
   std::unique_ptr<const ExpressionNode> Clone() const override {
-    std::cerr << "Cloned." << std::endl;
     std::unique_ptr<DivisionExpression> clone =
-        std::make_unique<DivisionExpression>();
-    clone->set_numerator(numerator_->Clone());
-    clone->set_denominator(denominator_->Clone());
+        std::make_unique<DivisionExpression>(numerator_, denominator_);
     return std::move(clone);
   }
 
@@ -216,8 +211,8 @@ class DivisionExpression : public ExpressionNode {
 class ExponentExpression : public ExpressionNode {
  public:
   ExponentExpression(const NumericValue& b,
-                     std::unique_ptr<const ExpressionNode> child)
-      : b_(b), child_(std::move(child)) {}
+                     const std::unique_ptr<const ExpressionNode>& child)
+      : b_(b), child_(child->Clone()) {}
   // Variables which need to be resolved in order to evaluate the expression.
   std::set<std::string> variables() const override;
   // Bind variables to values to create an expression which can be evaluated.

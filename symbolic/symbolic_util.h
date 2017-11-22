@@ -12,7 +12,7 @@ Expression Sigmoid(Expression a) {
   return CreateExpression("1") /
          (CreateExpression("1") +
           Expression(std::make_unique<ExponentExpression>(
-              NumericValue::e, (CreateExpression("-1") * a).Release())));
+              NumericValue::e, (CreateExpression("-1") * a).GetPointer())));
 }
 
 }  // namespace symbolic

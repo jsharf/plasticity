@@ -61,7 +61,7 @@ int main() {
 
   std::cout << "Training" << std::endl;
   for (const auto& example : flw) {
-    std::cout << "." << std::endl;
+    std::cout << "." << std::flush;
     test_net.Train(ConvertToSample(example.first), Nnet::OutputVector({{example.second}}), params);
   }
   std::cout << std::endl;

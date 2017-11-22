@@ -33,34 +33,25 @@ class Nnet {
     Number learning_rate;
   };
 
-  // TODO(sharf): move this to private.
-  // Zero initialization is bad. Must use factory function with name which is
-  // more descriptive of what's going on (e.x., XavierInitializedNnet()).
   Nnet() {
     std::function<symbolic::Expression(const symbolic::Expression&)>
         activation_function = [](const symbolic::Expression& exp) {
-          std::cout << "activating" << std::endl;
           return symbolic::Sigmoid(exp);
         };
 
-    std::cout << "A" << std::endl;
     SymbolicInputVector inputs = GenInputLayer();
 
-    std::cout << "B" << std::endl;
     HiddenVector layer =
         (GenInputLayerWeights() * inputs).Map(activation_function);
 
-    std::cout << "C" << std::endl;
     for (size_t i = 1; i <= kNumHiddenLayers; ++i) {
       layer = (GenHiddenLayerWeights(i) * layer).Map(activation_function);
     }
-    std::cout << "D" << std::endl;
+
     std::cout << layer.to_string() << std::endl;
 
     neural_network_ =
         (GenOutputLayerWeights() * layer).Map(activation_function);
-
-    std::cout << "E" << std::endl;
 
     CalculateInitialWeights();
   }
@@ -109,12 +100,16 @@ class Nnet {
 
     symbolic::Expression error = GetErrorExpression(o);
 
-    for (size_t layer = 0; layer < kNumHiddenLayers; ++layer) {
-      for (size_t node = 0; node < kLayerSize; ++node) {
+    for (size_t layer = 0; layer < kNumLayers; ++layer) {
+      for (size_t node = 0; node < LayerSize(layer); ++node) {
         for (size_t edge = 0; edge < PrevLayerSize(layer); ++edge) {
-          symbolic::Expression symbolic_gradient =
-              error.Derive(W(layer, node, edge));
-          symbolic::Expression gradient = symbolic_gradient.Bind(weights_);
+          if (gradients_.count(W(layer, node, edge)) == 0) {
+            symbolic::Expression symbolic_gradient =
+                error.Derive(W(layer, node, edge));
+            gradients_[W(layer, node, edge)] = symbolic_gradient;
+          }
+          symbolic::Expression gradient =
+              gradients_[W(layer, node, edge)].Bind(weights_);
           auto gradient_value = gradient.Evaluate();
           if (!gradient_value) {
             std::cerr << "Shit" << std::endl;
@@ -133,7 +128,8 @@ class Nnet {
     symbolic::Expression error;
     for (size_t out_idx = 0; out_idx < kOutputSize; ++out_idx) {
       symbolic::Expression output_error =
-          neural_network_.at(out_idx,0) - symbolic::Expression(o.at(out_idx, 0));
+          neural_network_.at(out_idx, 0) -
+          symbolic::Expression(o.at(out_idx, 0));
       error = error + (output_error * output_error);
     }
     return error;
@@ -143,16 +139,34 @@ class Nnet {
 
   std::string to_string() const { return neural_network_.to_string(); }
 
+  std::string WeightsToString() const {
+    std::stringstream output;
+    output << "{";
+    for (const auto& kv : weights_) {
+      output << kv.first << ":" << kv.second.to_string() << "," << std::endl;
+    }
+    output << "}";
+    return output.str();
+  }
+
  private:
+  static constexpr size_t LayerSize(size_t layer_idx) {
+    if (layer_idx == kNumHiddenLayers + 1) {
+      return kOutputSize;
+    }
+    return kLayerSize;
+  }
+
   static constexpr size_t PrevLayerSize(size_t layer_idx) {
     return (layer_idx == 0) ? kInputSize : kLayerSize;
   }
 
   void CalculateInitialWeights() {
     for (size_t layer = 0; layer < kNumLayers; ++layer) {
-      for (size_t node = 0; node < kLayerSize; ++node) {
+      for (size_t node = 0; node < LayerSize(layer); ++node) {
         for (size_t edge = 0; edge < PrevLayerSize(layer); ++edge) {
-          weights_[W(layer, node, edge)].real() = static_cast<double>(std::rand() / RAND_MAX);
+          weights_[W(layer, node, edge)].real() =
+              static_cast<double>(std::rand()) / RAND_MAX;
         }
       }
     }
@@ -222,6 +236,7 @@ class Nnet {
   // layer).
   Matrix<kOutputSize, 1, symbolic::Expression> neural_network_;
   symbolic::Environment weights_;
+  std::unordered_map<std::string, symbolic::Expression> gradients_;
 };
 
 #endif /* NNET_H */
