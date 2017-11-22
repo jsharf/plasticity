@@ -48,13 +48,12 @@ int main() {
   std::function<Number(const Expression&)> evaluator =
       [](const Expression& exp) -> Number {
     Expression clone = exp;
-    clone.Bind("xscale", NumericValue(0.5));
-    clone.Bind("yscale", NumericValue(1));
-    clone.Bind("zscale", NumericValue(11.2));
+    clone = clone.Bind("xscale", NumericValue(0.5));
+    clone = clone.Bind("yscale", NumericValue(1));
+    clone = clone.Bind("zscale", NumericValue(11.2));
     auto value = clone.Evaluate();
     if (!value) {
       std::cerr << "Failed to evaluate expression." << std::endl;
-
       std::exit(1);
     }
     return value->real();
