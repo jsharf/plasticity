@@ -14,6 +14,16 @@ std::string trim(std::string& str)
     return str.substr(first, (last-first+1));
 }
 
+std::string GenerateRandomFlw() {
+  std::string word = "";
+  word += 'a' + std::rand()%26;
+  word += 'a' + std::rand()%26;
+  word += 'a' + std::rand()%26;
+  word += 'a' + std::rand()%26;
+  word += 'a' + std::rand()%26;
+  return word;
+}
+
 constexpr size_t kSampleSize = 5;
 using Sample = Matrix<kSampleSize, 1, Number>;
 
@@ -55,6 +65,15 @@ int main() {
 
   std::cout << "Valid words: " << flw.size() << std::endl;
 
+  for (size_t i = 0; i < 5000; ++i) {
+    std::string word = GenerateRandomFlw();
+    if (flw.count(word) == 0) {
+      flw[word] = 0;
+    }
+  }
+
+  std::cout << "Samples generated: " << flw.size() << std::endl;
+
   Nnet::LearningParameters params {
     .learning_rate = 0.1,
   };
@@ -64,5 +83,7 @@ int main() {
     std::cout << "." << std::flush;
     test_net.Train(ConvertToSample(example.first), Nnet::OutputVector({{example.second}}), params);
   }
+  std::cout << "Weights: " << std::endl;
+  std::cout << test_net.WeightsToString();
   std::cout << std::endl;
 }

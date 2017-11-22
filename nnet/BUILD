@@ -2,6 +2,9 @@ cc_library(
     name = "nnet",
     visibility = ["//math"],
     hdrs = ["nnet.h"],
+    copts = [
+      "-fopenmp",
+    ],
     deps = [
         "//math/geometry:matrix",
         "//math/symbolic:symbolic",
@@ -15,7 +18,11 @@ cc_binary(
     visibility = ["//math"],
     srcs = ["nnet_test.cc"],
     copts = [
-        "--std=c++1z",
+      "-fopenmp",
+      "--std=c++1z",
+    ],
+    linkopts = [
+      "-fopenmp",
     ],
     deps = [
         ":nnet",

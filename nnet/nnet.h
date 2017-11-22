@@ -99,17 +99,15 @@ class Nnet {
     }
 
     symbolic::Expression error = GetErrorExpression(o);
+    symbolic::Environment weights = weights_;
 
+    #pragma omp parallel for shared(error) shared(weights)
     for (size_t layer = 0; layer < kNumLayers; ++layer) {
       for (size_t node = 0; node < LayerSize(layer); ++node) {
         for (size_t edge = 0; edge < PrevLayerSize(layer); ++edge) {
-          if (gradients_.count(W(layer, node, edge)) == 0) {
-            symbolic::Expression symbolic_gradient =
-                error.Derive(W(layer, node, edge));
-            gradients_[W(layer, node, edge)] = symbolic_gradient;
-          }
-          symbolic::Expression gradient =
-              gradients_[W(layer, node, edge)].Bind(weights_);
+          symbolic::Expression symbolic_gradient =
+              error.Derive(W(layer, node, edge));
+          symbolic::Expression gradient = symbolic_gradient.Bind(weights);
           auto gradient_value = gradient.Evaluate();
           if (!gradient_value) {
             std::cerr << "Shit" << std::endl;
