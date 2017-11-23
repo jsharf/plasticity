@@ -31,3 +31,17 @@ cc_binary(
     ],
 )
 
+cc_binary(
+    name = "circle_test",
+    visibility = ["//math"],
+    srcs = ["circle_test.cc"],
+    copts = [
+        "--std=c++1z",
+    ],
+    deps = [
+        ":nnet",
+        "//math/symbolic:symbolic",
+        "//math/geometry:matrix",
+    ],
+)
+
