@@ -18,16 +18,24 @@ template <size_t kNumHiddenLayers, size_t kLayerSize, size_t kOutputSize,
           size_t kInputSize>
 class Nnet {
  public:
-  using SymbolicInputVector = Matrix<kInputSize, 1, symbolic::Expression>;
+  // + 1 for bias.
+  static constexpr size_t kNumLayers = kNumHiddenLayers + 2;
+  static constexpr size_t kLayerSizeBiased = kLayerSize + 1;
+  static constexpr size_t kInputSizeBiased = kInputSize + 1;
+
+  using BiasedSymbolicInputVector =
+      Matrix<kInputSizeBiased, 1, symbolic::Expression>;
   using SymbolicOutputVector = Matrix<kOutputSize, 1, symbolic::Expression>;
   using InputVector = Matrix<kInputSize, 1, Number>;
   using OutputVector = Matrix<kOutputSize, 1, Number>;
   using HiddenVector = Matrix<kLayerSize, 1, symbolic::Expression>;
-  using OutputWeights = Matrix<kOutputSize, kLayerSize, symbolic::Expression>;
-  using HiddenWeights = Matrix<kLayerSize, kLayerSize, symbolic::Expression>;
-  using InputWeights = Matrix<kLayerSize, kInputSize, symbolic::Expression>;
-
-  static constexpr size_t kNumLayers = kNumHiddenLayers + 2;
+  using BiasedHiddenVector = Matrix<kLayerSizeBiased, 1, symbolic::Expression>;
+  using BiasedOutputWeights =
+      Matrix<kOutputSize, kLayerSizeBiased, symbolic::Expression>;
+  using BiasedHiddenWeights =
+      Matrix<kLayerSize, kLayerSizeBiased, symbolic::Expression>;
+  using BiasedInputWeights =
+      Matrix<kLayerSize, kInputSizeBiased, symbolic::Expression>;
 
   struct LearningParameters {
     Number learning_rate;
@@ -39,21 +47,34 @@ class Nnet {
           return symbolic::Sigmoid(exp);
         };
 
-    SymbolicInputVector inputs = GenInputLayer();
+    BiasedSymbolicInputVector inputs = GenInputLayer();
 
     HiddenVector layer =
         (GenInputLayerWeights() * inputs).Map(activation_function);
 
     for (size_t i = 1; i <= kNumHiddenLayers; ++i) {
-      layer = (GenHiddenLayerWeights(i) * layer).Map(activation_function);
+      BiasedHiddenVector biased_layer;
+      for (size_t j = 0; j < kLayerSize; j++) {
+        biased_layer.at(j, 0) = layer.at(j, 0);
+      }
+      biased_layer.at(kLayerSizeBiased - 1, 0) =
+          symbolic::CreateExpression(B(i));
+      layer =
+          (GenHiddenLayerWeights(i) * biased_layer).Map(activation_function);
     }
 
-    std::cout << layer.to_string() << std::endl;
+    BiasedHiddenVector biased_layer;
+    for (size_t j = 0; j < kLayerSize; j++) {
+      biased_layer.at(j, 0) = layer.at(j, 0);
+    }
+    biased_layer.at(kLayerSizeBiased - 1, 0) =
+        symbolic::CreateExpression(B(kNumLayers - 1));
 
     neural_network_ =
-        (GenOutputLayerWeights() * layer).Map(activation_function);
+        (GenOutputLayerWeights() * biased_layer).Map(activation_function);
 
     CalculateInitialWeights();
+    CalculateInitialBias();
   }
 
   static std::string I(size_t i) { return "I(" + std::to_string(i) + ")"; }
@@ -63,8 +84,11 @@ class Nnet {
            std::to_string(k) + ")";
   }
 
-  Matrix<kOutputSize, 1, Number> Evaluate(
-      Matrix<kInputSize, 1, Number> in) const {
+  static std::string B(size_t layer) {
+    return "B(" + std::to_string(layer) + ")";
+  }
+
+  Matrix<kOutputSize, 1, Number> Evaluate(InputVector in) const {
     // Modify weights_ in-place to avoid copying them. This is guaranteed to
     // never have stale inputs (from previous eval) as long as I follow naming
     // conventions and don't fuck up (I probably will).
@@ -101,7 +125,9 @@ class Nnet {
     symbolic::Expression error = GetErrorExpression(o);
     symbolic::Environment weights = weights_;
 
-    #pragma omp parallel for shared(error) shared(weights)
+// TODO(sharf): Is this a race condition with weights_[] +=? Answer:
+// probably.
+#pragma omp parallel for shared(error) shared(weights)
     for (size_t layer = 0; layer < kNumLayers; ++layer) {
       for (size_t node = 0; node < LayerSize(layer); ++node) {
         for (size_t edge = 0; edge < PrevLayerSize(layer); ++edge) {
@@ -155,14 +181,32 @@ class Nnet {
     return kLayerSize;
   }
 
+  static constexpr size_t BiasedLayerSize(size_t layer_idx) {
+    return LayerSize(layer_idx) + 1;
+  }
+
   static constexpr size_t PrevLayerSize(size_t layer_idx) {
     return (layer_idx == 0) ? kInputSize : kLayerSize;
   }
 
+  static constexpr size_t BiasedPrevLayerSize(size_t layer_idx) {
+    return PrevLayerSize(layer_idx) + 1;
+  }
+
+  template <size_t N>
+  Matrix<N + 1, 1, symbolic::Expression> AddBias(
+      Matrix<N, 1, symbolic::Expression> x) {
+    Matrix<N + 1, 1, symbolic::Expression> biased_layer;
+    for (size_t i = 0; i < N; j++) {
+      biased_layer.at(i, 0) = layer.at(i, 0);
+    }
+    biased_layer.at(N, 0) = symbolic::CreateExpression(B(i));
+  }
+
   void CalculateInitialWeights() {
     for (size_t layer = 0; layer < kNumLayers; ++layer) {
-      for (size_t node = 0; node < LayerSize(layer); ++node) {
-        for (size_t edge = 0; edge < PrevLayerSize(layer); ++edge) {
+      for (size_t node = 0; node < BiasedLayerSize(layer); ++node) {
+        for (size_t edge = 0; edge < BiasedPrevLayerSize(layer); ++edge) {
           weights_[W(layer, node, edge)].real() =
               static_cast<double>(std::rand()) / RAND_MAX;
         }
@@ -170,14 +214,16 @@ class Nnet {
     }
   }
 
-  OutputWeights GenOutputLayerWeights() const {
-    OutputWeights results;
+  void CalculateInitialBias() {
+    for (size_t layer = 0; layer < kNumLayers; ++layer) {
+      weights_[B(layer)] = symbolic::NumericValue(1);
+    }
+  }
+
+  BiasedOutputWeights GenOutputLayerWeights() const {
+    BiasedOutputWeights results;
     for (size_t i = 0; i < kOutputSize; ++i) {
-      for (size_t j = 0; j < kLayerSize; ++j) {
-        // The final layer, which is layer kNumHiddenLayers, is the output
-        // layer.
-        // There are kNumHiddenLayers + 2 layers, and since they're 0-indexed,
-        // this is the final (output) index.
+      for (size_t j = 0; j < BiasedPrevLayerSize(kNumLayers - 1); ++j) {
         results.at(i, j) =
             symbolic::CreateExpression(W(kNumHiddenLayers + 1, i, j));
       }
@@ -185,31 +231,32 @@ class Nnet {
     return results;
   }
 
-  HiddenWeights GenHiddenLayerWeights(const int layer_idx) const {
-    HiddenWeights results;
-    for (size_t i = 0; i < kLayerSize; ++i) {
-      for (size_t j = 0; j < kLayerSize; ++j) {
+  BiasedHiddenWeights GenHiddenLayerWeights(const int layer_idx) const {
+    BiasedHiddenWeights results;
+    for (size_t i = 0; i < BiasedLayerSize(layer_idx); ++i) {
+      for (size_t j = 0; j < BiasedPrevLayerSize(layer_idx); ++j) {
         results.at(i, j) = symbolic::CreateExpression(W(layer_idx, i, j));
       }
     }
     return results;
   }
 
-  InputWeights GenInputLayerWeights() const {
-    InputWeights results;
+  BiasedInputWeights GenInputLayerWeights() const {
+    BiasedInputWeights results;
     for (size_t i = 0; i < kLayerSize; ++i) {
-      for (size_t j = 0; j < kInputSize; ++j) {
+      for (size_t j = 0; j < BiasedLayerSize(0); ++j) {
         results.at(i, j) = symbolic::CreateExpression(W(0, i, j));
       }
     }
     return results;
   }
 
-  SymbolicInputVector GenInputLayer() const {
-    SymbolicInputVector result;
-    for (size_t i = 0; i < kInputSize; ++i) {
+  BiasedSymbolicInputVector GenInputLayer() const {
+    BiasedSymbolicInputVector result;
+    for (size_t i = 0; i < LayerSize(i); ++i) {
       result.at(i, 0) = symbolic::CreateExpression(I(i));
     }
+    result.at(BiasedLayerSize(0) - 1, 0) = symbolic::CreateExpression(B(0));
     return result;
   }
 
@@ -233,7 +280,7 @@ class Nnet {
   // output
   // layer).
   Matrix<kOutputSize, 1, symbolic::Expression> neural_network_;
-  symbolic::Environment weights_;
+  symbolic::Environment weights_;  // Also includes biases.
   std::unordered_map<std::string, symbolic::Expression> gradients_;
 };
 

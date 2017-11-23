@@ -28,7 +28,7 @@ int main() {
     double x = static_cast<double>(std::rand()) / RAND_MAX;
     double y = static_cast<double>(std::rand()) / RAND_MAX;
 
-    bool in_unit_circle = (x * x + y * y) <= 1.0;
+    double in_unit_circle = (x * x + y * y) <= 1.0 ? 1 : 0;
 
     examples.push_back(std::make_tuple(Sample({{x}, {y}}), in_unit_circle));
   }
@@ -39,10 +39,21 @@ int main() {
 
   std::cout << "Training" << std::endl;
 
-  for (const auto& example : flw) {
+  for (const std::tuple<Sample, double>& example : examples) {
     std::cout << "." << std::flush;
-    test_net.Train(std::get<0>(example),
-                   Nnet::OutputVector({{std::get<1>(example)}}), params);
+    test_net.Train(
+        std::get<0>(example),
+        Nnet::OutputVector({{static_cast<double>(std::get<1>(example))}}),
+        params);
+  }
+
+  for (size_t i = 0; i < 10000; ++i) {
+    double pointx = static_cast<double>(std::rand()) / RAND_MAX;
+    double pointy = static_cast<double>(std::rand()) / RAND_MAX;
+    double output =
+        test_net.Evaluate(NNet::InputVector{{pointx, pointy}}).at(0, 0).real();
+    std::cout << "((" << pointx << "," << pointy << ")," << output << ")"
+              << std::endl;
   }
 
   std::cout << test_net.WeightsToString();
