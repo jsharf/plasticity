@@ -12,7 +12,7 @@ using Sample = Matrix<kSampleSize, 1, Number>;
 
 // Trains a neural network to learn if given point is in unit circle.
 int main() {
-  constexpr int kNumHiddenLayers = 0;
+  constexpr int kNumHiddenLayers = 1;
   constexpr int kLayerSize = 2;
   constexpr int kOutputSize = 1;
   constexpr int kInputSize = kSampleSize;
@@ -25,8 +25,8 @@ int main() {
 
   // Generate training samples.
   for (size_t i = 0; i < 10000; ++i) {
-    double x = static_cast<double>(std::rand()) / RAND_MAX;
-    double y = static_cast<double>(std::rand()) / RAND_MAX;
+    double x = (2 * static_cast<double>(std::rand()) / RAND_MAX) - 1;
+    double y = (2 * static_cast<double>(std::rand()) / RAND_MAX) - 1;
 
     double in_unit_circle = (x * x + y * y) <= 1.0 ? 1 : 0;
 
@@ -51,8 +51,8 @@ int main() {
   std::cout << std::endl;
 
   for (size_t i = 0; i < 10000; ++i) {
-    double pointx = static_cast<double>(std::rand()) / RAND_MAX;
-    double pointy = static_cast<double>(std::rand()) / RAND_MAX;
+    double pointx = (2 * static_cast<double>(std::rand()) / RAND_MAX) - 1;
+    double pointy = (2 * static_cast<double>(std::rand()) / RAND_MAX) - 1;
     double output =
         test_net.Evaluate(Nnet::InputVector{{pointx}, {pointy}}).at(0, 0);
     std::cout << "((" << pointx << "," << pointy << ")," << output << ")"
