@@ -1,6 +1,7 @@
 #ifndef NNET_H
 #define NNET_H
 #include "math/geometry/matrix.h"
+#include "math/stats/normal.h"
 #include "math/symbolic/expression.h"
 #include "math/symbolic/symbolic_util.h"
 
@@ -39,6 +40,7 @@ class Nnet {
 
   struct LearningParameters {
     Number learning_rate;
+    bool dynamic_learning_rate = false;
   };
 
   Nnet() {
@@ -53,23 +55,12 @@ class Nnet {
         (GenInputLayerWeights() * inputs).Map(activation_function);
 
     for (size_t i = 1; i <= kNumHiddenLayers; ++i) {
-      BiasedHiddenVector biased_layer;
-      for (size_t j = 0; j < kLayerSize; j++) {
-        biased_layer.at(j, 0) = layer.at(j, 0);
-      }
-      biased_layer.at(kLayerSizeBiased - 1, 0) =
-          symbolic::CreateExpression(B(i));
+      BiasedHiddenVector biased_layer = AddBias(layer, i);
       layer =
           (GenHiddenLayerWeights(i) * biased_layer).Map(activation_function);
     }
 
-    BiasedHiddenVector biased_layer;
-    for (size_t j = 0; j < kLayerSize; j++) {
-      biased_layer.at(j, 0) = layer.at(j, 0);
-    }
-    biased_layer.at(kLayerSizeBiased - 1, 0) =
-        symbolic::CreateExpression(B(kNumLayers - 1));
-
+    BiasedHiddenVector biased_layer = AddBias(layer, kNumLayers - 1);
     neural_network_ =
         (GenOutputLayerWeights() * biased_layer).Map(activation_function);
 
@@ -88,28 +79,32 @@ class Nnet {
     return "B(" + std::to_string(layer) + ")";
   }
 
-  Matrix<kOutputSize, 1, Number> Evaluate(InputVector in) const {
+  OutputVector Evaluate(InputVector in) const {
     // Modify weights_ in-place to avoid copying them. This is guaranteed to
     // never have stale inputs (from previous eval) as long as I follow naming
     // conventions and don't fuck up (I probably will).
+    symbolic::Environment weights = weights_;
     for (size_t i = 0; i < kInputSize; ++i) {
-      weights_[I(i)] = in.at(i, 0);
+      weights[I(i)].real() = in.at(i, 0);
     }
 
     std::function<symbolic::Expression(const symbolic::Expression&)> binder =
-        [this](const symbolic::Expression& exp) { return exp.Bind(weights_); };
+        [&weights](const symbolic::Expression& exp) {
+          return exp.Bind(weights);
+        };
 
     Matrix<kOutputSize, 1, symbolic::Expression> bound_network =
         neural_network_.Map(binder);
 
-    auto real_evaluator = [](const symbolic::Expression& exp) {
-      auto maybe_value = exp.Evaluate();
-      if (!maybe_value) {
-        // Shit.
-        std::cerr << "Well, fuck, not sure how this happened" << std::endl;
-      }
-      return maybe_value->real();
-    };
+    std::function<Number(const symbolic::Expression&)> real_evaluator =
+        [](const symbolic::Expression& exp) {
+          auto maybe_value = exp.Evaluate();
+          if (!maybe_value) {
+            // Shit.
+            std::cerr << "Well, fuck, not sure how this happened" << std::endl;
+          }
+          return maybe_value->real();
+        };
 
     Matrix<kOutputSize, 1, Number> results = bound_network.Map(real_evaluator);
 
@@ -125,8 +120,8 @@ class Nnet {
     symbolic::Expression error = GetErrorExpression(o);
     symbolic::Environment weights = weights_;
 
-// TODO(sharf): Is this a race condition with weights_[] +=? Answer:
-// probably.
+    Number learning_rate = params.learning_rate;
+
 #pragma omp parallel for shared(error) shared(weights)
     for (size_t layer = 0; layer < kNumLayers; ++layer) {
       for (size_t node = 0; node < LayerSize(layer); ++node) {
@@ -141,7 +136,8 @@ class Nnet {
               std::cerr << variable << std::endl;
             }
           }
-          Number weight_update = -gradient_value->real() * params.learning_rate;
+          Number weight_update = -gradient_value->real() * learning_rate;
+#pragma omp atomic
           weights_[W(layer, node, edge)].real() += weight_update;
         }
       }
@@ -195,20 +191,22 @@ class Nnet {
 
   template <size_t N>
   Matrix<N + 1, 1, symbolic::Expression> AddBias(
-      Matrix<N, 1, symbolic::Expression> x) {
+      Matrix<N, 1, symbolic::Expression> x, size_t layer_idx) {
     Matrix<N + 1, 1, symbolic::Expression> biased_layer;
-    for (size_t i = 0; i < N; j++) {
-      biased_layer.at(i, 0) = layer.at(i, 0);
+    for (size_t i = 0; i < N; ++i) {
+      biased_layer.at(i, 0) = x.at(i, 0);
     }
-    biased_layer.at(N, 0) = symbolic::CreateExpression(B(i));
+    biased_layer.at(N, 0) = symbolic::CreateExpression(B(layer_idx));
+    return biased_layer;
   }
 
   void CalculateInitialWeights() {
     for (size_t layer = 0; layer < kNumLayers; ++layer) {
+      // Xavier initialization says N(0, 1/kSizeInputs);
+      stats::Normal X(0, 1.0 / BiasedPrevLayerSize(layer));
       for (size_t node = 0; node < BiasedLayerSize(layer); ++node) {
         for (size_t edge = 0; edge < BiasedPrevLayerSize(layer); ++edge) {
-          weights_[W(layer, node, edge)].real() =
-              static_cast<double>(std::rand()) / RAND_MAX;
+          weights_[W(layer, node, edge)].real() = X.sample();
         }
       }
     }
@@ -253,7 +251,7 @@ class Nnet {
 
   BiasedSymbolicInputVector GenInputLayer() const {
     BiasedSymbolicInputVector result;
-    for (size_t i = 0; i < LayerSize(i); ++i) {
+    for (size_t i = 0; i < BiasedLayerSize(i); ++i) {
       result.at(i, 0) = symbolic::CreateExpression(I(i));
     }
     result.at(BiasedLayerSize(0) - 1, 0) = symbolic::CreateExpression(B(0));

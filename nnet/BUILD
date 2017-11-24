@@ -9,6 +9,7 @@ cc_library(
         "//math/geometry:matrix",
         "//math/symbolic:symbolic",
         "//math/symbolic:symbolic_util",
+        "//math/stats:normal",
     ],
 )
 

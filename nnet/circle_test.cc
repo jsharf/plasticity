@@ -24,7 +24,7 @@ int main() {
   std::vector<std::tuple<Sample, bool>> examples;
 
   // Generate training samples.
-  for (size_t i = 0; i < 5000; ++i) {
+  for (size_t i = 0; i < 10000; ++i) {
     double x = static_cast<double>(std::rand()) / RAND_MAX;
     double y = static_cast<double>(std::rand()) / RAND_MAX;
 
@@ -34,7 +34,7 @@ int main() {
   }
 
   Nnet::LearningParameters params{
-      .learning_rate = 0.01,
+      .learning_rate = 0.5
   };
 
   std::cout << "Training" << std::endl;
@@ -47,11 +47,14 @@ int main() {
         params);
   }
 
+  std::cout << test_net.WeightsToString();
+  std::cout << std::endl;
+
   for (size_t i = 0; i < 10000; ++i) {
     double pointx = static_cast<double>(std::rand()) / RAND_MAX;
     double pointy = static_cast<double>(std::rand()) / RAND_MAX;
     double output =
-        test_net.Evaluate(NNet::InputVector{{pointx, pointy}}).at(0, 0).real();
+        test_net.Evaluate(Nnet::InputVector{{pointx}, {pointy}}).at(0, 0);
     std::cout << "((" << pointx << "," << pointy << ")," << output << ")"
               << std::endl;
   }
