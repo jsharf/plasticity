@@ -8,11 +8,14 @@ using Number = double;
 
 class Normal {
  public:
-  Normal(Number mean, Number variance)
-      : gen_(rd_()), dist_(mean, sqrt(variance)) {}
+  Normal(Number mean, Number variance) : gen_(rd_()), dist_(mean, sqrt(variance)) {}
+  Normal(const Normal& rhs) : gen_(rd_()), dist_(rhs.dist_) {}
+  Normal(Normal&& rhs) : gen_(rd_()), dist_(std::move(rhs.dist_)) {}
+
   Number mean() const { return dist_.mean(); }
   Number variance() const { return dist_.stddev() * dist_.stddev(); }
   Number stddev() const { return dist_.stddev(); }
+
   // The product of two normally distributed random variables is not normal.
   // This is not multiplying two random variables. However the product of two
   // Normal PDFs is also a normal PDF.
@@ -23,6 +26,7 @@ class Normal {
         (variance() * rhs.variance()) / (variance() + rhs.variance());
     return Normal(combined_mean, combined_variance);
   }
+
   Normal operator+(const Normal& rhs) const {
     return Normal(mean() + rhs.mean(), variance() + rhs.variance());
   }
@@ -32,6 +36,7 @@ class Normal {
  private:
   std::random_device rd_;
   std::mt19937 gen_;
+
   std::normal_distribution<> dist_;
 };
 
