@@ -3,7 +3,7 @@ import fileinput
 import re
 import matplotlib.pyplot as plt
 
-REGEX = "\(\(([\d.]+),([\d.]+)\),([\d.]+)\)"
+REGEX = "\(\(([-\d.]+),([-\d.]+)\),([-\d.]+)\)"
 
 def main():
     Xs = []
