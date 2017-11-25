@@ -19,14 +19,13 @@ int main() {
 
   using Nnet = Nnet<kNumHiddenLayers, kLayerSize, kOutputSize, kInputSize>;
   Nnet test_net;
-  std::cout << "Expr: " << std::endl << test_net.to_string() << std::endl;
 
   std::vector<std::tuple<Sample, bool>> examples;
 
   // Generate training samples.
   for (size_t i = 0; i < 10000; ++i) {
-    double x = (2 * static_cast<double>(std::rand()) / RAND_MAX) - 1;
-    double y = (2 * static_cast<double>(std::rand()) / RAND_MAX) - 1;
+    double x = (4 * static_cast<double>(std::rand()) / RAND_MAX) - 2;
+    double y = (4 * static_cast<double>(std::rand()) / RAND_MAX) - 2;
 
     double in_unit_circle = (x * x + y * y) <= 1.0 ? 1 : 0;
 
@@ -34,7 +33,7 @@ int main() {
   }
 
   Nnet::LearningParameters params{
-      .learning_rate = 0.5
+      .learning_rate = 0.9
   };
 
   std::cout << "Training" << std::endl;
@@ -47,12 +46,11 @@ int main() {
         params);
   }
 
-  std::cout << test_net.WeightsToString();
   std::cout << std::endl;
 
-  for (size_t i = 0; i < 10000; ++i) {
-    double pointx = (2 * static_cast<double>(std::rand()) / RAND_MAX) - 1;
-    double pointy = (2 * static_cast<double>(std::rand()) / RAND_MAX) - 1;
+  for (size_t i = 0; i < 30000; ++i) {
+    double pointx = (4 * static_cast<double>(std::rand()) / RAND_MAX) - 2;
+    double pointy = (4 * static_cast<double>(std::rand()) / RAND_MAX) - 2;
     double output =
         test_net.Evaluate(Nnet::InputVector{{pointx}, {pointy}}).at(0, 0);
     std::cout << "((" << pointx << "," << pointy << ")," << output << ")"

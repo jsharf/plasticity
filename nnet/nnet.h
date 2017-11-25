@@ -231,7 +231,7 @@ class Nnet {
 
   BiasedHiddenWeights GenHiddenLayerWeights(const int layer_idx) const {
     BiasedHiddenWeights results;
-    for (size_t i = 0; i < BiasedLayerSize(layer_idx); ++i) {
+    for (size_t i = 0; i < LayerSize(layer_idx); ++i) {
       for (size_t j = 0; j < BiasedPrevLayerSize(layer_idx); ++j) {
         results.at(i, j) = symbolic::CreateExpression(W(layer_idx, i, j));
       }
