@@ -8,7 +8,7 @@
 #include <string>
 
 constexpr size_t kSampleSize = 2;
-using Sample = Matrix<kSampleSize, 1, Number>;
+using Sample = Matrix<kSampleSize, 1, nnet::Number>;
 
 // Trains a neural network to learn if given point is in unit circle.
 int main() {
@@ -17,13 +17,13 @@ int main() {
   constexpr int kOutputSize = 1;
   constexpr int kInputSize = kSampleSize;
 
-  using Nnet = Nnet<kNumHiddenLayers, kLayerSize, kOutputSize, kInputSize>;
+  using Nnet = nnet::Nnet<kNumHiddenLayers, kLayerSize, kOutputSize, kInputSize>;
   Nnet test_net;
 
   std::vector<std::tuple<Sample, bool>> examples;
 
   // Generate training samples.
-  for (size_t i = 0; i < 10000; ++i) {
+  for (size_t i = 0; i < 2000; ++i) {
     double x = (4 * static_cast<double>(std::rand()) / RAND_MAX) - 2;
     double y = (4 * static_cast<double>(std::rand()) / RAND_MAX) - 2;
 
@@ -48,7 +48,7 @@ int main() {
 
   std::cout << std::endl;
 
-  for (size_t i = 0; i < 30000; ++i) {
+  for (size_t i = 0; i < 1000; ++i) {
     double pointx = (4 * static_cast<double>(std::rand()) / RAND_MAX) - 2;
     double pointy = (4 * static_cast<double>(std::rand()) / RAND_MAX) - 2;
     double output =
@@ -59,4 +59,5 @@ int main() {
 
   std::cout << test_net.WeightsToString();
   std::cout << std::endl;
+  return 0;
 }

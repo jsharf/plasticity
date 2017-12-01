@@ -3,6 +3,19 @@ cc_library(
     visibility = ["//math"],
     hdrs = ["nnet.h"],
     deps = [
+        ":layer",
+        "//math/geometry:matrix",
+        "//math/symbolic:symbolic",
+        "//math/symbolic:symbolic_util",
+        "//math/stats:normal",
+    ],
+)
+
+cc_library(
+    name = "layer",
+    visibility = ["//math"],
+    hdrs = ["layer.h"],
+    deps = [
         "//math/geometry:matrix",
         "//math/symbolic:symbolic",
         "//math/symbolic:symbolic_util",

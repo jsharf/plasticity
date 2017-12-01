@@ -1,9 +1,14 @@
 #ifndef NNET_H
 #define NNET_H
 #include "math/geometry/matrix.h"
+#include "math/nnet/layer.h"
 #include "math/stats/normal.h"
 #include "math/symbolic/expression.h"
 #include "math/symbolic/symbolic_util.h"
+
+#include <map>
+
+namespace nnet {
 
 typedef double Number;
 
@@ -21,22 +26,12 @@ class Nnet {
  public:
   // + 1 for bias.
   static constexpr size_t kNumLayers = kNumHiddenLayers + 2;
-  static constexpr size_t kLayerSizeBiased = kLayerSize + 1;
-  static constexpr size_t kInputSizeBiased = kInputSize + 1;
 
-  using BiasedSymbolicInputVector =
-      Matrix<kInputSizeBiased, 1, symbolic::Expression>;
+  using SymbolicInputVector = Matrix<kInputSize, 1, symbolic::Expression>;
   using SymbolicOutputVector = Matrix<kOutputSize, 1, symbolic::Expression>;
   using InputVector = Matrix<kInputSize, 1, Number>;
   using OutputVector = Matrix<kOutputSize, 1, Number>;
   using HiddenVector = Matrix<kLayerSize, 1, symbolic::Expression>;
-  using BiasedHiddenVector = Matrix<kLayerSizeBiased, 1, symbolic::Expression>;
-  using BiasedOutputWeights =
-      Matrix<kOutputSize, kLayerSizeBiased, symbolic::Expression>;
-  using BiasedHiddenWeights =
-      Matrix<kLayerSize, kLayerSizeBiased, symbolic::Expression>;
-  using BiasedInputWeights =
-      Matrix<kLayerSize, kInputSizeBiased, symbolic::Expression>;
 
   struct LearningParameters {
     Number learning_rate;
@@ -44,40 +39,59 @@ class Nnet {
   };
 
   Nnet() {
-    std::function<symbolic::Expression(const symbolic::Expression&)>
-        activation_function = [](const symbolic::Expression& exp) {
-          return symbolic::Sigmoid(exp);
-        };
+    SymbolicInputVector inputs = GenInputLayer();
+    FeedForwardLayer<kInputSize, kLayerSize> input_layer_generator(&generator_,
+                                                                   0);
 
-    BiasedSymbolicInputVector inputs = GenInputLayer();
+    HiddenVector layer = input_layer_generator.GenerateExpression(inputs);
 
-    HiddenVector layer =
-        (GenInputLayerWeights() * inputs).Map(activation_function);
-
-    for (size_t i = 1; i <= kNumHiddenLayers; ++i) {
-      BiasedHiddenVector biased_layer = AddBias(layer, i);
-      layer =
-          (GenHiddenLayerWeights(i) * biased_layer).Map(activation_function);
+    for (size_t layer_idx = 1; layer_idx <= kNumHiddenLayers; ++layer_idx) {
+      FeedForwardLayer<kLayerSize, kLayerSize> hidden_layer_generator(
+          &generator_, layer_idx);
+      layer = hidden_layer_generator.GenerateExpression(layer);
     }
 
-    BiasedHiddenVector biased_layer = AddBias(layer, kNumLayers - 1);
-    neural_network_ =
-        (GenOutputLayerWeights() * biased_layer).Map(activation_function);
+    FeedForwardLayer<kLayerSize, kOutputSize> output_layer_generator(
+        &generator_, kNumLayers - 1);
+    neural_network_ = output_layer_generator.GenerateExpression(layer);
 
     CalculateInitialWeights();
-    CalculateInitialBias();
   }
 
-  static std::string I(size_t i) { return "I(" + std::to_string(i) + ")"; }
+  // This class generates symbol names for neural network values. Since these
+  // will be used for codegen for opencl, the symbols are all one-dimensional
+  // indices into arrays.
+  class FlatWeightSymbolGenerator : public SymbolGenerator {
+   public:
+    virtual std::string W(size_t layer, size_t node, size_t edge) {
+      auto tuple = std::make_tuple(layer, node, edge);
+      if (weight_index_.count(tuple) == 0) {
+        weight_index_[tuple] = weight_count_;
+        rev_weight_index_[weight_count_] = tuple;
+        weight_count_++;
+      }
+      return "W[" + std::to_string(weight_index_[tuple]) + "]";
+    }
+    virtual std::string I(size_t i) const {
+      return "I(" + std::to_string(i) + ")";
+    }
+    virtual std::string O(size_t i) const {
+      return "O[" + std::to_string(i) + "]";
+    }
 
-  static std::string W(size_t i, size_t j, size_t k) {
-    return "W(" + std::to_string(i) + "," + std::to_string(j) + "," +
-           std::to_string(k) + ")";
-  }
+    // Used to interpret results from opencl call.
+    std::map<int, std::tuple<int, int, int>> reverse_weight_map() const {
+      return rev_weight_index_;
+    }
 
-  static std::string B(size_t layer) {
-    return "B(" + std::to_string(layer) + ")";
-  }
+   private:
+    // Mapping from <layer, node, edge> -> int. This lets each weight have a
+    // single unique index.
+    std::map<std::tuple<int, int, int>, int> weight_index_;
+    // Reverse mapping.
+    std::map<int, std::tuple<int, int, int>> rev_weight_index_;
+    size_t weight_count_ = 0;
+  };
 
   OutputVector Evaluate(InputVector in) const {
     // Modify weights_ in-place to avoid copying them. This is guaranteed to
@@ -85,7 +99,7 @@ class Nnet {
     // conventions and don't fuck up (I probably will).
     symbolic::Environment weights = weights_;
     for (size_t i = 0; i < kInputSize; ++i) {
-      weights[I(i)].real() = in.at(i, 0);
+      weights[generator_.I(i)].real() = in.at(i, 0);
     }
 
     std::function<symbolic::Expression(const symbolic::Expression&)> binder =
@@ -114,42 +128,43 @@ class Nnet {
   // Back propagation
   void Train(InputVector in, OutputVector o, const LearningParameters& params) {
     for (size_t i = 0; i < kInputSize; ++i) {
-      weights_[I(i)].real() = in.at(i, 0);
+      weights_[generator_.I(i)].real() = in.at(i, 0);
+    }
+    for (size_t i = 0; i < kOutputSize; ++i) {
+      weights_[generator_.O(i)].real() = o.at(i, 0);
     }
 
-    symbolic::Expression error = GetErrorExpression(o);
+    symbolic::Expression error = GetErrorExpression();
     symbolic::Environment weights = weights_;
 
     Number learning_rate = params.learning_rate;
 
 #pragma omp parallel for shared(error) shared(weights)
-    for (size_t layer = 0; layer < kNumLayers; ++layer) {
-      for (size_t node = 0; node < LayerSize(layer); ++node) {
-        for (size_t edge = 0; edge < PrevLayerSize(layer); ++edge) {
-          symbolic::Expression symbolic_gradient =
-              error.Derive(W(layer, node, edge));
-          symbolic::Expression gradient = symbolic_gradient.Bind(weights);
-          auto gradient_value = gradient.Evaluate();
-          if (!gradient_value) {
-            std::cerr << "Shit" << std::endl;
-            for (const std::string& variable : gradient.variables()) {
-              std::cerr << variable << std::endl;
-            }
-          }
-          Number weight_update = -gradient_value->real() * learning_rate;
-#pragma omp atomic
-          weights_[W(layer, node, edge)].real() += weight_update;
+    for (const auto& kv : weights) {
+      const std::string& weight_name = kv.first;
+      symbolic::NumericValue value = kv.second;
+      symbolic::Expression symbolic_gradient = error.Derive(weight_name);
+      symbolic::Expression gradient = symbolic_gradient.Bind(weights);
+      auto gradient_value = gradient.Evaluate();
+      if (!gradient_value) {
+        std::cerr << "Shit" << std::endl;
+        for (const std::string& variable : gradient.variables()) {
+          std::cerr << variable << std::endl;
         }
+        std::cerr << WeightsToString() << std::endl;
       }
+      Number weight_update = -gradient_value->real() * learning_rate;
+#pragma omp atomic
+      weights_[weight_name].real() += weight_update;
     }
   }
 
-  symbolic::Expression GetErrorExpression(OutputVector o) const {
+  symbolic::Expression GetErrorExpression() const {
     symbolic::Expression error;
     for (size_t out_idx = 0; out_idx < kOutputSize; ++out_idx) {
       symbolic::Expression output_error =
           neural_network_.at(out_idx, 0) -
-          symbolic::Expression(o.at(out_idx, 0));
+          symbolic::Expression(generator_.O(out_idx));
       error = error + (output_error * output_error);
     }
     return error;
@@ -170,91 +185,34 @@ class Nnet {
   }
 
  private:
-  static constexpr size_t LayerSize(size_t layer_idx) {
-    if (layer_idx == kNumHiddenLayers + 1) {
-      return kOutputSize;
-    }
-    return kLayerSize;
-  }
-
-  static constexpr size_t BiasedLayerSize(size_t layer_idx) {
-    return LayerSize(layer_idx) + 1;
-  }
-
-  static constexpr size_t PrevLayerSize(size_t layer_idx) {
-    return (layer_idx == 0) ? kInputSize : kLayerSize;
-  }
-
-  static constexpr size_t BiasedPrevLayerSize(size_t layer_idx) {
-    return PrevLayerSize(layer_idx) + 1;
-  }
-
-  template <size_t N>
-  Matrix<N + 1, 1, symbolic::Expression> AddBias(
-      Matrix<N, 1, symbolic::Expression> x, size_t layer_idx) {
-    Matrix<N + 1, 1, symbolic::Expression> biased_layer;
-    for (size_t i = 0; i < N; ++i) {
-      biased_layer.at(i, 0) = x.at(i, 0);
-    }
-    biased_layer.at(N, 0) = symbolic::CreateExpression(B(layer_idx));
-    return biased_layer;
-  }
-
   void CalculateInitialWeights() {
-    for (size_t layer = 0; layer < kNumLayers; ++layer) {
-      // Xavier initialization says N(0, 1/kSizeInputs);
-      stats::Normal X(0, 1.0 / BiasedPrevLayerSize(layer));
-      for (size_t node = 0; node < BiasedLayerSize(layer); ++node) {
-        for (size_t edge = 0; edge < BiasedPrevLayerSize(layer); ++edge) {
-          weights_[W(layer, node, edge)].real() = X.sample();
-        }
+    FeedForwardLayer<kInputSize, kLayerSize> input_layer_generator(&generator_,
+                                                                   0);
+    stats::Normal I = input_layer_generator.XavierInitializer();
+    for (const std::string& weight : input_layer_generator.weights()) {
+      weights_[weight].real() = I.sample();
+    }
+    for (size_t layer = 1; layer <= kNumHiddenLayers; ++layer) {
+      FeedForwardLayer<kLayerSize, kLayerSize> hidden_layer_generator(
+          &generator_, layer);
+      stats::Normal H = hidden_layer_generator.XavierInitializer();
+      for (const std::string& weight : hidden_layer_generator.weights()) {
+        weights_[weight].real() = H.sample();
       }
     }
-  }
-
-  void CalculateInitialBias() {
-    for (size_t layer = 0; layer < kNumLayers; ++layer) {
-      weights_[B(layer)] = symbolic::NumericValue(1);
+    FeedForwardLayer<kLayerSize, kOutputSize> output_layer_generator(
+        &generator_, kNumLayers - 1);
+    stats::Normal O = output_layer_generator.XavierInitializer();
+    for (const std::string& weight : output_layer_generator.weights()) {
+      weights_[weight].real() = O.sample();
     }
   }
 
-  BiasedOutputWeights GenOutputLayerWeights() const {
-    BiasedOutputWeights results;
-    for (size_t i = 0; i < kOutputSize; ++i) {
-      for (size_t j = 0; j < BiasedPrevLayerSize(kNumLayers - 1); ++j) {
-        results.at(i, j) =
-            symbolic::CreateExpression(W(kNumHiddenLayers + 1, i, j));
-      }
+  SymbolicInputVector GenInputLayer() const {
+    SymbolicInputVector result;
+    for (size_t i = 0; i < kInputSize; ++i) {
+      result.at(i, 0) = symbolic::CreateExpression(generator_.I(i));
     }
-    return results;
-  }
-
-  BiasedHiddenWeights GenHiddenLayerWeights(const int layer_idx) const {
-    BiasedHiddenWeights results;
-    for (size_t i = 0; i < LayerSize(layer_idx); ++i) {
-      for (size_t j = 0; j < BiasedPrevLayerSize(layer_idx); ++j) {
-        results.at(i, j) = symbolic::CreateExpression(W(layer_idx, i, j));
-      }
-    }
-    return results;
-  }
-
-  BiasedInputWeights GenInputLayerWeights() const {
-    BiasedInputWeights results;
-    for (size_t i = 0; i < kLayerSize; ++i) {
-      for (size_t j = 0; j < BiasedLayerSize(0); ++j) {
-        results.at(i, j) = symbolic::CreateExpression(W(0, i, j));
-      }
-    }
-    return results;
-  }
-
-  BiasedSymbolicInputVector GenInputLayer() const {
-    BiasedSymbolicInputVector result;
-    for (size_t i = 0; i < BiasedLayerSize(i); ++i) {
-      result.at(i, 0) = symbolic::CreateExpression(I(i));
-    }
-    result.at(BiasedLayerSize(0) - 1, 0) = symbolic::CreateExpression(B(0));
     return result;
   }
 
@@ -278,8 +236,15 @@ class Nnet {
   // output
   // layer).
   Matrix<kOutputSize, 1, symbolic::Expression> neural_network_;
-  symbolic::Environment weights_;  // Also includes biases.
-  std::unordered_map<std::string, symbolic::Expression> gradients_;
+
+  FlatWeightSymbolGenerator generator_;
+
+  symbolic::Environment weights_;
+
+  // For efficiently iterating through weights.
+  std::vector<std::string> weight_list_;
 };
+
+}  // namespace nnet
 
 #endif /* NNET_H */
