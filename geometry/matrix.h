@@ -209,6 +209,10 @@ class Matrix {
     return result;
   }
 
+  const uint8_t* data() const {
+    return data_.data();
+  }
+
   string to_string() const {
     std::stringstream out;
     out << "{\n";

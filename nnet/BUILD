@@ -8,6 +8,7 @@ cc_library(
         "//math/symbolic:symbolic",
         "//math/symbolic:symbolic_util",
         "//math/stats:normal",
+        "//opencl:util",
     ],
 )
 
@@ -29,11 +30,10 @@ cc_binary(
     visibility = ["//math"],
     srcs = ["nnet_test.cc"],
     copts = [
-      "-fopenmp",
       "--std=c++1z",
     ],
     linkopts = [
-      "-fopenmp",
+        "-lOpenCL",
     ],
     deps = [
         ":nnet",
@@ -48,10 +48,9 @@ cc_binary(
     srcs = ["circle_test.cc"],
     copts = [
       "--std=c++1z",
-      "-fopenmp",
     ],
     linkopts = [
-      "-fopenmp",
+        "-lOpenCL",
     ],
     deps = [
         ":nnet",

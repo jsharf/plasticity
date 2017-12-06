@@ -5,8 +5,11 @@
 #include "math/stats/normal.h"
 #include "math/symbolic/expression.h"
 #include "math/symbolic/symbolic_util.h"
+#include "opencl/util.h"
 
+#include <fstream>
 #include <map>
+#include <sstream>
 
 namespace nnet {
 
@@ -72,8 +75,11 @@ class Nnet {
       }
       return "W[" + std::to_string(weight_index_[tuple]) + "]";
     }
+    virtual std::string W(size_t i) const {
+      return "W[" + std::to_string(i) + "]";
+    }
     virtual std::string I(size_t i) const {
-      return "I(" + std::to_string(i) + ")";
+      return "I[" + std::to_string(i) + "]";
     }
     virtual std::string O(size_t i) const {
       return "O[" + std::to_string(i) + "]";
@@ -83,6 +89,8 @@ class Nnet {
     std::map<int, std::tuple<int, int, int>> reverse_weight_map() const {
       return rev_weight_index_;
     }
+
+    int NumberWeights() const { return weight_count_; }
 
    private:
     // Mapping from <layer, node, edge> -> int. This lets each weight have a
@@ -139,7 +147,6 @@ class Nnet {
 
     Number learning_rate = params.learning_rate;
 
-#pragma omp parallel for shared(error) shared(weights)
     for (const auto& kv : weights) {
       const std::string& weight_name = kv.first;
       symbolic::NumericValue value = kv.second;
@@ -154,8 +161,95 @@ class Nnet {
         std::cerr << WeightsToString() << std::endl;
       }
       Number weight_update = -gradient_value->real() * learning_rate;
-#pragma omp atomic
       weights_[weight_name].real() += weight_update;
+    }
+  }
+
+  std::string GenerateTrainingKernelSource() {
+    std::ifstream grad_descent_file("kernels/gradient_descent.kernel.cl");
+    std::stringstream buffer;
+    buffer << grad_descent_file.rdbuf();
+    std::string grad_descent_source = buffer.str();
+
+    symbolic::Expression err = GetErrorExpression();
+    std::vector<symbolic::Expression> gradients;
+    std::stringstream gradients;
+    gradients << "{";
+    for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
+      gradients << err.Derive(generator_.W(i)).to_string() << "," << std::endl;
+    }
+    gradients << "}";
+
+    std::string template_substring = "GRADIENTS_HERE";
+    size_t template_location = grad_descent_source.find(template_substring);
+    if (template_location == std::string::npos) {
+      std::cerr << "Could not find template substring \"" << template_substring
+                << "\"" << std::endl;
+      std::exit(1);
+    }
+
+    grad_descent_source.replace(template_location, template_substring.size(),
+                                gradients.str());
+    return gradient_descent_source;
+  }
+
+  void CompileGradientDescentCl() {
+    std::string kernel_source = GenerateTrainingKernelSource();
+    cl::Platform platform = clutil::GetDefaultPlatform();
+    std::vector<cl::Device> devices = clutil::GetPlatformDevices(platform);
+    if (devices.size() == 0) {
+      std::cerr << "No OpenCL Devices on this platform." << std::endl;
+      std::exit(1);
+    }
+    cl::Device device = (devices.size() >= 2) ? devices[1] : devices[0];
+    kernel_compiled_ = true;
+    compilation_units_ = clutil::Compile(device, {kernel_source});
+    device_ = device;
+  }
+
+  void TrainCl(InputVector in, OutputVector o,
+               const LearningParameters& params) {
+    if (!kernel_compiled) {
+      CompileGradientDescentCl();
+    }
+    cl::Context& context = std::get<0>(compilation_units_);
+    cl::Program& program = std::get<1>(compilation_units_);
+    cl::Buffer new_weights(context, CL_MEM_READ_WRITE,
+                           generator_.NumberWeights() * sizeof(Number));
+    cl::Buffer old_weights(context, CL_MEM_READ_ONLY,
+                           generator_.NumberWeights() * sizeof(Number));
+    cl::Buffer inputs(context, CL_MEM_READ_ONLY, kInputSize * sizeof(Number));
+    cl::Buffer outputs(context, CL_MEM_READ_ONLY, kOutputSize * sizeof(Number));
+    cl::Buffer old_weights(context, CL_MEM_READ_ONLY,
+                           generator_.NumberWeights() * sizeof(Number));
+    cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
+    Number OW[generator_.NumberWeights()];
+    for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
+      OW[i] = weights[generator_.W(i)];
+    }
+
+    // create a queue (a queue of commands that the GPU will execute)
+    cl::CommandQueue queue(context, cl_device_);
+
+    queue.enqueueWriteBuffer(inputs, CL_TRUE, 0, sizeof(Number) * kInputSize,
+                             in.data());
+    queue.enqueueWriteBuffer(outputs, CL_TRUE, 0, sizeof(Number) * kOutputSize,
+                             o.data());
+    queue.enqueueWriteBuffer(old_weights, CL_TRUE, 0,
+                             sizeof(Number) * generator_.NumberWeights(), OW);
+    queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0, sizeof(Number),
+                             &params.learning_rate);
+
+    cl::KernelFunctor gradient_descent(cl::Kernel(program, "gradient_descent"),
+                                       queue, cl::NullRange, cl::NDRange(10),
+                                       cl::NullRange);
+    gradient_descent(inputs, old_weights, outputs, new_weights, learning_rate_buff);
+
+    Number NW[generator_.NumberWeights()];
+    queue.enqueueReadBuffer(new_weights, CL_TRUE, 0,
+                            sizeof(Number) * generator_.NumberWeights(), NW);
+    for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
+      weights_[generator_.W(i)].real() = NW[i];
     }
   }
 
@@ -243,6 +337,10 @@ class Nnet {
 
   // For efficiently iterating through weights.
   std::vector<std::string> weight_list_;
+
+  bool kernel_compiled_ = false;
+  std::tuple<cl::Context, cl::Program> compilation_units_;
+  cl::Device device_;
 };
 
 }  // namespace nnet
