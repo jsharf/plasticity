@@ -210,7 +210,8 @@ class Matrix {
   }
 
   const uint8_t* data() const {
-    return data_.data();
+    // std::array is contiguous in memory, so this is guaranteed to be correct.
+    return reinterpret_cast<const uint8_t *>(data_.data());
   }
 
   string to_string() const {
