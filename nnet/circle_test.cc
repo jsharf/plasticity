@@ -40,7 +40,7 @@ int main() {
 
   for (const std::tuple<Sample, double>& example : examples) {
     std::cout << "." << std::flush;
-    test_net.Train(
+    test_net.TrainCl(
         std::get<0>(example),
         Nnet::OutputVector({{static_cast<double>(std::get<1>(example))}}),
         params);

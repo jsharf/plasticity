@@ -8,7 +8,7 @@ cc_library(
         "//math/symbolic:symbolic",
         "//math/symbolic:symbolic_util",
         "//math/stats:normal",
-        "//opencl:util",
+        "//clutil:util",
     ],
 )
 

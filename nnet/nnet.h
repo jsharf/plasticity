@@ -5,7 +5,7 @@
 #include "math/stats/normal.h"
 #include "math/symbolic/expression.h"
 #include "math/symbolic/symbolic_util.h"
-#include "opencl/util.h"
+#include "clutil/util.h"
 
 #include <fstream>
 #include <map>
@@ -90,7 +90,7 @@ class Nnet {
       return rev_weight_index_;
     }
 
-    int NumberWeights() const { return weight_count_; }
+    size_t NumberWeights() const { return weight_count_; }
 
    private:
     // Mapping from <layer, node, edge> -> int. This lets each weight have a
@@ -172,7 +172,6 @@ class Nnet {
     std::string grad_descent_source = buffer.str();
 
     symbolic::Expression err = GetErrorExpression();
-    std::vector<symbolic::Expression> gradients;
     std::stringstream gradients;
     gradients << "{";
     for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
@@ -190,7 +189,7 @@ class Nnet {
 
     grad_descent_source.replace(template_location, template_substring.size(),
                                 gradients.str());
-    return gradient_descent_source;
+    return grad_descent_source;
   }
 
   void CompileGradientDescentCl() {
@@ -201,15 +200,14 @@ class Nnet {
       std::cerr << "No OpenCL Devices on this platform." << std::endl;
       std::exit(1);
     }
-    cl::Device device = (devices.size() >= 2) ? devices[1] : devices[0];
+    device_ = devices[0];
     kernel_compiled_ = true;
-    compilation_units_ = clutil::Compile(device, {kernel_source});
-    device_ = device;
+    compilation_units_ = clutil::Compile(device_, {kernel_source});
   }
 
   void TrainCl(InputVector in, OutputVector o,
                const LearningParameters& params) {
-    if (!kernel_compiled) {
+    if (!kernel_compiled_) {
       CompileGradientDescentCl();
     }
     cl::Context& context = std::get<0>(compilation_units_);
@@ -220,16 +218,14 @@ class Nnet {
                            generator_.NumberWeights() * sizeof(Number));
     cl::Buffer inputs(context, CL_MEM_READ_ONLY, kInputSize * sizeof(Number));
     cl::Buffer outputs(context, CL_MEM_READ_ONLY, kOutputSize * sizeof(Number));
-    cl::Buffer old_weights(context, CL_MEM_READ_ONLY,
-                           generator_.NumberWeights() * sizeof(Number));
     cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
     Number OW[generator_.NumberWeights()];
     for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
-      OW[i] = weights[generator_.W(i)];
+      OW[i] = weights_[generator_.W(i)].real();
     }
 
     // create a queue (a queue of commands that the GPU will execute)
-    cl::CommandQueue queue(context, cl_device_);
+    cl::CommandQueue queue(context, device_);
 
     queue.enqueueWriteBuffer(inputs, CL_TRUE, 0, sizeof(Number) * kInputSize,
                              in.data());
@@ -240,10 +236,14 @@ class Nnet {
     queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0, sizeof(Number),
                              &params.learning_rate);
 
-    cl::KernelFunctor gradient_descent(cl::Kernel(program, "gradient_descent"),
-                                       queue, cl::NullRange, cl::NDRange(10),
-                                       cl::NullRange);
-    gradient_descent(inputs, old_weights, outputs, new_weights, learning_rate_buff);
+    cl::Kernel gradient_descent(program, "gradient_descent");
+    gradient_descent.setArg(0, inputs);
+    gradient_descent.setArg(1, old_weights);
+    gradient_descent.setArg(2, outputs);
+    gradient_descent.setArg(3, new_weights);
+    gradient_descent.setArg(4, learning_rate_buff);
+    queue.enqueueNDRangeKernel(gradient_descent, cl::NullRange,
+                               cl::NDRange(generator_.NumberWeights()), cl::NullRange);
 
     Number NW[generator_.NumberWeights()];
     queue.enqueueReadBuffer(new_weights, CL_TRUE, 0,
