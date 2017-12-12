@@ -1,12 +1,14 @@
 // THIS FILE IS A TEMPLATE. The files in //math/nnet parse this to generate an OpenCl kernel.
 
 // This function is generated automatically, do not edit.
-float CalculateDelta(global float* I, global float* W, global float* O,
+double CalculateDelta(global double* I, global double* W, global double* O,
                      size_t weight_index) {
-  return GRADIENTS_HERE[weight_index];
+  double results[] = GRADIENTS_HERE;
+  return results[weight_index];
 }
 
-kernel void gradient_descent(global float* inputs, global float* weights, global float* expected_results, global float* new_weights, global float* learning_rate) {
-  size_t index = get_index();
-  new_weights[i] = old_weights[i] + learning_rate * CalculateDelta(inputs, weights, expected_results, index);
+kernel void gradient_descent(global double* inputs, global double* weights,
+global double* expected_results, global double* new_weights, global double* learning_rate) {
+  size_t i = get_global_id(0);
+  new_weights[i] = weights[i] + learning_rate[0] * CalculateDelta(inputs, weights, expected_results, i);
 }
