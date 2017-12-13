@@ -10,5 +10,5 @@ double CalculateDelta(global double* I, global double* W, global double* O,
 kernel void gradient_descent(global double* inputs, global double* weights,
 global double* expected_results, global double* new_weights, global double* learning_rate) {
   size_t i = get_global_id(0);
-  new_weights[i] = weights[i] + learning_rate[0] * CalculateDelta(inputs, weights, expected_results, i);
+  new_weights[i] = weights[i] - learning_rate[0] * CalculateDelta(inputs, weights, expected_results, i);
 }
