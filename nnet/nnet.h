@@ -230,14 +230,22 @@ class Nnet {
     for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
       OW[i] = static_cast<float>(weights_[generator_.W(i)].real());
     }
+    Number input[kInputSize];
+    for (size_t i = 0; i < kInputSize; ++i) {
+      input[i] = in.at(i, 0);
+    }
+    Number output[kOutputSize];
+    for (size_t i = 0; i < kOutputSize; ++i) {
+      output[i] = o.at(i, 0);
+    }
 
     // create a queue (a queue of commands that the GPU will execute)
     cl::CommandQueue queue(context, device_);
 
     queue.enqueueWriteBuffer(inputs, CL_TRUE, 0, sizeof(Number) * kInputSize,
-                             in.data());
+                             input);
     queue.enqueueWriteBuffer(outputs, CL_TRUE, 0, sizeof(Number) * kOutputSize,
-                             o.data());
+                             output);
     queue.enqueueWriteBuffer(old_weights, CL_TRUE, 0,
                              sizeof(Number) * generator_.NumberWeights(), OW);
     queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0, sizeof(Number),
