@@ -30,8 +30,6 @@ def main():
     TOOLS="hover,crosshair,pan,wheel_zoom,zoom_in,zoom_out,box_zoom,undo,redo,reset,tap,save,box_select,poly_select,lasso_select,"
 
     p = figure(tools=TOOLS)
-    print(y)
-
     p.scatter(x, y, marker="circle", radius = radii, fill_color = colors, fill_alpha = 0.5, line_color = None)
     show(p)
 
