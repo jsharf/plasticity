@@ -3,8 +3,10 @@
 // This function is generated automatically, do not edit.
 double CalculateDelta(global double* I, global double* W, global double* O,
                      size_t weight_index) {
-  double results[] = GRADIENTS_HERE;
-  return results[weight_index];
+  switch(weight_index) {
+    GRADIENTS_HERE
+  }
+  return NAN;
 }
 
 kernel void gradient_descent(global double* inputs, global double* weights,

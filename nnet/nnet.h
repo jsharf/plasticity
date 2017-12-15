@@ -173,11 +173,11 @@ class Nnet {
 
     symbolic::Expression err = GetErrorExpression();
     std::stringstream gradients;
-    gradients << "{";
     for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
-      gradients << err.Derive(generator_.W(i)).to_string() << "," << std::endl;
+      gradients << "case " << i << ":" << std::endl;
+      gradients << "  return (" << err.Derive(generator_.W(i)).to_string() << ");"
+                << std::endl;
     }
-    gradients << "}";
 
     std::string template_substring = "GRADIENTS_HERE";
     size_t template_location = grad_descent_source.find(template_substring);
@@ -193,7 +193,6 @@ class Nnet {
   }
 
   void CompileGradientDescentCl() {
-    std::cout << "generating source..." << std::endl;
     std::string kernel_source = GenerateTrainingKernelSource();
     cl::Platform platform = clutil::GetDefaultPlatform();
     std::vector<cl::Device> devices = clutil::GetPlatformDevices(platform);
@@ -201,24 +200,21 @@ class Nnet {
       std::cerr << "No OpenCL Devices on this platform." << std::endl;
       std::exit(1);
     }
-    std::cout << "compiling..." << std::endl;
     device_ = devices[0];
     kernel_compiled_ = true;
     compilation_units_ = clutil::Compile(device_, {kernel_source});
   }
 
-  // TODO(sharf): Use float instead of double because NVIDIA cripples consumer
-  // double/half precision performance.
   void TrainCl(InputVector in, OutputVector o,
                const LearningParameters& params) {
-    std::cout << "assembling & compiling..." << std::endl;
     if (!kernel_compiled_) {
+      std::cout << "Generating and compiling OpenCl kernel. This takes a while"
+                << " the first time..." << std::endl;
       CompileGradientDescentCl();
+      std::cout << "Done!" << std::endl;
     }
-    std::cout << "compiled" << std::endl;
     cl::Context& context = std::get<0>(compilation_units_);
     cl::Program& program = std::get<1>(compilation_units_);
-    std::cout << "enqueuingweights" << std::endl;
     cl::Buffer new_weights(context, CL_MEM_READ_WRITE,
                            generator_.NumberWeights() * sizeof(Number));
     cl::Buffer old_weights(context, CL_MEM_READ_ONLY,
@@ -251,27 +247,21 @@ class Nnet {
     queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0, sizeof(Number),
                              &params.learning_rate);
 
-    std::cout << "creating kernel" << std::endl;
     cl::Kernel gradient_descent(program, "gradient_descent");
     gradient_descent.setArg(0, inputs);
     gradient_descent.setArg(1, old_weights);
     gradient_descent.setArg(2, outputs);
     gradient_descent.setArg(3, new_weights);
     gradient_descent.setArg(4, learning_rate_buff);
-    std::cout << "hi" << std::endl;
     queue.enqueueNDRangeKernel(gradient_descent, cl::NullRange,
                                cl::NDRange(generator_.NumberWeights()), cl::NullRange);
-    std::cout << "there" << std::endl;
 
     Number NW[generator_.NumberWeights()];
-    std::cout << "foo" << std::endl;
     queue.enqueueReadBuffer(new_weights, CL_TRUE, 0,
                             sizeof(Number) * generator_.NumberWeights(), NW);
-    std::cout << "bar" << std::endl;
     for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
       weights_[generator_.W(i)].real() = NW[i];
     }
-    std::cout << "done" << std::endl;
   }
 
   symbolic::Expression GetErrorExpression() const {
