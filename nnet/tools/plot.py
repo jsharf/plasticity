@@ -19,7 +19,7 @@ def main():
         score = match.groups()[2]
         score_intensity = int(255 * float(score))
         color = "#%02x%02x%02x" % (score_intensity, score_intensity,
-        score_intensity)
+        255)
         Xs.append(x)
         Ys.append(y)
         colors.append(color)
@@ -30,7 +30,9 @@ def main():
     TOOLS="hover,crosshair,pan,wheel_zoom,zoom_in,zoom_out,box_zoom,undo,redo,reset,tap,save,box_select,poly_select,lasso_select,"
 
     p = figure(tools=TOOLS)
-    p.scatter(x, y, marker="circle", radius = radii, fill_color = colors, fill_alpha = 0.5, line_color = None)
+    p.scatter(x, y, marker="circle", radius = radii, fill_color = colors,
+    fill_alpha = 1, line_color = None)
+    output_file("/tmp/graph.html", title="Circle Test Visualization")
     show(p)
 
 
