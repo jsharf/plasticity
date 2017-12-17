@@ -1,6 +1,6 @@
 #ifndef NNET_H
 #define NNET_H
-#include "math/geometry/matrix.h"
+#include "math/geometry/dynamic_matrix.h"
 #include "math/nnet/layer.h"
 #include "math/stats/normal.h"
 #include "math/symbolic/expression.h"
@@ -15,47 +15,67 @@ namespace nnet {
 
 typedef double Number;
 
-// TODO(sharf): Things like I(), W(), weights, and evaluators should be
-// encapsulated in some sort of interface.
-
 // Creates a neural network symbolically. The input layer has no weights. There
-// are kNumHiddenLayers + 2 layers with weights (+1 for output layer, +1 for
-// first layer which has kInputSize number of weights per neuron).
-// TODO(sharf): Implement code generation -- an expression can render itself
-// into glsl for parallel execution. That will make this useful.
-template <size_t kNumHiddenLayers, size_t kLayerSize, size_t kOutputSize,
-          size_t kInputSize>
+// are num_layers_ layers with weights.
 class Nnet {
  public:
-  // + 1 for bias.
-  static constexpr size_t kNumLayers = kNumHiddenLayers + 2;
-
-  using SymbolicInputVector = Matrix<kInputSize, 1, symbolic::Expression>;
-  using SymbolicOutputVector = Matrix<kOutputSize, 1, symbolic::Expression>;
-  using InputVector = Matrix<kInputSize, 1, Number>;
-  using OutputVector = Matrix<kOutputSize, 1, Number>;
-  using HiddenVector = Matrix<kLayerSize, 1, symbolic::Expression>;
-
   struct LearningParameters {
     Number learning_rate;
     bool dynamic_learning_rate = false;
   };
 
-  Nnet() {
-    SymbolicInputVector inputs = GenInputLayer();
-    FeedForwardLayer<kInputSize, kLayerSize> input_layer_generator(&generator_,
-                                                                   0);
+  struct Dimensions {
+    size_t num_layers;
+    size_t layer_size;
+    size_t output_size;
+    size_t input_size;
 
-    HiddenVector layer = input_layer_generator.GenerateExpression(inputs);
-
-    for (size_t layer_idx = 1; layer_idx <= kNumHiddenLayers; ++layer_idx) {
-      FeedForwardLayer<kLayerSize, kLayerSize> hidden_layer_generator(
-          &generator_, layer_idx);
-      layer = hidden_layer_generator.GenerateExpression(layer);
+    bool VerifySize() const {
+      return (num_layers > 0) && (layer_size > 0) && (output_size > 0) &&
+             (input_size > 0);
     }
 
-    FeedForwardLayer<kLayerSize, kOutputSize> output_layer_generator(
-        &generator_, kNumLayers - 1);
+    std::string to_string() const {
+      std::stringstream buffer;
+      buffer << "{num_layers: " << num_layers << ", layer_size: " << layer_size
+             << ", output_size: " << output_size
+             << ", input_size: " << input_size << "}";
+      return buffer.str();
+    }
+  };
+
+  Nnet(const Dimensions& dims)
+      : num_layers_(dims.num_layers),
+        layer_size_(dims.layer_size),
+        output_size_(dims.output_size),
+        input_size_(dims.input_size) {
+    if (!dims.VerifySize()) {
+      std::cerr << "Invalid dimensions passed to Nnet(): " << dims.to_string()
+                << std::endl;
+      std::exit(1);
+    }
+
+    // "layer" is at first just a column vector of inputs.
+    Matrix<symbolic::Expression> layer = GenInputLayer();
+    // Iterate through all layers except the output layer. The output layer's
+    // dimension must match the number of outputs.
+    for (size_t layer_idx = 0; layer_idx < num_layers_ - 1; ++layer_idx) {
+      FeedForwardLayer::Dimensions dims;
+      dims.num_outputs = layer_size_;
+      if (layer_idx == 0) {
+        dims.num_inputs = input_size_;
+      } else {
+        dims.num_inputs = layer_size_;
+      }
+      FeedForwardLayer layer_generator(dims, &generator_, layer_idx);
+      layer = layer_generator.GenerateExpression(layer);
+    }
+
+    FeedForwardLayer::Dimensions output_dims;
+    output_dims.num_inputs = (num_layers_ == 1) ? input_size_ : layer_size_;
+    output_dims.num_outputs = output_size_;
+    FeedForwardLayer output_layer_generator(output_dims, &generator_,
+                                            num_layers_ - 1);
     neural_network_ = output_layer_generator.GenerateExpression(layer);
 
     CalculateInitialWeights();
@@ -101,26 +121,19 @@ class Nnet {
     size_t weight_count_ = 0;
   };
 
-  OutputVector Evaluate(InputVector in) const {
+  Matrix<Number> Evaluate(Matrix<Number> in) const {
     // Modify weights_ in-place to avoid copying them. This is guaranteed to
     // never have stale inputs (from previous eval) as long as I follow naming
     // conventions and don't fuck up (I probably will).
-    symbolic::Environment weights = weights_;
-    for (size_t i = 0; i < kInputSize; ++i) {
-      weights[generator_.I(i)].real() = in.at(i, 0);
+    symbolic::Environment env = weights_;
+    for (size_t i = 0; i < input_size_; ++i) {
+      env[generator_.I(i)].real() = in.at(i, 0);
     }
 
-    std::function<symbolic::Expression(const symbolic::Expression&)> binder =
-        [&weights](const symbolic::Expression& exp) {
-          return exp.Bind(weights);
-        };
-
-    Matrix<kOutputSize, 1, symbolic::Expression> bound_network =
-        neural_network_.Map(binder);
-
     std::function<Number(const symbolic::Expression&)> real_evaluator =
-        [](const symbolic::Expression& exp) {
-          auto maybe_value = exp.Evaluate();
+        [&env](const symbolic::Expression& exp) {
+          symbolic::Expression bound_exp = exp.Bind(env);
+          auto maybe_value = bound_exp.Evaluate();
           if (!maybe_value) {
             // Shit.
             std::cerr << "Well, fuck, not sure how this happened" << std::endl;
@@ -128,30 +141,31 @@ class Nnet {
           return maybe_value->real();
         };
 
-    Matrix<kOutputSize, 1, Number> results = bound_network.Map(real_evaluator);
+    Matrix<Number> results = neural_network_.Map(real_evaluator);
 
     return results;
   }
 
   // Back propagation
-  void Train(InputVector in, OutputVector o, const LearningParameters& params) {
-    for (size_t i = 0; i < kInputSize; ++i) {
-      weights_[generator_.I(i)].real() = in.at(i, 0);
+  void Train(Matrix<Number> in, Matrix<Number> o, const LearningParameters& params) {
+    symbolic::Environment env = weights_;
+    for (size_t i = 0; i < input_size_; ++i) {
+      env[generator_.I(i)].real() = in.at(i, 0);
     }
-    for (size_t i = 0; i < kOutputSize; ++i) {
-      weights_[generator_.O(i)].real() = o.at(i, 0);
+    symbolic::Environment outputs;
+    for (size_t i = 0; i < output_size_; ++i) {
+      env[generator_.O(i)].real() = o.at(i, 0);
     }
 
     symbolic::Expression error = GetErrorExpression();
-    symbolic::Environment weights = weights_;
 
     Number learning_rate = params.learning_rate;
 
-    for (const auto& kv : weights) {
+    for (const auto& kv : weights_) {
       const std::string& weight_name = kv.first;
       symbolic::NumericValue value = kv.second;
       symbolic::Expression symbolic_gradient = error.Derive(weight_name);
-      symbolic::Expression gradient = symbolic_gradient.Bind(weights);
+      symbolic::Expression gradient = symbolic_gradient.Bind(env);
       auto gradient_value = gradient.Evaluate();
       if (!gradient_value) {
         std::cerr << "Shit" << std::endl;
@@ -205,7 +219,7 @@ class Nnet {
     compilation_units_ = clutil::Compile(device_, {kernel_source});
   }
 
-  void TrainCl(InputVector in, OutputVector o,
+  void TrainCl(Matrix<Number> in, Matrix<Number> o,
                const LearningParameters& params) {
     if (!kernel_compiled_) {
       std::cout << "Generating and compiling OpenCl kernel. This takes a while"
@@ -219,28 +233,28 @@ class Nnet {
                            generator_.NumberWeights() * sizeof(Number));
     cl::Buffer old_weights(context, CL_MEM_READ_ONLY,
                            generator_.NumberWeights() * sizeof(Number));
-    cl::Buffer inputs(context, CL_MEM_READ_ONLY, kInputSize * sizeof(Number));
-    cl::Buffer outputs(context, CL_MEM_READ_ONLY, kOutputSize * sizeof(Number));
+    cl::Buffer inputs(context, CL_MEM_READ_ONLY, input_size_ * sizeof(Number));
+    cl::Buffer outputs(context, CL_MEM_READ_ONLY, output_size_ * sizeof(Number));
     cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
     Number OW[generator_.NumberWeights()];
     for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
       OW[i] = static_cast<float>(weights_[generator_.W(i)].real());
     }
-    Number input[kInputSize];
-    for (size_t i = 0; i < kInputSize; ++i) {
+    Number input[input_size_];
+    for (size_t i = 0; i < input_size_; ++i) {
       input[i] = in.at(i, 0);
     }
-    Number output[kOutputSize];
-    for (size_t i = 0; i < kOutputSize; ++i) {
+    Number output[output_size_];
+    for (size_t i = 0; i < output_size_; ++i) {
       output[i] = o.at(i, 0);
     }
 
     // create a queue (a queue of commands that the GPU will execute)
     cl::CommandQueue queue(context, device_);
 
-    queue.enqueueWriteBuffer(inputs, CL_TRUE, 0, sizeof(Number) * kInputSize,
+    queue.enqueueWriteBuffer(inputs, CL_TRUE, 0, sizeof(Number) * input_size_,
                              input);
-    queue.enqueueWriteBuffer(outputs, CL_TRUE, 0, sizeof(Number) * kOutputSize,
+    queue.enqueueWriteBuffer(outputs, CL_TRUE, 0, sizeof(Number) * output_size_,
                              output);
     queue.enqueueWriteBuffer(old_weights, CL_TRUE, 0,
                              sizeof(Number) * generator_.NumberWeights(), OW);
@@ -266,7 +280,7 @@ class Nnet {
 
   symbolic::Expression GetErrorExpression() const {
     symbolic::Expression error;
-    for (size_t out_idx = 0; out_idx < kOutputSize; ++out_idx) {
+    for (size_t out_idx = 0; out_idx < output_size_; ++out_idx) {
       symbolic::Expression output_error =
           neural_network_.at(out_idx, 0) -
           symbolic::Expression(generator_.O(out_idx));
@@ -275,7 +289,7 @@ class Nnet {
     return error;
   }
 
-  SymbolicOutputVector GetExpression() const { return neural_network_; }
+  Matrix<symbolic::Expression> GetExpression() const { return neural_network_; }
 
   std::string to_string() const { return neural_network_.to_string(); }
 
@@ -291,35 +305,45 @@ class Nnet {
 
  private:
   void CalculateInitialWeights() {
-    FeedForwardLayer<kInputSize, kLayerSize> input_layer_generator(&generator_,
-                                                                   0);
-    stats::Normal I = input_layer_generator.XavierInitializer();
-    for (const std::string& weight : input_layer_generator.weights()) {
-      weights_[weight].real() = I.sample();
-    }
-    for (size_t layer = 1; layer <= kNumHiddenLayers; ++layer) {
-      FeedForwardLayer<kLayerSize, kLayerSize> hidden_layer_generator(
-          &generator_, layer);
-      stats::Normal H = hidden_layer_generator.XavierInitializer();
-      for (const std::string& weight : hidden_layer_generator.weights()) {
-        weights_[weight].real() = H.sample();
+    // Iterate through all layers except the output layer. The output layer's
+    // dimension must match the number of outputs.
+    for (size_t layer = 0; layer < num_layers_ - 1; ++layer) {
+      FeedForwardLayer::Dimensions dims;
+      dims.num_outputs = layer_size_;
+      if (layer == 0) {
+        dims.num_inputs = input_size_;
+      } else {
+        dims.num_inputs = layer_size_;
+      }
+      FeedForwardLayer layer_generator(dims, &generator_, layer);
+      stats::Normal X = layer_generator.XavierInitializer();
+      for (const std::string& weight : layer_generator.weights()) {
+        weights_[weight].real() = X.sample();
       }
     }
-    FeedForwardLayer<kLayerSize, kOutputSize> output_layer_generator(
-        &generator_, kNumLayers - 1);
+    FeedForwardLayer::Dimensions output_dims;
+    output_dims.num_inputs = (num_layers_ == 1) ? input_size_ : layer_size_;
+    output_dims.num_outputs = output_size_;
+    FeedForwardLayer output_layer_generator(output_dims, &generator_,
+                                            num_layers_ - 1);
     stats::Normal O = output_layer_generator.XavierInitializer();
     for (const std::string& weight : output_layer_generator.weights()) {
       weights_[weight].real() = O.sample();
     }
   }
 
-  SymbolicInputVector GenInputLayer() const {
-    SymbolicInputVector result;
-    for (size_t i = 0; i < kInputSize; ++i) {
+  Matrix<symbolic::Expression> GenInputLayer() const {
+    Matrix<symbolic::Expression> result(input_size_, 1);
+    for (size_t i = 0; i < input_size_; ++i) {
       result.at(i, 0) = symbolic::CreateExpression(generator_.I(i));
     }
     return result;
   }
+
+  size_t num_layers_;
+  size_t layer_size_;
+  size_t output_size_;
+  size_t input_size_;
 
   // The entire neural network is stored symbolically, in a column vector of
   // type symbolic::Expression. To get your outputs, simply call Bind() on all
@@ -334,21 +358,13 @@ class Nnet {
   // I(i) -- i is the index of the input.
   //
   // All indices and layer numbers are zero-indexed.
-  //
-  // The first layer has kInputSize nuerons. Every Hidden layer has kLayerSize
-  // neurons. The output layer has kOutputSize neurons. There are
-  // kNumHiddenLayers + 1 layers with weights (the hidden layers and the
-  // output
-  // layer).
-  Matrix<kOutputSize, 1, symbolic::Expression> neural_network_;
+  Matrix<symbolic::Expression> neural_network_;  // Dim(output_size_, 1).
 
   FlatWeightSymbolGenerator generator_;
 
   symbolic::Environment weights_;
 
-  // For efficiently iterating through weights.
-  std::vector<std::string> weight_list_;
-
+  // OpenCL state variables.
   bool kernel_compiled_ = false;
   std::tuple<cl::Context, cl::Program> compilation_units_;
   cl::Device device_;

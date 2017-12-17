@@ -4,7 +4,7 @@ cc_library(
     hdrs = ["nnet.h"],
     deps = [
         ":layer",
-        "//math/geometry:matrix",
+        "//math/geometry:dynamic_matrix",
         "//math/symbolic:symbolic",
         "//math/symbolic:symbolic_util",
         "//math/stats:normal",
@@ -17,7 +17,7 @@ cc_library(
     visibility = ["//math"],
     hdrs = ["layer.h"],
     deps = [
-        "//math/geometry:matrix",
+        "//math/geometry:dynamic_matrix",
         "//math/symbolic:symbolic",
         "//math/symbolic:symbolic_util",
         "//math/stats:normal",
@@ -38,7 +38,7 @@ cc_binary(
     deps = [
         ":nnet",
         "//math/symbolic:symbolic",
-        "//math/geometry:matrix",
+        "//math/geometry:dynamic_matrix",
     ],
 )
 
@@ -55,7 +55,7 @@ cc_binary(
     deps = [
         ":nnet",
         "//math/symbolic:symbolic",
-        "//math/geometry:matrix",
+        "//math/geometry:dynamic_matrix",
     ],
 )
 

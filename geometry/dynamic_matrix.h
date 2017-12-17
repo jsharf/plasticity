@@ -29,6 +29,10 @@ class Matrix {
     }
   }
 
+  Matrix() {
+    resize(0, 0);
+  }
+
   Matrix(size_t rows, size_t cols) {
     resize(rows, cols);
   }

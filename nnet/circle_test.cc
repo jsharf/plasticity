@@ -1,4 +1,4 @@
-#include "math/geometry/matrix.h"
+#include "math/geometry/dynamic_matrix.h"
 #include "math/nnet/nnet.h"
 #include "math/symbolic/expression.h"
 
@@ -8,17 +8,18 @@
 #include <string>
 
 constexpr size_t kSampleSize = 2;
-using Sample = Matrix<kSampleSize, 1, nnet::Number>;
+// Dim(kSampleSize, 1)
+using Sample = Matrix<nnet::Number>;
 
 // Trains a neural network to learn if given point is in unit circle.
 int main() {
-  constexpr int kNumHiddenLayers = 1;
+  constexpr int kNumLayers = 2;
   constexpr int kLayerSize = 4;
   constexpr int kOutputSize = 1;
   constexpr int kInputSize = kSampleSize;
 
-  using Nnet = nnet::Nnet<kNumHiddenLayers, kLayerSize, kOutputSize, kInputSize>;
-  Nnet test_net;
+  nnet::Nnet::Dimensions dims{kNumLayers, kLayerSize, kOutputSize, kInputSize};
+  nnet::Nnet test_net(dims);
 
   std::vector<std::tuple<Sample, bool>> examples;
 
@@ -32,7 +33,7 @@ int main() {
     examples.push_back(std::make_tuple(Sample({{x}, {y}}), in_unit_circle));
   }
 
-  Nnet::LearningParameters params{
+  nnet::Nnet::LearningParameters params{
       .learning_rate = 1
   };
 
@@ -40,10 +41,10 @@ int main() {
 
   for (const std::tuple<Sample, double>& example : examples) {
     std::cout << "." << std::flush;
-    test_net.TrainCl(
-        std::get<0>(example),
-        Nnet::OutputVector({{static_cast<double>(std::get<1>(example))}}),
-        params);
+    test_net.TrainCl(std::get<0>(example),
+                     Matrix<nnet::Number>(
+                         {{static_cast<nnet::Number>(std::get<1>(example))}}),
+                     params);
   }
 
   std::cout << std::endl;
@@ -52,7 +53,7 @@ int main() {
     double pointx = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
     double pointy = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
     double output =
-        test_net.Evaluate(Nnet::InputVector{{pointx}, {pointy}}).at(0, 0);
+        test_net.Evaluate(Matrix<nnet::Number>{{pointx}, {pointy}}).at(0, 0);
     std::cout << "((" << pointx << "," << pointy << ")," << output << ")"
               << std::endl;
   }
