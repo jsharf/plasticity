@@ -14,8 +14,8 @@ def main():
         match = re.match(REGEX, line)
         if not match or len(match.groups()) != 3:
             continue
-        x = int(100 * float(match.groups()[0]))
-        y = int(100 * float(match.groups()[1]))
+        x = float(match.groups()[0])
+        y = float(match.groups()[1])
         score = match.groups()[2]
         score_intensity = int(255 * float(score))
         color = "#%02x%02x%02x" % (score_intensity, score_intensity,
@@ -23,7 +23,7 @@ def main():
         Xs.append(x)
         Ys.append(y)
         colors.append(color)
-    radii = np.array([10 for i in Xs])
+    radii = np.array([0.1 for i in Xs])
     x = np.array(Xs)
     y = np.array(Ys)
 
