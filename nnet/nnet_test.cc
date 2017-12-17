@@ -81,8 +81,8 @@ int main() {
   std::cout << "Training" << std::endl;
   for (const auto& example : flw) {
     std::cout << "." << std::flush;
-    test_net.Train(ConvertToSample(example.first),
-                   Matrix<nnet::Number>({{example.second}}), params);
+    test_net.TrainCl(ConvertToSample(example.first),
+                     Matrix<nnet::Number>({{example.second}}), params);
   }
   std::cout << "Weights: " << std::endl;
   std::cout << test_net.WeightsToString();
