@@ -95,7 +95,7 @@ class FeedForwardLayer : public LayerGenerator {
   }
 
   WeightArray weights() override {
-    WeightArray weights;
+    WeightArray weights(dimensions_.num_outputs * (dimensions_.num_inputs + 1));
     size_t back_index = 0;
     for (size_t i = 0; i < dimensions_.num_outputs; ++i) {
       // + 1 for Bias.

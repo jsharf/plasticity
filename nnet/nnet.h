@@ -62,11 +62,7 @@ class Nnet {
     for (size_t layer_idx = 0; layer_idx < num_layers_ - 1; ++layer_idx) {
       FeedForwardLayer::Dimensions dims;
       dims.num_outputs = layer_size_;
-      if (layer_idx == 0) {
-        dims.num_inputs = input_size_;
-      } else {
-        dims.num_inputs = layer_size_;
-      }
+      dims.num_inputs = (layer_idx == 0) ? input_size_ : layer_size_;
       FeedForwardLayer layer_generator(dims, &generator_, layer_idx);
       layer = layer_generator.GenerateExpression(layer);
     }

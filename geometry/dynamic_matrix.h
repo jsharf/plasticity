@@ -222,13 +222,15 @@ class Matrix {
     auto dim = size();
     size_t rows = std::get<0>(dim);
     size_t cols = std::get<1>(dim);
-    size_t rhsrows = std::get<1>(rhs.size());
+    size_t rhsrows = std::get<0>(rhs.size());
     size_t rhscols = std::get<1>(rhs.size());
 
-    if (rhsrows != rows) {
-      std::cerr << "Matrix passed to operator * has incorrect dimension, "
+    if (rhsrows != cols) {
+      std::cerr << "rhs Matrix passed to operator * has incorrect dimension, "
                    "cannot multiply: "
                 << "(" << rhsrows << ", " << rhscols << ")"
+                << std::endl
+                << "Dimensions of lhs: (" << rows << ", " << cols << ")"
                 << std::endl;
       std::exit(1);
     }
