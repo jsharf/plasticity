@@ -1,11 +1,14 @@
 // THIS FILE IS A TEMPLATE. The files in //math/nnet parse this to generate an OpenCl kernel.
 
 // This function is generated automatically, do not edit.
-void Calculate(global float* I, global float* W, global float* O, size_t output_index) {
-  O[output_index] = EXPRESSION_HERE[output_index];
+double Calculate(global double* I, global double* W, size_t output_index) {
+  switch(output_index) {
+    EXPRESSION_HERE
+  }
+  return NAN;
 }
 
-kernel void evaluate(global float* inputs, global float* weights, global float* outputs) {
-  size_t index = get_index();
-  Calculate(inputs, weights, outputs, index);
+kernel void evaluate(global double* inputs, global double* weights, global double* outputs) {
+  size_t index = get_global_id(0);
+  outputs[index] = Calculate(inputs, weights, index);
 }

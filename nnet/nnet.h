@@ -117,6 +117,95 @@ class Nnet {
     size_t weight_count_ = 0;
   };
 
+  std::string GenerateEvaluateKernelSource() {
+    std::ifstream evaluate_file("kernels/evaluate.kernel.cl");
+    std::stringstream buffer;
+    buffer << evaluate_file.rdbuf();
+    std::string evaluate_source = buffer.str();
+
+    std::stringstream outputs;
+    for (size_t i = 0; i < output_size_; ++i) {
+      outputs << "case " << i << ":" << std::endl;
+      outputs << "  return (" << neural_network_.at(i, 0).to_string() << ");"
+              << std::endl;
+    }
+
+    std::string template_substring = "EXPRESSION_HERE";
+    size_t template_location = evaluate_source.find(template_substring);
+    if (template_location == std::string::npos) {
+      std::cerr << "Could not find template substring \"" << template_substring
+                << "\"" << std::endl;
+      std::exit(1);
+    }
+
+    evaluate_source.replace(template_location, template_substring.size(),
+                            outputs.str());
+    return evaluate_source;
+  }
+
+  void CompileEvaluateCl() {
+    std::string kernel_source = GenerateEvaluateKernelSource();
+    cl::Platform platform = clutil::GetDefaultPlatform();
+    std::vector<cl::Device> devices = clutil::GetPlatformDevices(platform);
+    if (devices.size() == 0) {
+      std::cerr << "No OpenCL Devices on this platform." << std::endl;
+      std::exit(1);
+    }
+    evaluate_kernel_.device = devices[0];
+    evaluate_kernel_.compiled = true;
+    evaluate_kernel_.compilation_units =
+        clutil::Compile(evaluate_kernel_.device, {kernel_source});
+  }
+
+  Matrix<Number> EvaluateCl(Matrix<Number> in) {
+    if (!evaluate_kernel_.compiled) {
+      std::cerr << "Generating and compiling OpenCl kernel. This takes a while"
+                << " the first time..." << std::endl;
+      CompileEvaluateCl();
+      std::cerr << "Done!" << std::endl;
+    }
+    cl::Context& context = std::get<0>(evaluate_kernel_.compilation_units);
+    cl::Program& program = std::get<1>(evaluate_kernel_.compilation_units);
+    cl::Buffer outputs(context, CL_MEM_READ_WRITE,
+                       output_size_ * sizeof(Number));
+    cl::Buffer weights(context, CL_MEM_READ_ONLY,
+                       generator_.NumberWeights() * sizeof(Number));
+    cl::Buffer inputs(context, CL_MEM_READ_ONLY, input_size_ * sizeof(Number));
+    Number weights_buf[generator_.NumberWeights()];
+    for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
+      weights_buf[i] = static_cast<double>(weights_[generator_.W(i)].real());
+    }
+    Number inputs_buf[input_size_];
+    for (size_t i = 0; i < input_size_; ++i) {
+      inputs_buf[i] = in.at(i, 0);
+    }
+
+    // create a queue (a queue of commands that the GPU will execute)
+    cl::CommandQueue queue(context, evaluate_kernel_.device);
+
+    queue.enqueueWriteBuffer(inputs, CL_TRUE, 0, sizeof(Number) * input_size_,
+                             inputs_buf);
+    queue.enqueueWriteBuffer(weights, CL_TRUE, 0,
+                             sizeof(Number) * generator_.NumberWeights(),
+                             weights_buf);
+
+    cl::Kernel evaluate(program, "evaluate");
+    evaluate.setArg(0, inputs);
+    evaluate.setArg(1, weights);
+    evaluate.setArg(2, outputs);
+    queue.enqueueNDRangeKernel(evaluate, cl::NullRange,
+                               cl::NDRange(output_size_), cl::NullRange);
+
+    Number output_buf[output_size_];
+    queue.enqueueReadBuffer(outputs, CL_TRUE, 0,
+                            sizeof(Number) * output_size_, output_buf);
+    Matrix<Number> result(output_size_, 1);
+    for (size_t i = 0; i < output_size_; ++i) {
+      result.at(i, 0) = output_buf[i];
+    }
+    return result;
+  }
+
   Matrix<Number> Evaluate(Matrix<Number> in) const {
     // Modify weights_ in-place to avoid copying them. This is guaranteed to
     // never have stale inputs (from previous eval) as long as I follow naming
@@ -210,21 +299,22 @@ class Nnet {
       std::cerr << "No OpenCL Devices on this platform." << std::endl;
       std::exit(1);
     }
-    device_ = devices[0];
-    kernel_compiled_ = true;
-    compilation_units_ = clutil::Compile(device_, {kernel_source});
+    grad_descent_kernel_.device = devices[0];
+    grad_descent_kernel_.compiled = true;
+    grad_descent_kernel_.compilation_units =
+        clutil::Compile(grad_descent_kernel_.device, {kernel_source});
   }
 
   void TrainCl(Matrix<Number> in, Matrix<Number> o,
                const LearningParameters& params) {
-    if (!kernel_compiled_) {
+    if (!grad_descent_kernel_.compiled) {
       std::cerr << "Generating and compiling OpenCl kernel. This takes a while"
                 << " the first time..." << std::endl;
       CompileGradientDescentCl();
-      std::cout << "Done!" << std::endl;
+      std::cerr << "Done!" << std::endl;
     }
-    cl::Context& context = std::get<0>(compilation_units_);
-    cl::Program& program = std::get<1>(compilation_units_);
+    cl::Context& context = std::get<0>(grad_descent_kernel_.compilation_units);
+    cl::Program& program = std::get<1>(grad_descent_kernel_.compilation_units);
     cl::Buffer new_weights(context, CL_MEM_READ_WRITE,
                            generator_.NumberWeights() * sizeof(Number));
     cl::Buffer old_weights(context, CL_MEM_READ_ONLY,
@@ -234,7 +324,7 @@ class Nnet {
     cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
     Number OW[generator_.NumberWeights()];
     for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
-      OW[i] = static_cast<float>(weights_[generator_.W(i)].real());
+      OW[i] = static_cast<double>(weights_[generator_.W(i)].real());
     }
     Number input[input_size_];
     for (size_t i = 0; i < input_size_; ++i) {
@@ -246,7 +336,7 @@ class Nnet {
     }
 
     // create a queue (a queue of commands that the GPU will execute)
-    cl::CommandQueue queue(context, device_);
+    cl::CommandQueue queue(context, grad_descent_kernel_.device);
 
     queue.enqueueWriteBuffer(inputs, CL_TRUE, 0, sizeof(Number) * input_size_,
                              input);
@@ -361,9 +451,13 @@ class Nnet {
   symbolic::Environment weights_;
 
   // OpenCL state variables.
-  bool kernel_compiled_ = false;
-  std::tuple<cl::Context, cl::Program> compilation_units_;
-  cl::Device device_;
+  struct OpenClState {
+    bool compiled = false;
+    std::tuple<cl::Context, cl::Program> compilation_units;
+    cl::Device device;
+  };
+  OpenClState grad_descent_kernel_;
+  OpenClState evaluate_kernel_;
 };
 
 }  // namespace nnet

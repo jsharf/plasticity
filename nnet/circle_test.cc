@@ -50,7 +50,7 @@ int main() {
     double pointx = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
     double pointy = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
     double output =
-        test_net.Evaluate(Matrix<nnet::Number>{{pointx}, {pointy}}).at(0, 0);
+        test_net.EvaluateCl(Matrix<nnet::Number>{{pointx}, {pointy}}).at(0, 0);
     std::cout << "((" << pointx << "," << pointy << ")," << output << ")"
               << std::endl;
   }
