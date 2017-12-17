@@ -218,7 +218,7 @@ class Nnet {
   void TrainCl(Matrix<Number> in, Matrix<Number> o,
                const LearningParameters& params) {
     if (!kernel_compiled_) {
-      std::cout << "Generating and compiling OpenCl kernel. This takes a while"
+      std::cerr << "Generating and compiling OpenCl kernel. This takes a while"
                 << " the first time..." << std::endl;
       CompileGradientDescentCl();
       std::cout << "Done!" << std::endl;

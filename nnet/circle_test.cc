@@ -24,7 +24,7 @@ int main() {
   std::vector<std::tuple<Sample, bool>> examples;
 
   // Generate training samples.
-  for (size_t i = 0; i < 500; ++i) {
+  for (size_t i = 0; i < 3000; ++i) {
     double x = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
     double y = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
 
@@ -37,10 +37,7 @@ int main() {
       .learning_rate = 1
   };
 
-  std::cout << "Training" << std::endl;
-
   for (const std::tuple<Sample, double>& example : examples) {
-    std::cout << "." << std::flush;
     test_net.TrainCl(std::get<0>(example),
                      Matrix<nnet::Number>(
                          {{static_cast<nnet::Number>(std::get<1>(example))}}),
@@ -58,7 +55,6 @@ int main() {
               << std::endl;
   }
 
-  std::cout << test_net.WeightsToString();
   std::cout << std::endl;
   return 0;
 }
