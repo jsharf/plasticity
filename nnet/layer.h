@@ -56,6 +56,7 @@ class LayerGenerator {
   virtual Matrix<symbolic::Expression> GenerateExpression(
       Matrix<symbolic::Expression> input) = 0;
   virtual stats::Normal XavierInitializer() const = 0;
+  Dimensions GetDimensions() const { return dimensions_; }
   virtual ~LayerGenerator() {}
 
  protected:

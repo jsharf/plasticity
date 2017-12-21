@@ -9,6 +9,7 @@
 
 #include <fstream>
 #include <map>
+#include <memory>
 #include <sstream>
 
 namespace nnet {
@@ -41,6 +42,21 @@ class Nnet {
              << ", output_size: " << output_size
              << ", input_size: " << input_size << "}";
       return buffer.str();
+    }
+  };
+
+  struct Architecture {
+    std::vector<std::unique_ptr<nnet::LayerGenerator>> layers;
+
+    bool VerifyArchitecture() const {
+      for (size_t i = 1; i < layers.size(); ++i) {
+        size_t prev_output = layers[i-1]->GetDimensions().num_outputs;
+        size_t curr_input = layers[i]->GetDimensions().num_inputs;
+        if (prev_output != curr_input) {
+          return false;
+        }
+      }
+      return true;
     }
   };
 
