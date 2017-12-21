@@ -147,6 +147,53 @@ std::string Expression::to_string() const {
   return expression_root_->to_string();
 }
 
+// IfExpression impl.
+
+std::set<std::string> IfExpression::variables() const {
+  std::set<std::string> variables;
+  std::set<std::string> a_vars = a_->variables();
+  std::set<std::string> b_vars = b_->variables();
+  std::set<std::string> cond_vars = conditional_->variables();
+
+  variables.insert(a_vars.begin(), a_vars.end());
+  variables.insert(b_vars.begin(), b_vars.end());
+  variables.insert(cond_vars.begin(), cond_vars.end());
+  return variables;
+}
+
+std::unique_ptr<const ExpressionNode> IfExpression::Bind(const Environment& env) const {
+  return std::make_unique<IfExpression>(conditional_->Bind(env), a_->Bind(env),
+                                        b_->Bind(env));
+}
+
+std::experimental::optional<NumericValue> IfExpression::TryEvaluate() const {
+  std::experimental::optional<NumericValue> conditional_result =
+      conditional_->TryEvaluate();
+
+  // Evaluate this as a truthy or falsey value. But since it's a floating point
+  // number, do comparison accounting for floating point error.
+  if (!conditional_result) {
+    return std::experimental::nullopt;
+  }
+
+  bool truthy = abs(conditional_result->real()) > std::numeric_limits<Number>::epsilon();
+
+  if (truthy) {
+    return a_->TryEvaluate();
+  } else {
+    return b_->TryEvaluate();
+  }
+}
+
+std::unique_ptr<ExpressionNode> IfExpression::Derive(const std::string& x) const {
+  return std::make_unique<IfExpression>(conditional_, a_->Derive(x), b_->Derive(x));
+}
+
+std::string IfExpression::to_string() const {
+  return "((" + conditional_->to_string() + ") ? (" + a_->to_string() + ") : (" +
+         b_->to_string() + "))";
+}
+
 // CompoundExpression impl.
 
 std::set<std::string> CompoundExpression::variables() const {
@@ -233,6 +280,75 @@ std::unique_ptr<ExpressionNode> MultiplicationExpression::Derive(
 
   return std::make_unique<AdditionExpression>(head_dtail, tail_dhead);
 }
+
+// And Implementation.
+
+NumericValue AndExpression::reduce(const NumericValue& a,
+                                   const NumericValue& b) const {
+  NumericValue result(ToNumber(ToBool(a.real()) && ToBool(b.real())), 0);
+  return result;
+}
+
+std::unique_ptr<const ExpressionNode> AndExpression::Bind(
+    const Environment& env) const {
+  return std::make_unique<AndExpression>(head_->Bind(env), tail_->Bind(env));
+}
+
+std::unique_ptr<ExpressionNode> AndExpression::Derive(
+    const std::string& x) const {
+  return nullptr;
+}
+
+// >= Expression
+
+std::set<std::string> GteExpression::variables() const {
+  std::set<std::string> variables;
+  std::set<std::string> a_vars = a_->variables();
+  std::set<std::string> b_vars = b_->variables();
+
+  variables.insert(a_vars.begin(), a_vars.end());
+  variables.insert(b_vars.begin(), b_vars.end());
+  return variables;
+}
+
+std::unique_ptr<const ExpressionNode> GteExpression::Bind(
+    const Environment& env) const {
+  return std::make_unique<GteExpression>(a_->Bind(env), b_->Bind(env));
+}
+
+std::experimental::optional<NumericValue> GteExpression::TryEvaluate()
+    const {
+  std::experimental::optional<NumericValue> a_result =
+      a_->TryEvaluate();
+
+  std::experimental::optional<NumericValue> b_result =
+      b_->TryEvaluate();
+
+  if (!(a_result && b_result)) {
+    return std::experimental::nullopt;
+  }
+
+  NumericValue a = *a_result;
+  NumericValue b = *b_result;
+
+  return NumericValue((a.real() >= b.real()) ? 1.0 : 0.0);
+}
+
+// Not defined for >=.
+std::unique_ptr<ExpressionNode> GteExpression::Derive(
+    const std::string& x) const {
+  return nullptr;
+}
+
+std::string GteExpression::to_string() const {
+  std::string result = "(";
+  result += a_->to_string();
+  result += ") >= (";
+  result += b_->to_string();
+  result += ")";
+  return result;
+}
+
 
 // DivisionExpression Implementation.
 
