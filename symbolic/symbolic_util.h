@@ -15,6 +15,46 @@ Expression Sigmoid(Expression a) {
               NumericValue::e, (CreateExpression("-1") * a).GetPointer())));
 }
 
+namespace internal {
+
+Expression maxexpr(Expression a, std::vector<Expression> exprs) {
+  if (exprs.size() == 0) {
+    std::cerr << "maxexpr called with empty vec!" << std::endl;
+    std::exit(1);
+  }
+  std::unique_ptr<const ExpressionNode> condexpr =
+      std::make_unique<const GteExpression>(a.GetPointer(),
+                                            exprs[0].GetPointer());
+  for (size_t i = 1; i < exprs.size(); ++i) {
+    condexpr = std::make_unique<const AndExpression>(
+        std::move(condexpr), std::make_unique<const GteExpression>(
+                                 a.GetPointer(), exprs[i].GetPointer()));
+  }
+  return Expression(std::move(condexpr));
+}
+
+}  // namespace internal
+
+Expression Max(const std::vector<Expression>& exprs) {
+  if (exprs.size() == 0) {
+    std::cerr << "maxexpr called with empty vec!" << std::endl;
+    std::exit(1);
+  }
+  std::unique_ptr<const ExpressionNode> maxstatement =
+      exprs[exprs.size() - 1].GetPointer()->Clone();
+  for (size_t i = 0; i < exprs.size() - 1; ++i) {
+    // Make copy of exprs that does not contain i-expr.
+    std::vector<Expression> others = exprs;
+    others.erase(others.begin() + i);
+
+    // Make conditional that i-expr is max.
+    Expression conditional = internal::maxexpr(exprs[i], others);
+
+    maxstatement = std::make_unique<const IfExpression>(conditional.GetPointer(), exprs[i].GetPointer(), std::move(maxstatement));
+  }
+  return Expression(std::move(maxstatement));
+}
+
 }  // namespace symbolic
 
 #endif /* SYMBOLIC_UTIL_H */

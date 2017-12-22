@@ -29,8 +29,11 @@ cc_library(
 cc_binary(
     name = "symbolic_test",
     srcs = ["symbolic_test.cc"],
-    deps = [":symbolic"],
     copts = [
         "-std=c++1z",
+    ],
+    deps = [
+        ":symbolic",
+        ":symbolic_util",
     ],
 )

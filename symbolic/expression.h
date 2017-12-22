@@ -71,7 +71,7 @@ class Expression {
 
   void Reset(std::unique_ptr<const ExpressionNode> root);
 
-  std::unique_ptr<const ExpressionNode>& GetPointer() {
+  const std::unique_ptr<const ExpressionNode>& GetPointer() const {
     return expression_root_;
   }
 

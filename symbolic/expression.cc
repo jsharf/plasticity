@@ -220,11 +220,13 @@ std::experimental::optional<NumericValue> CompoundExpression::TryEvaluate()
 std::string CompoundExpression::to_string() const {
   std::string result = "(";
   result += head_->to_string();
+  result += ")";
   if (tail_) {
     result += operator_to_string();
+    result += "(";
     result += tail_->to_string();
+    result += ")";
   }
-  result += ")";
   return result;
 }
 

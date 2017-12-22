@@ -5,8 +5,9 @@
 #include <memory>
 #include <experimental/optional>
 
-#include "numeric_value.h"
-#include "expression.h"
+#include "math/symbolic/numeric_value.h"
+#include "math/symbolic/expression.h"
+#include "math/symbolic/symbolic_util.h"
 
 using symbolic::Expression;
 using symbolic::NumericValue;
@@ -55,5 +56,15 @@ int main() {
         << pieceweise_deriv.Bind("x", NumericValue(x)).Evaluate()->to_string()
         << std::endl;
   }
+
+  Expression max_test = symbolic::Max({symbolic::CreateExpression("3"),
+                                       symbolic::CreateExpression("2"),
+                                       symbolic::CreateExpression("1"),
+                                       symbolic::CreateExpression("5")});
+
+  std::cout << "max(3, 2, 1, 5) = " << std::endl << max_test.to_string() << std::endl;
+
+  std::cout << "Eval = " << std::endl << max_test.Evaluate()->real() << std::endl;
+
   std::cout << "DONE" << std::endl;
 }
