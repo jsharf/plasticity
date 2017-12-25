@@ -113,7 +113,7 @@ class FeedForwardLayer : public LayerGenerator {
     size_t rows = std::get<0>(dim);
     size_t cols = std::get<1>(dim);
     if ((rows != dimensions_.num_inputs) || (cols != 1)) {
-      std::cerr << "Error: LayerGenerator::GenerateExpression called on input "
+      std::cerr << "Error: FeedForwardLayer::GenerateExpression called on input "
                    "of incorrect size: "
                 << "(" << rows << ", " << cols << ")" << std::endl;
       std::exit(1);
