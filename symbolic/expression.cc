@@ -114,6 +114,10 @@ Expression& Expression::operator=(Expression&& rhs) {
   return *this;
 }
 
+Expression& Expression::operator+=(const Expression& rhs) {
+  return *this = *this + rhs;
+}
+
 // Variables which need to be resolved in order to evaluate the expression.
 std::set<std::string> Expression::variables() const {
   return expression_root_->variables();

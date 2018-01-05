@@ -1,11 +1,11 @@
 #ifndef NNET_H
 #define NNET_H
+#include "clutil/util.h"
 #include "math/geometry/dynamic_matrix.h"
 #include "math/nnet/layer.h"
 #include "math/stats/normal.h"
 #include "math/symbolic/expression.h"
 #include "math/symbolic/symbolic_util.h"
-#include "clutil/util.h"
 
 #include <fstream>
 #include <map>
@@ -46,11 +46,11 @@ class Nnet {
   };
 
   struct Architecture {
-    std::vector<std::unique_ptr<nnet::LayerGenerator>> layers;
+    std::vector<nnet::Layer> layers;
 
     bool VerifyArchitecture() const {
       for (size_t i = 1; i < layers.size(); ++i) {
-        size_t prev_output = layers[i-1]->GetDimensions().num_outputs;
+        size_t prev_output = layers[i - 1]->GetDimensions().num_outputs;
         size_t curr_input = layers[i]->GetDimensions().num_inputs;
         if (prev_output != curr_input) {
           return false;
@@ -98,15 +98,40 @@ class Nnet {
   // indices into arrays.
   class FlatWeightSymbolGenerator : public SymbolGenerator {
    public:
+    // Feed-forward layer weights.
     virtual std::string W(size_t layer, size_t node, size_t edge) {
       auto tuple = std::make_tuple(layer, node, edge);
-      if (weight_index_.count(tuple) == 0) {
-        weight_index_[tuple] = weight_count_;
-        rev_weight_index_[weight_count_] = tuple;
+      if (ff_weight_index_.count(tuple) == 0) {
+        ff_weight_index_[tuple] = weight_count_;
+        ff_rev_weight_index_[weight_count_] = tuple;
         weight_count_++;
       }
-      return "W[" + std::to_string(weight_index_[tuple]) + "]";
+      return "W[" + std::to_string(ff_weight_index_[tuple]) + "]";
     }
+
+    // Convolution layer weights.
+    virtual std::string W(size_t layer, size_t filter, size_t x, size_t y,
+                          size_t z) {
+      auto tuple = std::make_tuple(layer, filter, x, y, z);
+      if (conv_weight_index_.count(tuple) == 0) {
+        conv_weight_index_[tuple] = weight_count_;
+        conv_rev_weight_index_[weight_count_] = tuple;
+        weight_count_++;
+      }
+      return "W[" + std::to_string(conv_weight_index_[tuple]) + "]";
+    }
+
+    // Convolution layer bias weights.
+    virtual std::string W(size_t layer, size_t filter) {
+      auto tuple = std::make_tuple(layer, filter);
+      if (conv_bias_weight_index_.count(tuple) == 0) {
+        conv_bias_weight_index_[tuple] = weight_count_;
+        conv_bias_rev_weight_index_[weight_count_] = tuple;
+        weight_count_++;
+      }
+      return "W[" + std::to_string(conv_bias_weight_index_[tuple]) + "]";
+    }
+
     virtual std::string W(size_t i) const {
       return "W[" + std::to_string(i) + "]";
     }
@@ -117,19 +142,33 @@ class Nnet {
       return "O[" + std::to_string(i) + "]";
     }
 
-    // Used to interpret results from opencl call.
-    std::map<int, std::tuple<int, int, int>> reverse_weight_map() const {
-      return rev_weight_index_;
-    }
+    // TODO(sharf): delete this commented out code.
+    //// Used to interpret results from opencl call.
+    // std::map<int, std::tuple<int, int, int>> reverse_weight_map() const {
+    //  return rev_weight_index_;
+    //}
 
     size_t NumberWeights() const { return weight_count_; }
 
    private:
     // Mapping from <layer, node, edge> -> int. This lets each weight have a
     // single unique index.
-    std::map<std::tuple<int, int, int>, int> weight_index_;
+    std::map<std::tuple<int, int, int>, int> ff_weight_index_;
     // Reverse mapping.
-    std::map<int, std::tuple<int, int, int>> rev_weight_index_;
+    std::map<int, std::tuple<int, int, int>> ff_rev_weight_index_;
+
+    // Mapping from <layer, filter, x, y, z> -> int. This lets each weight have
+    // a single unique index.
+    std::map<std::tuple<int, int, int, int, int>, int> conv_weight_index_;
+    // Reverse mapping.
+    std::map<int, std::tuple<int, int, int, int, int>> conv_rev_weight_index_;
+
+    // Mapping from <layer, filter> -> int. This lets each weight have a
+    // single unique index.
+    std::map<std::tuple<int, int>, int> conv_bias_weight_index_;
+    // Reverse mapping.
+    std::map<int, std::tuple<int, int>> conv_bias_rev_weight_index_;
+
     size_t weight_count_ = 0;
   };
 
@@ -213,8 +252,8 @@ class Nnet {
                                cl::NDRange(output_size_), cl::NullRange);
 
     Number output_buf[output_size_];
-    queue.enqueueReadBuffer(outputs, CL_TRUE, 0,
-                            sizeof(Number) * output_size_, output_buf);
+    queue.enqueueReadBuffer(outputs, CL_TRUE, 0, sizeof(Number) * output_size_,
+                            output_buf);
     Matrix<Number> result(output_size_, 1);
     for (size_t i = 0; i < output_size_; ++i) {
       result.at(i, 0) = output_buf[i];
@@ -248,7 +287,8 @@ class Nnet {
   }
 
   // Back propagation
-  void Train(Matrix<Number> in, Matrix<Number> o, const LearningParameters& params) {
+  void Train(Matrix<Number> in, Matrix<Number> o,
+             const LearningParameters& params) {
     symbolic::Environment env = weights_;
     for (size_t i = 0; i < input_size_; ++i) {
       env[generator_.I(i)].real() = in.at(i, 0);
@@ -290,8 +330,8 @@ class Nnet {
     std::stringstream gradients;
     for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
       gradients << "case " << i << ":" << std::endl;
-      gradients << "  return (" << err.Derive(generator_.W(i)).to_string() << ");"
-                << std::endl;
+      gradients << "  return (" << err.Derive(generator_.W(i)).to_string()
+                << ");" << std::endl;
     }
 
     std::string template_substring = "GRADIENTS_HERE";
@@ -336,7 +376,8 @@ class Nnet {
     cl::Buffer old_weights(context, CL_MEM_READ_ONLY,
                            generator_.NumberWeights() * sizeof(Number));
     cl::Buffer inputs(context, CL_MEM_READ_ONLY, input_size_ * sizeof(Number));
-    cl::Buffer outputs(context, CL_MEM_READ_ONLY, output_size_ * sizeof(Number));
+    cl::Buffer outputs(context, CL_MEM_READ_ONLY,
+                       output_size_ * sizeof(Number));
     cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
     Number OW[generator_.NumberWeights()];
     for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
@@ -370,7 +411,8 @@ class Nnet {
     gradient_descent.setArg(3, new_weights);
     gradient_descent.setArg(4, learning_rate_buff);
     queue.enqueueNDRangeKernel(gradient_descent, cl::NullRange,
-                               cl::NDRange(generator_.NumberWeights()), cl::NullRange);
+                               cl::NDRange(generator_.NumberWeights()),
+                               cl::NullRange);
 
     Number NW[generator_.NumberWeights()];
     queue.enqueueReadBuffer(new_weights, CL_TRUE, 0,
