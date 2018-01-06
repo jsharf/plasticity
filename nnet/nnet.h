@@ -49,24 +49,36 @@ class Nnet {
     std::vector<nnet::Layer> layers;
 
     bool VerifyArchitecture() const {
+      // Cannot be an empty architecture.
+      if (layers.size() == 0) {
+        return false;
+      }
       for (size_t i = 1; i < layers.size(); ++i) {
-        size_t prev_output = layers[i - 1]->GetDimensions().num_outputs;
-        size_t curr_input = layers[i]->GetDimensions().num_inputs;
+        size_t prev_output = layers[i - 1].GetDimensions().num_outputs;
+        size_t curr_input = layers[i].GetDimensions().num_inputs;
         if (prev_output != curr_input) {
           return false;
         }
       }
       return true;
     }
+
+    std::string to_string() const {
+      std::stringstream buffer;
+      buffer << "Architecture{ inputs: " << input_size()
+             << ", outputs: " << output_size() << "}";
+      return buffer.str();
+    }
+
+    size_t input_size() const { return layers[0].GetDimensions().num_inputs; }
+    size_t output_size() const {
+      return layers[layers.size() - 1].GetDimensions().num_outputs;
+    }
   };
 
-  Nnet(const Dimensions& dims)
-      : num_layers_(dims.num_layers),
-        layer_size_(dims.layer_size),
-        output_size_(dims.output_size),
-        input_size_(dims.input_size) {
-    if (!dims.VerifySize()) {
-      std::cerr << "Invalid dimensions passed to Nnet(): " << dims.to_string()
+  Nnet(const Architecture& model) : model_(model) {
+    if (!model.VerifySize()) {
+      std::cerr << "Invalid dimensions passed to Nnet(): " << model.to_string()
                 << std::endl;
       std::exit(1);
     }
@@ -76,6 +88,7 @@ class Nnet {
     // Iterate through all layers except the output layer. The output layer's
     // dimension must match the number of outputs.
     for (size_t layer_idx = 0; layer_idx < num_layers_ - 1; ++layer_idx) {
+
       FeedForwardLayer::Dimensions dims;
       dims.num_outputs = layer_size_;
       dims.num_inputs = (layer_idx == 0) ? input_size_ : layer_size_;
@@ -488,6 +501,7 @@ class Nnet {
   size_t layer_size_;
   size_t output_size_;
   size_t input_size_;
+  Architecture model_;
 
   // The entire neural network is stored symbolically, in a column vector of
   // type symbolic::Expression. To get your outputs, simply call Bind() on all

@@ -30,23 +30,23 @@ class Layer {
 
   // Constructors
   Layer() {}
-  Layer(std::unique_ptr<LayerImpl>&& root);
+  Layer(std::unique_ptr<LayerImpl> root);
   explicit Layer(Layer&& rhs);
 
   // FeedForward Layer constructors.
-  static Layer FeedForwardLayer(
+  static Layer MakeFeedForwardLayer(
       size_t layer_index, const Dimensions& dimensions,
       const ActivationFunctionType& activation_function,
       SymbolGenerator* generator);
-  static Layer FeedForwardLayer(size_t layer_index,
-                                const Dimensions& dimensions,
-                                SymbolGenerator* generator);
+  static Layer MakeFeedForwardLayer(size_t layer_index,
+                                      const Dimensions& dimensions,
+                                      SymbolGenerator* generator);
 
   // Convolutional Layer constructors.
-  static Layer ConvolutionLayer(size_t layer_index,
-                                const VolumeDimensions& dimensions,
-                                const FilterParams& params,
-                                SymbolGenerator* generator);
+  static Layer MakeConvolutionLayer(size_t layer_index,
+                                      const VolumeDimensions& dimensions,
+                                      const FilterParams& params,
+                                      SymbolGenerator* generator);
 
   WeightArray weights();
   Matrix<symbolic::Expression> GenerateExpression(
