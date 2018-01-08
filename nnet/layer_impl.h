@@ -61,6 +61,7 @@ class LayerImpl {
       const Matrix<symbolic::Expression>& input) = 0;
   virtual stats::Normal XavierInitializer() const = 0;
   Dimensions GetDimensions() const { return dimensions_; }
+  virtual std::unique_ptr<LayerImpl> Clone() const = 0;
   virtual ~LayerImpl() {}
 
  protected:

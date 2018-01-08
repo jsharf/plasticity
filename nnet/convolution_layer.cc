@@ -157,4 +157,8 @@ stats::Normal ConvolutionLayer::XavierInitializer() const {
                        1.0 / (dimensions_.num_inputs + filters_.num_filters));
 }
 
+std::unique_ptr<LayerImpl> ConvolutionLayer::Clone() const {
+  return std::make_unique<ConvolutionLayer>(imdim_, filters_, generator_, layer_index_);
+}
+
 }  // namespace nnet

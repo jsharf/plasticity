@@ -65,6 +65,8 @@ class ConvolutionLayer : public LayerImpl {
 
   stats::Normal XavierInitializer() const override;
 
+  std::unique_ptr<LayerImpl> Clone() const override;
+
   FilterParams filters_;
   VolumeDimensions imdim_;
 };

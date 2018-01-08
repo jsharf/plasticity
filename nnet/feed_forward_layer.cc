@@ -58,4 +58,9 @@ Matrix<symbolic::Expression> FeedForwardLayer::GenerateExpression(
   return (weight_matrix * biased_input).Map(activation_function_);
 }
 
+std::unique_ptr<LayerImpl> FeedForwardLayer::Clone() const {
+  return std::make_unique<FeedForwardLayer>(dimensions_, activation_function_,
+                                            generator_, layer_index_);
+}
+
 }  // namespace nnet

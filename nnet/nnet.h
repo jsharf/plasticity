@@ -85,23 +85,15 @@ class Nnet {
 
     // "layer" is at first just a column vector of inputs.
     Matrix<symbolic::Expression> layer = GenInputLayer();
-    // Iterate through all layers except the output layer. The output layer's
-    // dimension must match the number of outputs.
-    for (size_t layer_idx = 0; layer_idx < num_layers_ - 1; ++layer_idx) {
 
-      FeedForwardLayer::Dimensions dims;
-      dims.num_outputs = layer_size_;
-      dims.num_inputs = (layer_idx == 0) ? input_size_ : layer_size_;
-      FeedForwardLayer layer_generator(dims, &generator_, layer_idx);
-      layer = layer_generator.GenerateExpression(layer);
+    for (size_t layer_idx = 0; layer_idx < model_.layers.size(); ++layer_idx) {
+      layer = model.layers.GenerateExpression(layer);
     }
 
-    FeedForwardLayer::Dimensions output_dims;
-    output_dims.num_inputs = (num_layers_ == 1) ? input_size_ : layer_size_;
-    output_dims.num_outputs = output_size_;
-    FeedForwardLayer output_layer_generator(output_dims, &generator_,
-                                            num_layers_ - 1);
-    neural_network_ = output_layer_generator.GenerateExpression(layer);
+    // After processing all the layers, we are left with a column vector of
+    // symbolic expressions. Each expression in the vector describes
+    // (mathematically) the value of the output of the network W.R.T the inputs.
+    neural_network_ = layer;
 
     CalculateInitialWeights();
   }

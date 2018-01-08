@@ -32,6 +32,7 @@ class Layer {
   Layer() {}
   Layer(std::unique_ptr<LayerImpl> root);
   explicit Layer(Layer&& rhs);
+  Layer(const Layer& rhs);
 
   // FeedForward Layer constructors.
   static Layer MakeFeedForwardLayer(

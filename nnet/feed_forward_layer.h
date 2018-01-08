@@ -39,6 +39,8 @@ class FeedForwardLayer : public LayerImpl {
     return stats::Normal(0, 1.0 / (dimensions_.num_inputs + 1));
   }
 
+  std::unique_ptr<LayerImpl> Clone() const override;
+
   // This function will be used to map the activation function to a matrix
   // of symbolic expressions.
   std::function<symbolic::Expression(const symbolic::Expression&)>
