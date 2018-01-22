@@ -34,20 +34,31 @@ class Layer {
   explicit Layer(Layer&& rhs);
   Layer(const Layer& rhs);
 
+  static Layer MakeInputLayer(size_t size, SymbolGenerator* generator);
+
   // FeedForward Layer constructors.
   static Layer MakeFeedForwardLayer(
       size_t layer_index, const Dimensions& dimensions,
       const ActivationFunctionType& activation_function,
       SymbolGenerator* generator);
+
   static Layer MakeFeedForwardLayer(size_t layer_index,
-                                      const Dimensions& dimensions,
-                                      SymbolGenerator* generator);
+                                    const Dimensions& dimensions,
+                                    SymbolGenerator* generator);
 
   // Convolutional Layer constructors.
   static Layer MakeConvolutionLayer(size_t layer_index,
-                                      const VolumeDimensions& dimensions,
-                                      const FilterParams& params,
-                                      SymbolGenerator* generator);
+                                    const VolumeDimensions& dimensions,
+                                    const FilterParams& params,
+                                    SymbolGenerator* generator);
+
+  static Layer MakeActivationLayer(
+      size_t layer_index, const ActivationFunctionType& activation_function,
+      size_t input_size, SymbolGenerator* generator);
+
+  static Layer MakeMaxPoolLayer(size_t layer_index,
+                                const Dimensions& dimensions,
+                                SymbolGenerator* generator);
 
   WeightArray weights();
   Matrix<symbolic::Expression> GenerateExpression(

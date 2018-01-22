@@ -80,6 +80,22 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "max_pool_layer",
+    visibility = ["//math"],
+    hdrs = ["max_pool_layer.h"],
+    srcs = ["max_pool_layer.cc"],
+    copts = [
+      "--std=c++1z",
+    ],
+    deps = [
+        ":layer_impl",
+        "//math/geometry:dynamic_matrix",
+        "//math/symbolic:symbolic",
+        "//math/symbolic:symbolic_util",
+        "//math/stats:normal",
+    ],
+)
 
 cc_binary(
     name = "nnet_test",

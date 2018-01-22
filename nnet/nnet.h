@@ -63,6 +63,35 @@ class Nnet {
       return true;
     }
 
+    // Struct in layer_impl.h.
+    using Dimensions = Layer::Dimensions;
+
+    // std::function<symbolic::Expression(const symbolic::Expression&)>
+    using ActivationFunctionType = Layer::ActivationFunctionType;
+
+    // Structs defined in convolution_layer.h.
+    using VolumeDimensions = ConvolutionLayer::VolumeDimensions;
+    using FilterParams = ConvolutionLayer::FilterParams;
+
+    void AddInputLayer(size_t size) {
+    }
+
+    // Input size calculated from 
+    void AddFeedForwardLayer(
+        size_t num_outputs,
+        const ActivationFunctionType& activation_function) {
+      
+    }
+
+    void AddFeedForwardLayer(const Dimensions& dimensions) {}
+
+    void AddConvolutionalLayer(const VolumeDimensions& dimensions,
+                               const FilterParams& params) {}
+
+    void AddActivationLayer(ActivationFunctionType& activation_function) {}
+
+    void AddMaxPoolLayer(const Dimensions& dimensions) {}
+
     std::string to_string() const {
       std::stringstream buffer;
       buffer << "Architecture{ inputs: " << input_size()
@@ -77,7 +106,7 @@ class Nnet {
   };
 
   Nnet(const Architecture& model) : model_(model) {
-    if (!model.VerifySize()) {
+    if (!model.VerifyArchitecture()) {
       std::cerr << "Invalid dimensions passed to Nnet(): " << model.to_string()
                 << std::endl;
       std::exit(1);
@@ -87,7 +116,7 @@ class Nnet {
     Matrix<symbolic::Expression> layer = GenInputLayer();
 
     for (size_t layer_idx = 0; layer_idx < model_.layers.size(); ++layer_idx) {
-      layer = model.layers.GenerateExpression(layer);
+      layer = model.layers[layer_idx].GenerateExpression(layer);
     }
 
     // After processing all the layers, we are left with a column vector of
