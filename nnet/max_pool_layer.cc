@@ -110,4 +110,8 @@ Matrix<symbolic::Expression> MaxPoolLayer::GenerateExpression(
   return output;
 }
 
+std::unique_ptr<LayerImpl> MaxPoolLayer::Clone() const {
+  return std::make_unique<MaxPoolLayer>(input_, target_, generator_, layer_index_);
+}
+
 }  // namespace nnet

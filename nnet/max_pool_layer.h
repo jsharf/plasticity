@@ -44,7 +44,10 @@ class MaxPoolLayer : public LayerImpl {
       const Matrix<symbolic::Expression>& input) override;
 
   stats::Normal XavierInitializer() const override {
-    return stats::Normal(0, 1.0 / (dimensions_.num_inputs + 1));
+    // No weights in a maxpool layer.
+    std::cerr << "Warning: XavierInitializer() called on MaxPool layer"
+              << std::endl;
+    return stats::Normal(0, 0);
   }
 
   std::unique_ptr<LayerImpl> Clone() const override;
