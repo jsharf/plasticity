@@ -3,10 +3,10 @@
 
 namespace nnet {
 
-MaxPoolLayer::MaxPoolLayer(const VolumeDimensions& dimensions,
+MaxPoolLayer::MaxPoolLayer(const VolumeDimensions& input,
                            const AreaDimensions& output,
                            SymbolGenerator* generator, size_t layer_index)
-    : Super(MaxPoolLayer::GenLinearDimensions(dimensions, output), generator,
+    : Super(MaxPoolLayer::GenLinearDimensions(input, output), generator,
             layer_index),
       target_(output) {
   if (dimensions_.num_outputs > dimensions_.num_inputs) {
@@ -32,11 +32,11 @@ std::tuple<size_t, size_t, size_t> MaxPoolLayer::GetOutputDimensions(
   return std::make_tuple(output.width, output.height, dim.depth);
 }
 
-Matrix<symbolic::Expression> MaxPoolLayer::Generatexpression(
-    const Matrix<symbolic::Expression>& input) override {
+Matrix<symbolic::Expression> MaxPoolLayer::GenerateExpression(
+    const Matrix<symbolic::Expression>& input) {
   auto dim = input.size();
-  size_t input_height = std::get<0>(dim);
-  size_t input_width = std::get<1>(dim);
+  size_t rows = std::get<0>(dim);
+  size_t cols = std::get<1>(dim);
   if ((rows != dimensions_.num_inputs) || (cols != 1)) {
     std::cerr << "Error: MaxPoolLayer::GenerateExpression called on input "
                  "of incorrect size: "
@@ -86,9 +86,9 @@ Matrix<symbolic::Expression> MaxPoolLayer::Generatexpression(
   size_t group_width = input_.width / output_width;
   size_t group_height = input_.height / output_height;
 
-  for (size_t out_r = 0; r < output_height; ++r) {
-    for (size_t out_c = 0; c < output_weight; ++c) {
-      for (size_t d = 0; d < output_depth; ++d) {
+  for (size_t out_r = 0; out_r < output_height; ++out_r) {
+    for (size_t out_c = 0; out_c < output_width; ++out_c) {
+      for (size_t out_d = 0; out_d < output_depth; ++out_d) {
         std::vector<symbolic::Expression> group;
         size_t group_r_start = out_r * group_height;
         size_t group_r_end = (out_r + 1) * group_height;
@@ -98,11 +98,11 @@ Matrix<symbolic::Expression> MaxPoolLayer::Generatexpression(
           for (size_t group_c = group_c_start; group_c < group_c_end;
                ++group_c) {
             group.push_back(
-                input.at(input_flat_index(group_r, group_c, d), 0));
+                input.at(input_flat_index(group_r, group_c, out_d), 0));
           }
         }
         symbolic::Expression group_max = symbolic::Max(group);
-        output.at(output_flat_index(out_r, out_c, d), 0) = group_max;
+        output.at(output_flat_index(out_r, out_c, out_d), 0) = group_max;
       }
     }
   }

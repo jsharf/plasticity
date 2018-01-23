@@ -18,7 +18,7 @@ class MaxPoolLayer : public LayerImpl {
   using VolumeDimensions = ConvolutionLayer::VolumeDimensions;
 
   struct AreaDimensions {
-    size_t width, size_t height;
+    size_t width, height;
   };
 
   static LinearDimensions GenLinearDimensions(const VolumeDimensions& dim,
@@ -35,12 +35,12 @@ class MaxPoolLayer : public LayerImpl {
   static std::tuple<size_t, size_t, size_t> GetOutputDimensions(
       const VolumeDimensions& dim, const AreaDimensions& filters);
 
-  MaxPoolLayer(const VolumeDimensions& dimensions, SymbolGenerator* generator,
-               size_t layer_index);
+  MaxPoolLayer(const VolumeDimensions& input, const AreaDimensions& output,
+               SymbolGenerator* generator, size_t layer_index);
 
   WeightArray weights() override { return {}; }
 
-  Matrix<symbolic::Expression> GeneratorExpression(
+  Matrix<symbolic::Expression> GenerateExpression(
       const Matrix<symbolic::Expression>& input) override;
 
   stats::Normal XavierInitializer() const override {
@@ -48,6 +48,7 @@ class MaxPoolLayer : public LayerImpl {
   }
 
   std::unique_ptr<LayerImpl> Clone() const override;
+
  private:
   VolumeDimensions input_;
   AreaDimensions target_;

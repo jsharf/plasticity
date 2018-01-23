@@ -89,6 +89,7 @@ cc_library(
       "--std=c++1z",
     ],
     deps = [
+        ":convolution_layer",
         ":layer_impl",
         "//math/geometry:dynamic_matrix",
         "//math/symbolic:symbolic",
