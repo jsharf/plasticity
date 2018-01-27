@@ -76,7 +76,8 @@ Expression Expression::operator+(const Expression& rhs) const {
 }
 
 Expression Expression::operator-(const Expression& rhs) const {
-  std::unique_ptr<const symbolic::ExpressionNode> neg = std::make_unique<symbolic::NumericValue>(-1);
+  std::unique_ptr<const symbolic::ExpressionNode> neg =
+      std::make_unique<symbolic::NumericValue>(-1);
   std::unique_ptr<const symbolic::ExpressionNode> rhs_neg =
       std::make_unique<MultiplicationExpression>(neg, rhs.expression_root_);
   return Expression(
@@ -86,7 +87,8 @@ Expression Expression::operator-(const Expression& rhs) const {
 Expression Expression::operator*(const Expression& rhs) const {
   auto lhsresult = expression_root_->TryEvaluate();
   auto rhsresult = rhs.expression_root_->TryEvaluate();
-  if (lhsresult && rhsresult && ((lhsresult->real() == 0) || (rhsresult->real() == 0))) {
+  if (lhsresult && rhsresult &&
+      ((lhsresult->real() == 0) || (rhsresult->real() == 0))) {
     std::cerr << "optimizing out mul with zero: " << std::endl;
     return Expression(0);
   }
@@ -165,7 +167,8 @@ std::set<std::string> IfExpression::variables() const {
   return variables;
 }
 
-std::unique_ptr<const ExpressionNode> IfExpression::Bind(const Environment& env) const {
+std::unique_ptr<const ExpressionNode> IfExpression::Bind(
+    const Environment& env) const {
   return std::make_unique<IfExpression>(conditional_->Bind(env), a_->Bind(env),
                                         b_->Bind(env));
 }
@@ -180,7 +183,8 @@ std::experimental::optional<NumericValue> IfExpression::TryEvaluate() const {
     return std::experimental::nullopt;
   }
 
-  bool truthy = abs(conditional_result->real()) > std::numeric_limits<Number>::epsilon();
+  bool truthy =
+      abs(conditional_result->real()) > std::numeric_limits<Number>::epsilon();
 
   if (truthy) {
     return a_->TryEvaluate();
@@ -189,13 +193,15 @@ std::experimental::optional<NumericValue> IfExpression::TryEvaluate() const {
   }
 }
 
-std::unique_ptr<ExpressionNode> IfExpression::Derive(const std::string& x) const {
-  return std::make_unique<IfExpression>(conditional_, a_->Derive(x), b_->Derive(x));
+std::unique_ptr<ExpressionNode> IfExpression::Derive(
+    const std::string& x) const {
+  return std::make_unique<IfExpression>(conditional_, a_->Derive(x),
+                                        b_->Derive(x));
 }
 
 std::string IfExpression::to_string() const {
-  return "((" + conditional_->to_string() + ") ? (" + a_->to_string() + ") : (" +
-         b_->to_string() + "))";
+  return "((" + conditional_->to_string() + ") ? (" + a_->to_string() +
+         ") : (" + b_->to_string() + "))";
 }
 
 // CompoundExpression impl.
@@ -322,13 +328,10 @@ std::unique_ptr<const ExpressionNode> GteExpression::Bind(
   return std::make_unique<GteExpression>(a_->Bind(env), b_->Bind(env));
 }
 
-std::experimental::optional<NumericValue> GteExpression::TryEvaluate()
-    const {
-  std::experimental::optional<NumericValue> a_result =
-      a_->TryEvaluate();
+std::experimental::optional<NumericValue> GteExpression::TryEvaluate() const {
+  std::experimental::optional<NumericValue> a_result = a_->TryEvaluate();
 
-  std::experimental::optional<NumericValue> b_result =
-      b_->TryEvaluate();
+  std::experimental::optional<NumericValue> b_result = b_->TryEvaluate();
 
   if (!(a_result && b_result)) {
     return std::experimental::nullopt;
@@ -354,7 +357,6 @@ std::string GteExpression::to_string() const {
   result += ")";
   return result;
 }
-
 
 // DivisionExpression Implementation.
 

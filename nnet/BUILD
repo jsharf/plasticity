@@ -64,6 +64,22 @@ cc_library(
 )
 
 cc_library(
+    name = "activation_layer",
+    visibility = ["//math"],
+    hdrs = ["convolution_layer.h"],
+    srcs = ["convolution_layer.cc"],
+    copts = [
+      "--std=c++1z",
+    ],
+    deps = [
+        ":layer_impl",
+        "//math/geometry:dynamic_matrix",
+        "//math/symbolic:symbolic",
+        "//math/stats:normal",
+    ],
+)
+
+cc_library(
     name = "convolution_layer",
     visibility = ["//math"],
     hdrs = ["convolution_layer.h"],

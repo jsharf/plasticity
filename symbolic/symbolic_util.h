@@ -8,12 +8,21 @@
 
 namespace symbolic {
 
-Expression Sigmoid(Expression a) {
+Expression Sigmoid(const Expression& a) {
   return CreateExpression("1") /
          (CreateExpression("1") +
           Expression(std::make_unique<ExponentExpression>(
               NumericValue::e, (CreateExpression("-1") * a).GetPointer())));
 }
+
+Expression Relu(const Expression& a) {
+  return Expression(std::make_unique<IfExpression>(
+      std::make_unique<GteExpression>(a.GetPointer(),
+                                      CreateExpression("0").Release()),
+      a.GetPointer(), CreateExpression("0").Release()));
+}
+
+Expression Identity(const Expression& a) { return a; }
 
 namespace internal {
 
@@ -50,7 +59,9 @@ Expression Max(const std::vector<Expression>& exprs) {
     // Make conditional that i-expr is max.
     Expression conditional = internal::maxexpr(exprs[i], others);
 
-    maxstatement = std::make_unique<const IfExpression>(conditional.GetPointer(), exprs[i].GetPointer(), std::move(maxstatement));
+    maxstatement = std::make_unique<const IfExpression>(
+        conditional.GetPointer(), exprs[i].GetPointer(),
+        std::move(maxstatement));
   }
   return Expression(std::move(maxstatement));
 }
