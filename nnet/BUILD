@@ -123,9 +123,11 @@ cc_binary(
     copts = [
       "--std=c++1z",
     ],
-    linkopts = [
-        "-lOpenCL",
-    ],
+    linkopts = select({
+        "//clutil:osx" : ["-framework OpenCL"],
+        "//clutil:linux" : ["-lOpenCL"],
+        "//conditions:default" : ["-lOpenCL"],
+    }),
     deps = [
         ":nnet",
         "//math/symbolic:symbolic",
@@ -140,9 +142,11 @@ cc_binary(
     copts = [
       "--std=c++1z",
     ],
-    linkopts = [
-        "-lOpenCL",
-    ],
+    linkopts = select({
+        "//clutil:osx" : ["-framework OpenCL"],
+        "//clutil:linux" : ["-lOpenCL"],
+        "//conditions:default" : ["-lOpenCL"],
+    }),
     deps = [
         ":nnet",
         ":layer",
@@ -158,9 +162,11 @@ cc_binary(
     copts = [
       "--std=c++1z",
     ],
-    linkopts = [
-        "-lOpenCL",
-    ],
+    linkopts = select({
+        "//clutil:osx" : ["-framework OpenCL"],
+        "//clutil:linux" : ["-lOpenCL"],
+        "//conditions:default" : ["-lOpenCL"],
+    }),
     deps = [
         ":nnet",
         ":layer",
