@@ -520,6 +520,11 @@ class Nnet {
  private:
   void CalculateInitialWeights() {
     for (size_t layer = 0; layer < model_.layers.size(); ++layer) {
+      // Skip empty layers.
+      if (model_.layers[layer].weights().size() == 0) {
+        continue;
+      }
+
       stats::Normal X = model_.layers[layer].XavierInitializer();
       for (const std::string& weight : model_.layers[layer].weights()) {
         weights_[weight].real() = X.sample();
