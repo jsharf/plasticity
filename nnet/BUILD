@@ -37,6 +37,7 @@ cc_library(
     name = "layer_impl",
     visibility = ["//math"],
     hdrs = ["layer_impl.h"],
+    srcs = ["layer_impl.cc"],
     copts = [
       "--std=c++1z",
     ],

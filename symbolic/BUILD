@@ -21,6 +21,10 @@ cc_library(
     hdrs = [
         "symbolic_util.h",
     ],
+    srcs = ["symbolic_util.cc"],
+    copts = [
+        "-std=c++1z",
+    ],
     deps = [
         ":symbolic",
     ],
