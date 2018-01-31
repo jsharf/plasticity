@@ -2,6 +2,7 @@ cc_library(
     name = "nnet",
     visibility = ["//math"],
     hdrs = ["nnet.h"],
+    data = glob(["kernels/*"]),
     deps = [
         ":layer",
         "//math/geometry:dynamic_matrix",
