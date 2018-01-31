@@ -26,7 +26,7 @@ class Nnet {
   };
 
   struct Architecture {
-    std::vector<nnet::Layer> layers;
+    std::vector<Layer> layers;
 
     bool VerifyArchitecture() const {
       // Cannot be an empty architecture.
@@ -43,6 +43,10 @@ class Nnet {
       return true;
     }
 
+    Architecture(size_t input_size) { AddInputLayer(input_size); }
+
+    Architecture() {}
+
     // Struct in layer_impl.h.
     using Dimensions = Layer::Dimensions;
 
@@ -53,22 +57,69 @@ class Nnet {
     using VolumeDimensions = ConvolutionLayer::VolumeDimensions;
     using FilterParams = ConvolutionLayer::FilterParams;
 
-    void AddInputLayer(size_t size) {}
+    // Struct defined in max_pool_layer.h
+    using AreaDimensions = MaxPoolLayer::AreaDimensions;
 
-    // Input size calculated from
-    void AddFeedForwardLayer(
-        size_t num_outputs, const ActivationFunctionType& activation_function) {
-
+    // Input layer is just an activation layer with zero activation. Used for
+    // semantics and to specify input size.
+    Architecture& AddInputLayer(size_t size) {
+      return AddActivationLayer(size, symbolic::Identity);
     }
 
-    void AddFeedForwardLayer(const Dimensions& dimensions) {}
+    Architecture& AddFeedForwardLayer(
+        size_t num_outputs, const ActivationFunctionType& activation_function) {
+      Dimensions dimensions = {
+          // Num inputs = num previous layer outputs.
+          layers[layers.size() - 1].GetDimensions().num_outputs,
+          // Num outputs specified by input parameter.
+          num_outputs,
+      };
 
-    void AddConvolutionalLayer(const VolumeDimensions& dimensions,
-                               const FilterParams& params) {}
+      layers.push_back(Layer::MakeFeedForwardLayer(
+          layers.size(), dimensions, activation_function, nullptr));
+      return *this;
+    }
 
-    void AddActivationLayer(ActivationFunctionType& activation_function) {}
+    Architecture& AddFeedForwardLayer(size_t num_outputs) {
+      Dimensions dimensions = {
+          // Num inputs = num previous layer outputs.
+          layers[layers.size() - 1].GetDimensions().num_outputs,
+          // Num outputs specified by input parameter.
+          num_outputs,
+      };
 
-    void AddMaxPoolLayer(const Dimensions& dimensions) {}
+      layers.push_back(
+          Layer::MakeFeedForwardLayer(layers.size(), dimensions, nullptr));
+      return *this;
+    }
+
+    Architecture& AddConvolutionLayer(const VolumeDimensions& dimensions,
+                                      const FilterParams& params) {
+      layers.push_back(Layer::MakeConvolutionLayer(layers.size(), dimensions,
+                                                   params, nullptr));
+      return *this;
+    }
+
+    Architecture& AddActivationLayer(
+        size_t size, const ActivationFunctionType& activation_function) {
+      layers.push_back(Layer::MakeActivationLayer(
+          layers.size(), size, activation_function, nullptr));
+      return *this;
+    }
+
+    Architecture& AddActivationLayer(
+        const ActivationFunctionType& activation_function) {
+      return AddActivationLayer(
+          layers[layers.size() - 1].GetDimensions().num_outputs,
+          activation_function);
+    }
+
+    Architecture& AddMaxPoolLayer(const VolumeDimensions& input,
+                                  const AreaDimensions& output) {
+      layers.push_back(
+          Layer::MakeMaxPoolLayer(layers.size(), input, output, nullptr));
+      return *this;
+    }
 
     std::string to_string() const {
       std::stringstream buffer;
@@ -81,14 +132,24 @@ class Nnet {
     size_t output_size() const {
       return layers[layers.size() - 1].GetDimensions().num_outputs;
     }
+
+   private:
+    friend Nnet;
+    void SetSymbolGenerator(SymbolGenerator* generator) {
+      for (auto& layer : layers) {
+        layer.SetSymbolGenerator(generator);
+      }
+    };
   };
 
   Nnet(const Architecture& model) : model_(model) {
-    if (!model.VerifyArchitecture()) {
+    if (!model_.VerifyArchitecture()) {
       std::cerr << "Invalid dimensions passed to Nnet(): " << model.to_string()
                 << std::endl;
       std::exit(1);
     }
+
+    model_.SetSymbolGenerator(&generator_);
 
     // "layer" is at first just a column vector of inputs.
     Matrix<symbolic::Expression> layer = GenInputLayer();
@@ -406,8 +467,8 @@ class Nnet {
 
     queue.enqueueWriteBuffer(inputs, CL_TRUE, 0, sizeof(Number) * input_size(),
                              input);
-    queue.enqueueWriteBuffer(outputs, CL_TRUE, 0, sizeof(Number) * output_size(),
-                             output);
+    queue.enqueueWriteBuffer(outputs, CL_TRUE, 0,
+                             sizeof(Number) * output_size(), output);
     queue.enqueueWriteBuffer(old_weights, CL_TRUE, 0,
                              sizeof(Number) * generator_.NumberWeights(), OW);
     queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0, sizeof(Number),
@@ -474,13 +535,9 @@ class Nnet {
     return result;
   }
 
-  size_t output_size() {
-    return model_.output_size();
-  }
+  size_t output_size() const { return model_.output_size(); }
 
-  size_t input_size() {
-    return model_.input_size();
-  }
+  size_t input_size() const { return model_.input_size(); }
 
   Architecture model_;
 

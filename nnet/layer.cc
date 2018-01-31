@@ -34,6 +34,21 @@ Layer Layer::MakeConvolutionLayer(size_t layer_index,
                                                   layer_index));
 }
 
+Layer Layer::MakeMaxPoolLayer(size_t layer_index, const VolumeDimensions& input,
+                              const AreaDimensions& output,
+                              SymbolGenerator* generator) {
+  return Layer(
+      std::make_unique<MaxPoolLayer>(input, output, generator, layer_index));
+}
+
+Layer Layer::MakeActivationLayer(
+    size_t layer_index, size_t size,
+    const ActivationFunctionType& activation_function,
+    SymbolGenerator* generator) {
+  return Layer(std::make_unique<ActivationLayer>(size, activation_function,
+                                                 generator, layer_index));
+}
+
 Layer::WeightArray Layer::weights() { return impl_->weights(); }
 
 Matrix<symbolic::Expression> Layer::GenerateExpression(

@@ -13,13 +13,14 @@ using Sample = Matrix<nnet::Number>;
 
 // Trains a neural network to learn if given point is in unit circle.
 int main() {
-  constexpr int kNumLayers = 2;
   constexpr int kLayerSize = 4;
   constexpr int kOutputSize = 1;
   constexpr int kInputSize = kSampleSize;
 
-  nnet::Nnet::Dimensions dims{kNumLayers, kLayerSize, kOutputSize, kInputSize};
-  nnet::Nnet test_net(dims);
+  nnet::Nnet::Architecture model(kInputSize);
+  model.AddFeedForwardLayer(kLayerSize);
+  model.AddFeedForwardLayer(kOutputSize);
+  nnet::Nnet test_net(model);
 
   std::vector<std::tuple<Sample, bool>> examples;
 

@@ -27,7 +27,6 @@ Matrix<symbolic::Expression> AddBias(Matrix<symbolic::Expression> x) {
   return biased_layer;
 }
 
-
 class SymbolGenerator {
  public:
   // Feed-forward layer weights.
@@ -62,6 +61,13 @@ class LayerImpl {
   virtual stats::Normal XavierInitializer() const = 0;
   Dimensions GetDimensions() const { return dimensions_; }
   virtual std::unique_ptr<LayerImpl> Clone() const = 0;
+
+  // Tread carefully... If you accidentally assign the wrong symbol generator to
+  // a layer, you can end up in really weird hard to debug states.
+  void SetSymbolGenerator(SymbolGenerator* generator) {
+    generator_ = generator;
+  }
+
   virtual ~LayerImpl() {}
 
  protected:

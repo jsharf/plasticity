@@ -21,9 +21,11 @@ cc_library(
       "--std=c++1z",
     ],
     deps = [
+        ":activation_layer",
         ":convolution_layer",
         ":feed_forward_layer",
         ":layer_impl",
+        ":max_pool_layer",
         "//math/geometry:dynamic_matrix",
         "//math/symbolic:symbolic",
         "//math/symbolic:symbolic_util",
@@ -66,8 +68,8 @@ cc_library(
 cc_library(
     name = "activation_layer",
     visibility = ["//math"],
-    hdrs = ["convolution_layer.h"],
-    srcs = ["convolution_layer.cc"],
+    hdrs = ["activation_layer.h"],
+    srcs = ["activation_layer.cc"],
     copts = [
       "--std=c++1z",
     ],

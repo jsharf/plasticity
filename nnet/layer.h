@@ -1,9 +1,11 @@
 #ifndef LAYER_H
 #define LAYER_H
 #include "math/geometry/dynamic_matrix.h"
+#include "math/nnet/activation_layer.h"
 #include "math/nnet/convolution_layer.h"
 #include "math/nnet/feed_forward_layer.h"
 #include "math/nnet/layer_impl.h"
+#include "math/nnet/max_pool_layer.h"
 #include "math/stats/normal.h"
 #include "math/symbolic/expression.h"
 #include "math/symbolic/symbolic_util.h"
@@ -26,6 +28,7 @@ class Layer {
   using Dimensions = LayerImpl::Dimensions;
   using ActivationFunctionType = LayerImpl::ActivationFunctionType;
   using VolumeDimensions = ConvolutionLayer::VolumeDimensions;
+  using AreaDimensions = MaxPoolLayer::AreaDimensions;
   using FilterParams = ConvolutionLayer::FilterParams;
 
   // Constructors
@@ -33,8 +36,6 @@ class Layer {
   Layer(std::unique_ptr<LayerImpl> root);
   explicit Layer(Layer&& rhs);
   Layer(const Layer& rhs);
-
-  static Layer MakeInputLayer(size_t size, SymbolGenerator* generator);
 
   // FeedForward Layer constructors.
   static Layer MakeFeedForwardLayer(
@@ -53,11 +54,13 @@ class Layer {
                                     SymbolGenerator* generator);
 
   static Layer MakeActivationLayer(
-      size_t layer_index, const ActivationFunctionType& activation_function,
-      size_t input_size, SymbolGenerator* generator);
+      size_t layer_index, size_t size,
+      const ActivationFunctionType& activation_function,
+      SymbolGenerator* generator);
 
   static Layer MakeMaxPoolLayer(size_t layer_index,
-                                const Dimensions& dimensions,
+                                const VolumeDimensions& input,
+                                const AreaDimensions& output,
                                 SymbolGenerator* generator);
 
   WeightArray weights();
@@ -65,6 +68,12 @@ class Layer {
       const Matrix<symbolic::Expression>& input);
   stats::Normal XavierInitializer();
   Dimensions GetDimensions() const { return impl_->GetDimensions(); }
+
+  // Tread carefully... If you accidentally assign the wrong symbol generator to
+  // a layer, you can end up in really weird hard to debug states.
+  void SetSymbolGenerator(SymbolGenerator* generator) {
+    impl_->SetSymbolGenerator(generator);
+  }
 
  private:
   std::unique_ptr<LayerImpl> impl_;

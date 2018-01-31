@@ -1,8 +1,9 @@
 #include "math/nnet/activation_layer.h"
+#include <memory>
 
 namespace nnet {
 
-Matrix<symbolic::Expression> GenerateExpression(const Matrix<symbolic::Expression>& input) {
+Matrix<symbolic::Expression> ActivationLayer::GenerateExpression(const Matrix<symbolic::Expression>& input) {
   auto dim = input.size();
   size_t rows = std::get<0>(dim);
   size_t cols = std::get<1>(dim);
@@ -20,6 +21,10 @@ Matrix<symbolic::Expression> GenerateExpression(const Matrix<symbolic::Expressio
   }
 
   return output;
+}
+
+std::unique_ptr<LayerImpl> ActivationLayer::Clone() const {
+  return std::make_unique<ActivationLayer>(dimensions_.num_inputs, activation_function_, generator_, layer_index_);
 }
 
 }  // namespace nnet
