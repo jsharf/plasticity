@@ -6,6 +6,23 @@ namespace nnet {
 
 ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
                                    const FilterParams& filters,
+                                   IndexMap input_map, IndexMap output_map,
+                                   SymbolGenerator* generator,
+                                   size_t layer_index)
+    : Super(GenLinearDimensions(dimensions, filters), generator, layer_index),
+      filters_(filters),
+      imdim_(dimensions),
+      input_map_(input_map),
+      output_map_(output_map) {
+  if (filters_.depth != imdim_.depth) {
+    std::cerr << "Convolution layer input depth != filter depth. Error!"
+              << std::endl;
+    std::exit(1);
+  }
+}
+
+ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
+                                   const FilterParams& filters,
                                    SymbolGenerator* generator,
                                    size_t layer_index)
     : Super(GenLinearDimensions(dimensions, filters), generator, layer_index),
@@ -16,6 +33,35 @@ ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
               << std::endl;
     std::exit(1);
   }
+  // If you don't specify the input and output map, you get these silly
+  // defaults. Your fault for not caring. I should probably delete this
+  // constructor to make people care. Oh well... TODO(sharf): document this
+  // better.
+  // 
+  // The defaults line up with the format of data in the CIFAR database,
+  // described here:
+  // https://www.cs.toronto.edu/~kriz/cifar.html
+  //
+  input_map_ = [this](size_t x, size_t y, size_t z) -> size_t {
+    size_t row_index = y * (imdim_.width);
+    size_t col_index = x;
+    size_t depth_index = z * (imdim_.width * imdim_.height);
+    return row_index + col_index + depth_index;
+  };
+
+  std::tuple<size_t, size_t, size_t> output_dims =
+      GetOutputDimensions(imdim_, filters_);
+  size_t output_width = std::get<0>(output_dims);
+  size_t output_height = std::get<1>(output_dims);
+  size_t output_depth = std::get<2>(output_dims);
+
+  output_map_ = [output_width, output_height, output_depth](
+      size_t x, size_t y, size_t z) -> size_t {
+    size_t row_index = y * (output_width);
+    size_t col_index = x;
+    size_t depth_index = z * (output_width * output_height);
+    return row_index + col_index + depth_index;
+  };
 }
 
 ConvolutionLayer::LinearDimensions ConvolutionLayer::GenLinearDimensions(
@@ -79,44 +125,16 @@ Matrix<symbolic::Expression> ConvolutionLayer::GenerateExpression(
   }
 
   // Get 3D output dimensions. (output will be a 1D serialized form of this,
-  // using mapping output_flat_index).
+  // using mapping output_map_).
   std::tuple<size_t, size_t, size_t> output_dims =
       GetOutputDimensions(imdim_, filters_);
   size_t output_width = std::get<0>(output_dims);
   size_t output_height = std::get<1>(output_dims);
   size_t output_depth = std::get<2>(output_dims);
 
-  // Converts 3D index (x, y, z) into 1D index into input.
-  // This is something I'm not proud of. The conversion between the 1D neural
-  // network layers in a feed forward net and the 3D volumes in a convolution
-  // layer should be better documented, but I'm settling on this for now.
-  //
-  // As an example of how this works, imagine an RGB image with a width W and
-  // height H. One row would be serialized as W r,g,b values, as such:
-  // row = [r1, g1, b1, r2, g2, b2, r3, g3, b3 .... rW, gW, bW]
-  //
-  // And the entire image would just be a concatenated list of H serialized
-  // rows
-  std::function<size_t(size_t, size_t, size_t)> input_flat_index =
-      [this](size_t x, size_t y, size_t z) -> size_t {
-    size_t row_index = y * (imdim_.width * imdim_.depth);
-    size_t col_index = x * imdim_.depth;
-    size_t depth_index = z;
-    return row_index + col_index + depth_index;
-  };
-
-  //
   Matrix<symbolic::Expression> output(
       output_width * output_height * output_depth, 1);
 
-  std::function<size_t(size_t, size_t, size_t)> output_flat_index =
-      [output_width, output_height, output_depth](size_t x, size_t y,
-                                                  size_t z) -> size_t {
-    size_t row_index = y * (output_width * output_depth);
-    size_t col_index = x * output_depth;
-    size_t depth_index = z;
-    return row_index + col_index + depth_index;
-  };
 
   for (size_t filter_no = 0; filter_no < filters_.num_filters; ++filter_no) {
     int start_x = -filters_.padding;
@@ -132,18 +150,21 @@ Matrix<symbolic::Expression> ConvolutionLayer::GenerateExpression(
               int input_z = f_z;
               // Make sure that we aren't indexing out-of-bounds for
               // zero-padding case.
-              if ((input_x >= 0) && (input_x < imdim_.width) &&
-                  (input_y >= 0) && (input_y < imdim_.height) &&
-                  (input_z >= 0) && (input_z < imdim_.depth)) {
+              if ((input_x >= 0) &&
+                  (input_x < static_cast<int>(imdim_.width)) &&
+                  (input_y >= 0) &&
+                  (input_y < static_cast<int>(imdim_.height)) &&
+                  (input_z >= 0) &&
+                  (input_z < static_cast<int>(imdim_.depth))) {
                 convolution +=
-                    input.at(input_flat_index(input_x, input_y, input_z), 0) *
+                    input.at(input_map_(input_x, input_y, input_z), 0) *
                     symbolic::CreateExpression(Super::generator_->W(
                         Super::layer_index_, filter_no, f_x, f_y, f_z));
               }
             }
           }
         }
-        output.at(output_flat_index(out_x, out_y, filter_no), 0) = convolution;
+        output.at(output_map_(out_x, out_y, filter_no), 0) = convolution;
       }
     }
   }

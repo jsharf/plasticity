@@ -19,6 +19,7 @@ class ConvolutionLayer : public LayerImpl {
   using Super = LayerImpl;
   using WeightArray = typename Super::WeightArray;
   using LinearDimensions = typename Super::Dimensions;
+  using IndexMap = std::function<size_t(size_t, size_t, size_t)>;
 
   struct FilterParams {
     // Dimensions of each filter.
@@ -54,6 +55,13 @@ class ConvolutionLayer : public LayerImpl {
   static std::tuple<size_t, size_t, size_t> GetOutputDimensions(
       const VolumeDimensions& dim, const FilterParams& filters);
 
+  // TODO(sharf): Specifying IndexMaps really sucks. Figure out a better
+  // interface for specifying the format of the image.
+  ConvolutionLayer(const VolumeDimensions& dimensions,
+                   const FilterParams& filters, IndexMap input_map,
+                   IndexMap output_map, SymbolGenerator* generator,
+                   size_t layer_index);
+
   ConvolutionLayer(const VolumeDimensions& dimensions,
                    const FilterParams& filters, SymbolGenerator* generator,
                    size_t layer_index);
@@ -67,8 +75,11 @@ class ConvolutionLayer : public LayerImpl {
 
   std::unique_ptr<LayerImpl> Clone() const override;
 
+ private:
   FilterParams filters_;
   VolumeDimensions imdim_;
+  IndexMap input_map_;
+  IndexMap output_map_;
 };
 
 }  // namespace nnet
