@@ -40,13 +40,15 @@ Sample ConvertToSample(std::string word) {
 int main() {
   std::cout << "Starting... " << std::endl;
 
-  constexpr int kNumLayers = 2;
   constexpr int kLayerSize = 4;
   constexpr int kOutputSize = 1;
   constexpr int kInputSize = kSampleSize;
 
-  nnet::Nnet::Dimensions dims{kNumLayers, kLayerSize, kOutputSize, kInputSize};
-  nnet::Nnet test_net(dims);
+  nnet::Nnet::Architecture model(kInputSize);
+  model.AddFeedForwardLayer(kLayerSize);
+  model.AddFeedForwardLayer(kOutputSize);
+  nnet::Nnet test_net(model);
+
   std::cout << "Expr: " << std::endl << test_net.to_string() << std::endl;
  
   constexpr const char* dictionary_path = "/usr/share/dict/words";
