@@ -246,7 +246,7 @@ class Nnet {
   };
 
   std::string GenerateEvaluateKernelSource() {
-    std::ifstream evaluate_file("kernels/evaluate.kernel.cl");
+    std::ifstream evaluate_file("math/nnet/kernels/evaluate.kernel.cl");
     std::stringstream buffer;
     buffer << evaluate_file.rdbuf();
     std::string evaluate_source = buffer.str();
@@ -391,7 +391,7 @@ class Nnet {
   }
 
   std::string GenerateTrainingKernelSource() {
-    std::ifstream grad_descent_file("kernels/gradient_descent.kernel.cl");
+    std::ifstream grad_descent_file("math/nnet/kernels/gradient_descent.kernel.cl");
     std::stringstream buffer;
     buffer << grad_descent_file.rdbuf();
     std::string grad_descent_source = buffer.str();
