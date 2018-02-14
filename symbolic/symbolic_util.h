@@ -15,7 +15,7 @@ Expression Identity(const Expression& a);
 
 Expression Exp(const Expression& a);
 
-Expression SoftMax(const Matrix<Expression>& column_vector, int index);
+Expression Softmax(const Matrix<Expression>& column_vector, int index);
 
 Expression Max(const std::vector<Expression>& exprs);
 

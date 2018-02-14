@@ -27,6 +27,7 @@ cc_library(
         ":feed_forward_layer",
         ":layer_impl",
         ":max_pool_layer",
+        ":softmax_layer",
         "//math/geometry:dynamic_matrix",
         "//math/symbolic:symbolic",
         "//math/symbolic:symbolic_util",
@@ -80,6 +81,23 @@ cc_library(
         "//math/geometry:dynamic_matrix",
         "//math/symbolic:symbolic",
         "//math/stats:normal",
+    ],
+)
+
+cc_library(
+    name = "softmax_layer",
+    visibility = ["//math"],
+    hdrs = ["softmax_layer.h"],
+    srcs = ["softmax_layer.cc"],
+    copts = [
+      "--std=c++1z",
+    ],
+    deps = [
+        ":layer_impl",
+        "//math/geometry:dynamic_matrix",
+        "//math/stats:normal",
+        "//math/symbolic:symbolic",
+        "//math/symbolic:symbolic_util",
     ],
 )
 

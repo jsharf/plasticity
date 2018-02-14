@@ -4,6 +4,7 @@
 #include "math/nnet/activation_layer.h"
 #include "math/nnet/convolution_layer.h"
 #include "math/nnet/feed_forward_layer.h"
+#include "math/nnet/softmax_layer.h"
 #include "math/nnet/layer_impl.h"
 #include "math/nnet/max_pool_layer.h"
 #include "math/stats/normal.h"
@@ -57,6 +58,9 @@ class Layer {
       size_t layer_index, size_t size,
       const ActivationFunctionType& activation_function,
       SymbolGenerator* generator);
+
+  static Layer MakeSoftmaxLayer(size_t layer_index, size_t size,
+                                SymbolGenerator* generator);
 
   static Layer MakeMaxPoolLayer(size_t layer_index,
                                 const VolumeDimensions& input,

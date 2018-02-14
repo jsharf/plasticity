@@ -49,6 +49,11 @@ Layer Layer::MakeActivationLayer(
                                                  generator, layer_index));
 }
 
+Layer Layer::MakeSoftmaxLayer(size_t layer_index, size_t size,
+                              SymbolGenerator* generator) {
+  return Layer(std::make_unique<SoftmaxLayer>(size, generator, layer_index));
+}
+
 Layer::WeightArray Layer::weights() { return impl_->weights(); }
 
 Matrix<symbolic::Expression> Layer::GenerateExpression(

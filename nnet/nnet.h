@@ -100,6 +100,11 @@ class Nnet {
       return *this;
     }
 
+    Architecture& AddSoftmaxLayer(size_t size) {
+      layers.push_back(Layer::MakeSoftmaxLayer(layers.size(), size, nullptr));
+      return *this;
+    }
+
     Architecture& AddActivationLayer(
         size_t size, const ActivationFunctionType& activation_function) {
       layers.push_back(Layer::MakeActivationLayer(
@@ -391,7 +396,8 @@ class Nnet {
   }
 
   std::string GenerateTrainingKernelSource() {
-    std::ifstream grad_descent_file("math/nnet/kernels/gradient_descent.kernel.cl");
+    std::ifstream grad_descent_file(
+        "math/nnet/kernels/gradient_descent.kernel.cl");
     std::stringstream buffer;
     buffer << grad_descent_file.rdbuf();
     std::string grad_descent_source = buffer.str();
