@@ -21,6 +21,19 @@ Expression Relu(const Expression& a) {
 
 Expression Identity(const Expression& a) { return a; }
 
+Expression Exp(const Expression& a) {
+  return Expression(
+      std::make_unique<ExponentExpression>(NumericValue::e, a.GetPointer()));
+}
+
+Expression Softmax(const std::vector<Expression>& exprs, int index) {
+  Expression expsum = CreateExpression("0");
+  for (size_t i = 0; i < exprs.size(); ++i) {
+    expsum = expsum + Exp(exprs[i]);
+  }
+  return exprs[index] / expsum;
+}
+
 namespace internal {
 
 Expression maxexpr(Expression a, std::vector<Expression> exprs) {

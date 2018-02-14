@@ -12,6 +12,10 @@ Expression Relu(const Expression& a);
 
 Expression Identity(const Expression& a);
 
+Expression Exp(const Expression& a);
+
+Expression SoftMax(const std::vector<Expression>& exprs, int index);
+
 Expression Max(const std::vector<Expression>& exprs);
 
 }  // namespace symbolic
