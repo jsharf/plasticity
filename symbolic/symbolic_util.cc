@@ -1,3 +1,5 @@
+#include "math/symbolic/symbolic_util.h"
+
 #include "math/symbolic/expression.h"
 #include "math/symbolic/numeric_value.h"
 
@@ -26,12 +28,14 @@ Expression Exp(const Expression& a) {
       std::make_unique<ExponentExpression>(NumericValue::e, a.GetPointer()));
 }
 
-Expression Softmax(const std::vector<Expression>& exprs, int index) {
+Expression Softmax(const Matrix<Expression>& column_vector, int index) {
   Expression expsum = CreateExpression("0");
-  for (size_t i = 0; i < exprs.size(); ++i) {
-    expsum = expsum + Exp(exprs[i]);
+
+  size_t height = std::get<0>(column_vector.size());
+  for (size_t i = 0; i < height; ++i) {
+    expsum = expsum + Exp(column_vector.at(i, 0));
   }
-  return exprs[index] / expsum;
+  return Exp(column_vector.at(index, 0)) / expsum;
 }
 
 namespace internal {

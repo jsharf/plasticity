@@ -1,6 +1,7 @@
 #ifndef SYMBOLIC_UTIL_H
 #define SYMBOLIC_UTIL_H
 
+#include "math/geometry/dynamic_matrix.h"
 #include "math/symbolic/expression.h"
 #include "math/symbolic/numeric_value.h"
 
@@ -14,7 +15,7 @@ Expression Identity(const Expression& a);
 
 Expression Exp(const Expression& a);
 
-Expression SoftMax(const std::vector<Expression>& exprs, int index);
+Expression SoftMax(const Matrix<Expression>& column_vector, int index);
 
 Expression Max(const std::vector<Expression>& exprs);
 

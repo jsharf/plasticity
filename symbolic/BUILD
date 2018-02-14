@@ -27,6 +27,7 @@ cc_library(
     ],
     deps = [
         ":symbolic",
+        "//math/geometry:dynamic_matrix",
     ],
 )
 

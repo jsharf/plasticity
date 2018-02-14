@@ -48,6 +48,7 @@ class Matrix {
     }
   }
 
+  // <rows, columns> or <height, width>
   std::tuple<size_t, size_t> size() const {
     return std::make_tuple(data_.size(), data_[0].size());
   }
