@@ -5,9 +5,20 @@ namespace nnet {
 // Layer Class Implementation.
 
 // Boilerplate constructors.
-Layer::Layer(std::unique_ptr<LayerImpl> root) : impl_(std::move(root)) {}
+Layer::Layer(std::unique_ptr<LayerImpl>&& root) : impl_(std::move(root)) {}
 Layer::Layer(Layer&& other) : impl_(std::move(other.impl_)) {}
 Layer::Layer(const Layer& other) : impl_(other.impl_->Clone()) {}
+
+// Boilerplate operator.
+Layer& Layer::operator=(const Layer& rhs) {
+  impl_ = rhs.impl_->Clone();
+  return *this;
+}
+Layer& Layer::operator=(Layer&& rhs) {
+  impl_ = std::move(rhs.impl_);
+  return *this;
+}
+
 
 // FeedForward layer static constructors.
 Layer Layer::MakeFeedForwardLayer(

@@ -63,11 +63,13 @@ class Nnet {
     // Input layer is just an activation layer with zero activation. Used for
     // semantics and to specify input size.
     Architecture& AddInputLayer(size_t size) {
+      std::cout << "nnet::Architecture AddInputLayer layers size: " << layers.size() << std::endl;
       return AddActivationLayer(size, symbolic::Identity);
     }
 
     Architecture& AddFeedForwardLayer(
         size_t num_outputs, const ActivationFunctionType& activation_function) {
+      std::cout << "nnet::Architecture AddFFLayer layers size: " << layers.size() << std::endl;
       Dimensions dimensions = {
           // Num inputs = num previous layer outputs.
           layers[layers.size() - 1].GetDimensions().num_outputs,
@@ -81,6 +83,7 @@ class Nnet {
     }
 
     Architecture& AddFeedForwardLayer(size_t num_outputs) {
+      std::cout << "nnet::Architecture AddFFLayer plain layers size: " << layers.size() << std::endl;
       Dimensions dimensions = {
           // Num inputs = num previous layer outputs.
           layers[layers.size() - 1].GetDimensions().num_outputs,
@@ -95,18 +98,22 @@ class Nnet {
 
     Architecture& AddConvolutionLayer(const VolumeDimensions& dimensions,
                                       const FilterParams& params) {
+      std::cout << "nnet::Architecture AddConvolutionL layers size: " << layers.size() << std::endl;
       layers.push_back(Layer::MakeConvolutionLayer(layers.size(), dimensions,
                                                    params, nullptr));
+      std::cout << "nnet::Architecture AddConvolutionL done" << std::endl;
       return *this;
     }
 
     Architecture& AddSoftmaxLayer(size_t size) {
+      std::cout << "nnet::Architecture AddSoftmax layers size: " << layers.size() << std::endl;
       layers.push_back(Layer::MakeSoftmaxLayer(layers.size(), size, nullptr));
       return *this;
     }
 
     Architecture& AddActivationLayer(
         size_t size, const ActivationFunctionType& activation_function) {
+      std::cout << "nnet::Architecture AddActivation layers size: " << layers.size() << std::endl;
       layers.push_back(Layer::MakeActivationLayer(
           layers.size(), size, activation_function, nullptr));
       return *this;
@@ -121,6 +128,7 @@ class Nnet {
 
     Architecture& AddMaxPoolLayer(const VolumeDimensions& input,
                                   const AreaDimensions& output) {
+      std::cout << "nnet::Architecture AddMaxPool layers size: " << layers.size() << std::endl;
       layers.push_back(
           Layer::MakeMaxPoolLayer(layers.size(), input, output, nullptr));
       return *this;

@@ -32,11 +32,18 @@ class Layer {
   using AreaDimensions = MaxPoolLayer::AreaDimensions;
   using FilterParams = ConvolutionLayer::FilterParams;
 
-  // Constructors
+  // Constructors.
   Layer() {}
-  Layer(std::unique_ptr<LayerImpl> root);
+  Layer(std::unique_ptr<LayerImpl>&& root);
   explicit Layer(Layer&& rhs);
   Layer(const Layer& rhs);
+
+  // Destructor.
+  virtual ~Layer() {}
+
+  // Assignment Operators.
+  Layer& operator=(const Layer& rhs);
+  Layer& operator=(Layer&& rhs);
 
   // FeedForward Layer constructors.
   static Layer MakeFeedForwardLayer(

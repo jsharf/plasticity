@@ -9,10 +9,15 @@ MaxPoolLayer::MaxPoolLayer(const VolumeDimensions& input,
     : Super(MaxPoolLayer::GenLinearDimensions(input, output), generator,
             layer_index),
       target_(output) {
+  std::cout << "3D inputs: " << input.width << ", " << input.height << ", "
+            << input.depth << std::endl
+            << "3D outputs: " << output.width << ", " << output.height << ", "
+            << input.depth << std::endl
+            << "Numbler inputs: " << dimensions_.num_inputs << std::endl
+            << "Number outputs: " << dimensions_.num_outputs << std::endl;
   if (dimensions_.num_outputs > dimensions_.num_inputs) {
-    std::cerr
-        << "Error: MaxPoolLayer constructed with more outputs than inputs?"
-        << std::endl;
+    std::cout << "Error: MaxPoolLayer " << layer_index
+              << " constructed with more outputs than inputs?" << std::endl;
     std::exit(1);
   }
   // The input dimensions must be multiples of the output dimensions. This is
@@ -111,7 +116,8 @@ Matrix<symbolic::Expression> MaxPoolLayer::GenerateExpression(
 }
 
 std::unique_ptr<LayerImpl> MaxPoolLayer::Clone() const {
-  return std::make_unique<MaxPoolLayer>(input_, target_, generator_, layer_index_);
+  return std::make_unique<MaxPoolLayer>(input_, target_, generator_,
+                                        layer_index_);
 }
 
 }  // namespace nnet

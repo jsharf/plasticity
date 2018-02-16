@@ -14,11 +14,13 @@ ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
       imdim_(dimensions),
       input_map_(input_map),
       output_map_(output_map) {
+  std::cout << "ConvolutionLayer constructor" << std::endl;
   if (filters_.depth != imdim_.depth) {
     std::cerr << "Convolution layer input depth != filter depth. Error!"
               << std::endl;
     std::exit(1);
   }
+  std::cout << "ConvolutionLayer done" << std::endl;
 }
 
 ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
@@ -28,6 +30,7 @@ ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
     : Super(GenLinearDimensions(dimensions, filters), generator, layer_index),
       filters_(filters),
       imdim_(dimensions) {
+  std::cout << "ConvolutionLayer2 constructor" << std::endl;
   if (filters_.depth != imdim_.depth) {
     std::cerr << "Convolution layer input depth != filter depth. Error!"
               << std::endl;
@@ -37,7 +40,7 @@ ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
   // defaults. Your fault for not caring. I should probably delete this
   // constructor to make people care. Oh well... TODO(sharf): document this
   // better.
-  // 
+  //
   // The defaults line up with the format of data in the CIFAR database,
   // described here:
   // https://www.cs.toronto.edu/~kriz/cifar.html
@@ -56,12 +59,13 @@ ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
   size_t output_depth = std::get<2>(output_dims);
 
   output_map_ = [output_width, output_height, output_depth](
-      size_t x, size_t y, size_t z) -> size_t {
+                    size_t x, size_t y, size_t z) -> size_t {
     size_t row_index = y * (output_width);
     size_t col_index = x;
     size_t depth_index = z * (output_width * output_height);
     return row_index + col_index + depth_index;
   };
+  std::cout << "ConvolutionLayer2 done" << std::endl;
 }
 
 ConvolutionLayer::LinearDimensions ConvolutionLayer::GenLinearDimensions(
@@ -135,7 +139,6 @@ Matrix<symbolic::Expression> ConvolutionLayer::GenerateExpression(
   Matrix<symbolic::Expression> output(
       output_width * output_height * output_depth, 1);
 
-
   for (size_t filter_no = 0; filter_no < filters_.num_filters; ++filter_no) {
     int start_x = -filters_.padding;
     int start_y = -filters_.padding;
@@ -179,7 +182,8 @@ stats::Normal ConvolutionLayer::XavierInitializer() const {
 }
 
 std::unique_ptr<LayerImpl> ConvolutionLayer::Clone() const {
-  return std::make_unique<ConvolutionLayer>(imdim_, filters_, generator_, layer_index_);
+  return std::make_unique<ConvolutionLayer>(imdim_, filters_, generator_,
+                                            layer_index_);
 }
 
 }  // namespace nnet
