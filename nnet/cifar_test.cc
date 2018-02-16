@@ -23,7 +23,7 @@ struct Sample {
     memcpy(this, &data[1], kSampleSize);
   }
 
-  Matrix<double> OneHotEncodedInput() {
+  Matrix<double> OneHotEncodedInput() const {
     Matrix<double> input(kSampleSize, 1, 0);
     for (size_t i = 0; i < kSampleSize; ++i) {
       input.at(i, 0) = static_cast<double>(pixels[i]);
@@ -31,7 +31,7 @@ struct Sample {
     return input;
   }
 
-  Matrix<double> OneHotEncodedOutput() {
+  Matrix<double> OneHotEncodedOutput() const {
     // Initialize kOutputSizex1 blank column vector.
     Matrix<double> output(kOutputSize, 1, 0);
 
@@ -149,6 +149,7 @@ int main() {
                        /* output size */ {4, 4})
       .AddFeedForwardLayer(10)
       .AddSoftmaxLayer(10);
+  std::cout << "Initializing network..." << std::endl;
   nnet::Nnet test_net(model);
 
   // Read in the files.
@@ -178,29 +179,20 @@ int main() {
   }
   std::cout << "Loaded " << samples.size() << " Samples!" << std::endl;
 
-  // Need to re-code, this is circle test just for reference.
-  // std::vector<std::tuple<Sample, bool>> examples;
+  nnet::Nnet::LearningParameters params{.learning_rate = 1};
 
-  //// Generate training samples.
-  // for (size_t i = 0; i < 3000; ++i) {
-  //  double x = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
-  //  double y = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
 
-  //  double in_unit_circle = ((x * x + y * y) <= 1.0) ? 1 : 0;
+  std::cout << "Training...";
 
-  //  examples.push_back(std::make_tuple(Sample({{x}, {y}}), in_unit_circle));
-  //}
+  for (const auto& sample : samples) {
+    std::cout << ".";
+    test_net.TrainCl(sample.OneHotEncodedInput(), sample.OneHotEncodedOutput(),
+                     params);
+  }
 
-  // nnet::Nnet::LearningParameters params{.learning_rate = 1};
+  std::cout << std::endl;
 
-  // for (const std::tuple<Sample, double>& example : examples) {
-  //  test_net.TrainCl(std::get<0>(example),
-  //                   Matrix<nnet::Number>(
-  //                       {{static_cast<nnet::Number>(std::get<1>(example))}}),
-  //                   params);
-  //}
-
-  // std::cout << std::endl;
+  std::cout << test_net.to_string() << std::endl;
 
   // for (size_t i = 0; i < 1000; ++i) {
   //  double pointx = (2.5 * static_cast<double>(std::rand()) / RAND_MAX)

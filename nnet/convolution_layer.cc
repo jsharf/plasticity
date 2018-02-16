@@ -14,13 +14,11 @@ ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
       imdim_(dimensions),
       input_map_(input_map),
       output_map_(output_map) {
-  std::cout << "ConvolutionLayer constructor" << std::endl;
   if (filters_.depth != imdim_.depth) {
     std::cerr << "Convolution layer input depth != filter depth. Error!"
               << std::endl;
     std::exit(1);
   }
-  std::cout << "ConvolutionLayer done" << std::endl;
 }
 
 ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
@@ -30,7 +28,6 @@ ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
     : Super(GenLinearDimensions(dimensions, filters), generator, layer_index),
       filters_(filters),
       imdim_(dimensions) {
-  std::cout << "ConvolutionLayer2 constructor" << std::endl;
   if (filters_.depth != imdim_.depth) {
     std::cerr << "Convolution layer input depth != filter depth. Error!"
               << std::endl;
@@ -65,7 +62,6 @@ ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
     size_t depth_index = z * (output_width * output_height);
     return row_index + col_index + depth_index;
   };
-  std::cout << "ConvolutionLayer2 done" << std::endl;
 }
 
 ConvolutionLayer::LinearDimensions ConvolutionLayer::GenLinearDimensions(

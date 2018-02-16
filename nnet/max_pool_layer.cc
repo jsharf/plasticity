@@ -8,16 +8,17 @@ MaxPoolLayer::MaxPoolLayer(const VolumeDimensions& input,
                            SymbolGenerator* generator, size_t layer_index)
     : Super(MaxPoolLayer::GenLinearDimensions(input, output), generator,
             layer_index),
+      input_(input),
       target_(output) {
-  std::cout << "3D inputs: " << input.width << ", " << input.height << ", "
-            << input.depth << std::endl
-            << "3D outputs: " << output.width << ", " << output.height << ", "
-            << input.depth << std::endl
-            << "Numbler inputs: " << dimensions_.num_inputs << std::endl
-            << "Number outputs: " << dimensions_.num_outputs << std::endl;
   if (dimensions_.num_outputs > dimensions_.num_inputs) {
-    std::cout << "Error: MaxPoolLayer " << layer_index
-              << " constructed with more outputs than inputs?" << std::endl;
+    std::cerr << "Error: MaxPoolLayer " << layer_index
+              << " constructed with more outputs than inputs?" << std::endl
+              << "3D inputs: " << input.width << ", " << input.height << ", "
+              << input.depth << std::endl
+              << "3D outputs: " << output.width << ", " << output.height << ", "
+              << input.depth << std::endl
+              << "Numbler inputs: " << dimensions_.num_inputs << std::endl
+              << "Number outputs: " << dimensions_.num_outputs << std::endl;
     std::exit(1);
   }
   // The input dimensions must be multiples of the output dimensions. This is
