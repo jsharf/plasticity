@@ -2,13 +2,13 @@
 
 namespace symbolic {
 
-std::unique_ptr<const ExpressionNode> NumericValue::Bind(
+std::shared_ptr<const ExpressionNode> NumericValue::Bind(
     const std::unordered_map<std::string, NumericValue>& env) const {
   if (!is_bound_) {
     if (env.count(name_) == 1) {
       Number a = env.at(name_).real();
       Number b = env.at(name_).imag();
-      return std::make_unique<NumericValue>(a, b);
+      return std::make_shared<NumericValue>(a, b);
     }
   }
   return Clone();
@@ -26,12 +26,12 @@ std::experimental::optional<NumericValue> NumericValue::TryEvaluate() const {
 }
 
 // Returns the symbolic partial derivative of this expression.
-std::unique_ptr<ExpressionNode> NumericValue::Derive(
+std::shared_ptr<ExpressionNode> NumericValue::Derive(
     const std::string& x) const {
   if (!is_bound_ && (name_ == x)) {
-    return std::make_unique<NumericValue>(1);
+    return std::make_shared<NumericValue>(1);
   }
-  return std::make_unique<NumericValue>(0);
+  return std::make_shared<NumericValue>(0);
 }
 
 std::string NumericValue::to_string() const {
@@ -45,11 +45,11 @@ std::string NumericValue::to_string() const {
   return result;
 }
 
-std::unique_ptr<const ExpressionNode> NumericValue::Clone() const {
+std::shared_ptr<const ExpressionNode> NumericValue::Clone() const {
   if (is_bound_) {
-    return std::make_unique<NumericValue>(a_, b_);
+    return std::make_shared<NumericValue>(a_, b_);
   } else {
-    return std::make_unique<NumericValue>(name_);
+    return std::make_shared<NumericValue>(name_);
   }
 }
 

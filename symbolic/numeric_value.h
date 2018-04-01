@@ -24,7 +24,7 @@ class NumericValue : public ExpressionNode {
   Number real() const { return a_; }
   Number imag() const { return b_; }
 
-  std::unique_ptr<const ExpressionNode> Bind(
+  std::shared_ptr<const ExpressionNode> Bind(
       const std::unordered_map<std::string, NumericValue>& env) const override;
 
   std::set<std::string> variables() const override;
@@ -32,11 +32,11 @@ class NumericValue : public ExpressionNode {
   std::experimental::optional<NumericValue> TryEvaluate() const override;
 
   // Returns the symbolic partial derivative of this expression.
-  std::unique_ptr<ExpressionNode> Derive(const std::string& x) const override;
+  std::shared_ptr<ExpressionNode> Derive(const std::string& x) const override;
 
   std::string to_string() const override;
 
-  std::unique_ptr<const ExpressionNode> Clone() const override;
+  std::shared_ptr<const ExpressionNode> Clone() const override;
 
   static const NumericValue pi;
   static const NumericValue e;

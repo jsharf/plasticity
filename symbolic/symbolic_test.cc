@@ -38,10 +38,10 @@ int main() {
 
   Expression eq1 = symbolic::CreateExpression("x * x");
   Expression eq2 = symbolic::CreateExpression("25");
-  Expression pieceweise_fn = Expression(std::make_unique<IfExpression>(
-      std::make_unique<GteExpression>(std::make_unique<NumericValue>(5),
-                                      std::make_unique<NumericValue>("x")),
-      eq1.Release(), eq2.Release()));
+  Expression pieceweise_fn = Expression(std::make_shared<IfExpression>(
+      std::make_shared<GteExpression>(std::make_shared<NumericValue>(5),
+                                      std::make_shared<NumericValue>("x")),
+      eq1.GetPointer(), eq2.GetPointer()));
   Expression pieceweise_deriv = pieceweise_fn.Derive("x");
 
   std::cout << "f(x) = " << pieceweise_fn.to_string() << std::endl;

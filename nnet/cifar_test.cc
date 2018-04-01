@@ -20,7 +20,7 @@ struct Sample {
 
   explicit Sample(char data[kRecordSize]) {
     label = data[0];
-    memcpy(this, &data[1], kSampleSize);
+    memcpy(&pixels[0], &data[1], kSampleSize);
   }
 
   Matrix<double> OneHotEncodedInput() const {
@@ -181,7 +181,6 @@ int main() {
 
   nnet::Nnet::LearningParameters params{.learning_rate = 1};
 
-
   std::cout << "Training...";
 
   for (const auto& sample : samples) {
@@ -192,18 +191,9 @@ int main() {
 
   std::cout << std::endl;
 
+  std::cout << "Output expression:" << std::endl;
   std::cout << test_net.to_string() << std::endl;
 
-  // for (size_t i = 0; i < 1000; ++i) {
-  //  double pointx = (2.5 * static_cast<double>(std::rand()) / RAND_MAX)
-  //  - 1.25; double pointy = (2.5 * static_cast<double>(std::rand()) /
-  //  RAND_MAX) - 1.25; double output =
-  //      test_net.EvaluateCl(Matrix<nnet::Number>{{pointx}, {pointy}}).at(0,
-  //      0);
-  //  std::cout << "((" << pointx << "," << pointy << ")," << output << ")"
-  //            << std::endl;
-  //}
-
-  // std::cout << std::endl;
-  // return 0;
+  std::cout << std::endl;
+  return 0;
 }

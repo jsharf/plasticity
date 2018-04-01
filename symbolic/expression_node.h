@@ -18,19 +18,19 @@ class ExpressionNode {
   // Variables which need to be resolved in order to evaluate the expression.
   virtual std::set<std::string> variables() const = 0;
   // Bind variables to values to create an expression which can be evaluated.
-  virtual std::unique_ptr<const ExpressionNode> Bind(
+  virtual std::shared_ptr<const ExpressionNode> Bind(
       const std::unordered_map<std::string, NumericValue>&) const = 0;
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
   virtual std::experimental::optional<NumericValue> TryEvaluate() const = 0;
 
   // Returns the symbolic partial derivative of this expression.
-  virtual std::unique_ptr<ExpressionNode> Derive(
+  virtual std::shared_ptr<ExpressionNode> Derive(
       const std::string& x) const = 0;
 
   virtual std::string to_string() const = 0;
 
-  virtual std::unique_ptr<const ExpressionNode> Clone() const = 0;
+  virtual std::shared_ptr<const ExpressionNode> Clone() const = 0;
 
   virtual ~ExpressionNode() {}
 };

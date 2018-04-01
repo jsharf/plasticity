@@ -42,67 +42,55 @@ Expression CreateExpression(std::string expression) {
                 << std::endl;
       std::exit(1);
     }
-    return Expression(std::make_unique<NumericValue>(variable));
+    return Expression(std::make_shared<NumericValue>(variable));
   }
 
   // Special case for imaginary values.
   if (suffix == 'i') {
-    return Expression(std::make_unique<NumericValue>(0, value));
+    return Expression(std::make_shared<NumericValue>(0, value));
   }
 
-  return Expression(std::make_unique<NumericValue>(value));
+  return Expression(std::make_shared<NumericValue>(value));
 }
 
 // Expression Implementation.
 
-Expression::Expression(std::unique_ptr<const ExpressionNode>&& root)
+Expression::Expression(std::shared_ptr<const ExpressionNode>&& root)
     : expression_root_(std::move(root)) {}
 
 Expression::Expression(const Expression& other)
-    : expression_root_(other.expression_root_->Clone()) {}
+    : expression_root_(other.expression_root_) {}
 
 Expression::Expression(Expression&& rhs)
     : expression_root_(std::move(rhs.expression_root_)) {}
 
 Expression::Expression(const NumericValue& rhs)
-    : expression_root_(std::make_unique<NumericValue>(rhs)) {}
+    : expression_root_(std::make_shared<NumericValue>(rhs)) {}
 
 Expression::Expression(Number a)
-    : expression_root_(std::make_unique<NumericValue>(a)) {}
+    : expression_root_(std::make_shared<NumericValue>(a)) {}
 
 Expression Expression::operator+(const Expression& rhs) const {
-  return Expression(std::make_unique<AdditionExpression>(expression_root_,
+  return Expression(std::make_shared<AdditionExpression>(expression_root_,
                                                          rhs.expression_root_));
 }
 
 Expression Expression::operator-(const Expression& rhs) const {
-  std::unique_ptr<const symbolic::ExpressionNode> neg =
-      std::make_unique<symbolic::NumericValue>(-1);
-  std::unique_ptr<const symbolic::ExpressionNode> rhs_neg =
-      std::make_unique<MultiplicationExpression>(neg, rhs.expression_root_);
+  std::shared_ptr<const symbolic::ExpressionNode> neg =
+      std::make_shared<symbolic::NumericValue>(-1);
+  std::shared_ptr<const symbolic::ExpressionNode> rhs_neg =
+      std::make_shared<MultiplicationExpression>(neg, rhs.expression_root_);
   return Expression(
-      std::make_unique<AdditionExpression>(expression_root_, rhs_neg));
+      std::make_shared<AdditionExpression>(expression_root_, rhs_neg));
 }
 
 Expression Expression::operator*(const Expression& rhs) const {
-  auto lhsresult = expression_root_->TryEvaluate();
-  auto rhsresult = rhs.expression_root_->TryEvaluate();
-  if (lhsresult && rhsresult &&
-      ((lhsresult->real() == 0) || (rhsresult->real() == 0))) {
-    std::cerr << "optimizing out mul with zero: " << std::endl;
-    return Expression(0);
-  }
-  return Expression(std::make_unique<MultiplicationExpression>(
+  return Expression(std::make_shared<MultiplicationExpression>(
       expression_root_, rhs.expression_root_));
 }
 
 Expression Expression::operator/(const Expression& rhs) const {
-  auto numresult = expression_root_->TryEvaluate();
-  if (numresult && (numresult->real() == 0)) {
-    std::cerr << "optimizing out 0/X." << std::endl;
-    return Expression(0);
-  }
-  return Expression(std::make_unique<DivisionExpression>(expression_root_,
+  return Expression(std::make_shared<DivisionExpression>(expression_root_,
                                                          rhs.expression_root_));
 }
 
@@ -141,12 +129,8 @@ std::experimental::optional<NumericValue> Expression::Evaluate() const {
   return expression_root_->TryEvaluate();
 }
 
-std::unique_ptr<const ExpressionNode> Expression::Release() {
-  return std::move(expression_root_);
-}
-
-void Expression::Reset(std::unique_ptr<const ExpressionNode> root) {
-  expression_root_ = std::move(root);
+void Expression::Reset(std::shared_ptr<const ExpressionNode> root) {
+  expression_root_ = root;
 }
 
 std::string Expression::to_string() const {
@@ -167,9 +151,9 @@ std::set<std::string> IfExpression::variables() const {
   return variables;
 }
 
-std::unique_ptr<const ExpressionNode> IfExpression::Bind(
+std::shared_ptr<const ExpressionNode> IfExpression::Bind(
     const Environment& env) const {
-  return std::make_unique<IfExpression>(conditional_->Bind(env), a_->Bind(env),
+  return std::make_shared<IfExpression>(conditional_->Bind(env), a_->Bind(env),
                                         b_->Bind(env));
 }
 
@@ -193,9 +177,9 @@ std::experimental::optional<NumericValue> IfExpression::TryEvaluate() const {
   }
 }
 
-std::unique_ptr<ExpressionNode> IfExpression::Derive(
+std::shared_ptr<ExpressionNode> IfExpression::Derive(
     const std::string& x) const {
-  return std::make_unique<IfExpression>(conditional_, a_->Derive(x),
+  return std::make_shared<IfExpression>(conditional_, a_->Derive(x),
                                         b_->Derive(x));
 }
 
@@ -248,15 +232,15 @@ NumericValue AdditionExpression::reduce(const NumericValue& a,
   return result;
 }
 
-std::unique_ptr<const ExpressionNode> AdditionExpression::Bind(
+std::shared_ptr<const ExpressionNode> AdditionExpression::Bind(
     const Environment& env) const {
-  return std::make_unique<AdditionExpression>(head_->Bind(env),
+  return std::make_shared<AdditionExpression>(head_->Bind(env),
                                               tail_->Bind(env));
 }
 
-std::unique_ptr<ExpressionNode> AdditionExpression::Derive(
+std::shared_ptr<ExpressionNode> AdditionExpression::Derive(
     const std::string& x) const {
-  return std::make_unique<AdditionExpression>(head_->Derive(x),
+  return std::make_shared<AdditionExpression>(head_->Derive(x),
                                               tail_->Derive(x));
 }
 
@@ -269,28 +253,28 @@ NumericValue MultiplicationExpression::reduce(const NumericValue& a,
   return result;
 }
 
-std::unique_ptr<const ExpressionNode> MultiplicationExpression::Bind(
+std::shared_ptr<const ExpressionNode> MultiplicationExpression::Bind(
     const Environment& env) const {
-  return std::make_unique<MultiplicationExpression>(head_->Bind(env),
+  return std::make_shared<MultiplicationExpression>(head_->Bind(env),
                                                     tail_->Bind(env));
 }
 
-std::unique_ptr<ExpressionNode> MultiplicationExpression::Derive(
+std::shared_ptr<ExpressionNode> MultiplicationExpression::Derive(
     const std::string& x) const {
   if (!tail_) {
     return head_->Derive(x);
   }
 
-  std::unique_ptr<const ExpressionNode> dhead = head_->Derive(x);
-  std::unique_ptr<const ExpressionNode> dtail =
+  std::shared_ptr<const ExpressionNode> dhead = head_->Derive(x);
+  std::shared_ptr<const ExpressionNode> dtail =
       tail_->Derive(x);  // Recursive call.
 
-  std::unique_ptr<const ExpressionNode> head_dtail =
-      std::make_unique<MultiplicationExpression>(head_, dtail);
-  std::unique_ptr<const ExpressionNode> tail_dhead =
-      std::make_unique<MultiplicationExpression>(tail_, dhead);
+  std::shared_ptr<const ExpressionNode> head_dtail =
+      std::make_shared<MultiplicationExpression>(head_, dtail);
+  std::shared_ptr<const ExpressionNode> tail_dhead =
+      std::make_shared<MultiplicationExpression>(tail_, dhead);
 
-  return std::make_unique<AdditionExpression>(head_dtail, tail_dhead);
+  return std::make_shared<AdditionExpression>(head_dtail, tail_dhead);
 }
 
 // And Implementation.
@@ -301,12 +285,12 @@ NumericValue AndExpression::reduce(const NumericValue& a,
   return result;
 }
 
-std::unique_ptr<const ExpressionNode> AndExpression::Bind(
+std::shared_ptr<const ExpressionNode> AndExpression::Bind(
     const Environment& env) const {
-  return std::make_unique<AndExpression>(head_->Bind(env), tail_->Bind(env));
+  return std::make_shared<AndExpression>(head_->Bind(env), tail_->Bind(env));
 }
 
-std::unique_ptr<ExpressionNode> AndExpression::Derive(
+std::shared_ptr<ExpressionNode> AndExpression::Derive(
     const std::string& x) const {
   return nullptr;
 }
@@ -323,9 +307,9 @@ std::set<std::string> GteExpression::variables() const {
   return variables;
 }
 
-std::unique_ptr<const ExpressionNode> GteExpression::Bind(
+std::shared_ptr<const ExpressionNode> GteExpression::Bind(
     const Environment& env) const {
-  return std::make_unique<GteExpression>(a_->Bind(env), b_->Bind(env));
+  return std::make_shared<GteExpression>(a_->Bind(env), b_->Bind(env));
 }
 
 std::experimental::optional<NumericValue> GteExpression::TryEvaluate() const {
@@ -344,7 +328,7 @@ std::experimental::optional<NumericValue> GteExpression::TryEvaluate() const {
 }
 
 // Not defined for >=.
-std::unique_ptr<ExpressionNode> GteExpression::Derive(
+std::shared_ptr<ExpressionNode> GteExpression::Derive(
     const std::string& x) const {
   return nullptr;
 }
@@ -370,10 +354,10 @@ std::set<std::string> DivisionExpression::variables() const {
   return variables;
 }
 
-std::unique_ptr<const ExpressionNode> DivisionExpression::Bind(
+std::shared_ptr<const ExpressionNode> DivisionExpression::Bind(
     const Environment& env) const {
-  std::unique_ptr<DivisionExpression> result =
-      std::make_unique<DivisionExpression>();
+  std::shared_ptr<DivisionExpression> result =
+      std::make_shared<DivisionExpression>();
   result->set_numerator(numerator_->Bind(env));
   result->set_denominator(denominator_->Bind(env));
   return std::move(result);
@@ -407,32 +391,32 @@ std::experimental::optional<NumericValue> DivisionExpression::TryEvaluate()
 }
 
 // Returns the symbolic partial derivative of this expression.
-std::unique_ptr<ExpressionNode> DivisionExpression::Derive(
+std::shared_ptr<ExpressionNode> DivisionExpression::Derive(
     const std::string& x) const {
   // Apply the quotient rule.
-  const std::unique_ptr<const ExpressionNode>& g = numerator_;
-  const std::unique_ptr<const ExpressionNode>& h = denominator_;
+  const std::shared_ptr<const ExpressionNode>& g = numerator_;
+  const std::shared_ptr<const ExpressionNode>& h = denominator_;
 
-  std::unique_ptr<const ExpressionNode> dg = numerator_->Derive(x);
-  std::unique_ptr<const ExpressionNode> dh = denominator_->Derive(x);
+  std::shared_ptr<const ExpressionNode> dg = numerator_->Derive(x);
+  std::shared_ptr<const ExpressionNode> dh = denominator_->Derive(x);
 
-  std::unique_ptr<const ExpressionNode> dg_h =
-      std::make_unique<MultiplicationExpression>(dg, h);
-  std::unique_ptr<const ExpressionNode> g_dh =
-      std::make_unique<MultiplicationExpression>(g, dh);
+  std::shared_ptr<const ExpressionNode> dg_h =
+      std::make_shared<MultiplicationExpression>(dg, h);
+  std::shared_ptr<const ExpressionNode> g_dh =
+      std::make_shared<MultiplicationExpression>(g, dh);
 
-  std::unique_ptr<const ExpressionNode> neg =
-      std::make_unique<NumericValue>(-1);
-  std::unique_ptr<const ExpressionNode> neg_g_dh =
-      std::make_unique<MultiplicationExpression>(neg, g_dh);
+  std::shared_ptr<const ExpressionNode> neg =
+      std::make_shared<NumericValue>(-1);
+  std::shared_ptr<const ExpressionNode> neg_g_dh =
+      std::make_shared<MultiplicationExpression>(neg, g_dh);
 
-  std::unique_ptr<const ExpressionNode> h_squared =
-      std::make_unique<MultiplicationExpression>(h, h);
+  std::shared_ptr<const ExpressionNode> h_squared =
+      std::make_shared<MultiplicationExpression>(h, h);
 
-  std::unique_ptr<const ExpressionNode> new_numerator =
-      std::make_unique<AdditionExpression>(dg_h, neg_g_dh);
+  std::shared_ptr<const ExpressionNode> new_numerator =
+      std::make_shared<AdditionExpression>(dg_h, neg_g_dh);
 
-  return std::make_unique<DivisionExpression>(new_numerator, h_squared);
+  return std::make_shared<DivisionExpression>(new_numerator, h_squared);
 }
 
 std::string DivisionExpression::to_string() const {
@@ -450,9 +434,9 @@ std::set<std::string> ExponentExpression::variables() const {
   return child_->variables();
 }
 
-std::unique_ptr<const ExpressionNode> ExponentExpression::Bind(
+std::shared_ptr<const ExpressionNode> ExponentExpression::Bind(
     const Environment& env) const {
-  return std::make_unique<ExponentExpression>(b_, child_->Bind(env));
+  return std::make_shared<ExponentExpression>(b_, child_->Bind(env));
 }
 
 std::experimental::optional<NumericValue> ExponentExpression::TryEvaluate()
@@ -479,28 +463,28 @@ std::experimental::optional<NumericValue> ExponentExpression::TryEvaluate()
   return NumericValue(real, imag);
 }
 
-std::unique_ptr<ExpressionNode> ExponentExpression::Derive(
+std::shared_ptr<ExpressionNode> ExponentExpression::Derive(
     const std::string& x) const {
   Number norm = sqrt(b_.real() * b_.real() + b_.imag() * b_.imag());
   Number phase = atan(b_.imag() / b_.real());
 
-  const std::unique_ptr<const ExpressionNode> multiplier =
-      std::make_unique<NumericValue>(log(norm), phase);
+  const std::shared_ptr<const ExpressionNode> multiplier =
+      std::make_shared<NumericValue>(log(norm), phase);
 
-  std::unique_ptr<const ExpressionNode> derivative =
-      std::make_unique<MultiplicationExpression>(Clone(), multiplier);
+  std::shared_ptr<const ExpressionNode> derivative =
+      std::make_shared<MultiplicationExpression>(Clone(), multiplier);
 
-  std::unique_ptr<const ExpressionNode> chain_rule = child_->Derive(x);
+  std::shared_ptr<const ExpressionNode> chain_rule = child_->Derive(x);
 
-  return std::make_unique<MultiplicationExpression>(derivative, chain_rule);
+  return std::make_shared<MultiplicationExpression>(derivative, chain_rule);
 }
 
 std::string ExponentExpression::to_string() const {
   return "pow(" + b_.to_string() + ", " + child_->to_string() + ")";
 }
 
-std::unique_ptr<const ExpressionNode> ExponentExpression::Clone() const {
-  return std::make_unique<ExponentExpression>(b_, child_);
+std::shared_ptr<const ExpressionNode> ExponentExpression::Clone() const {
+  return std::make_shared<ExponentExpression>(b_, child_);
 }
 
 }  // namespace symbolic
