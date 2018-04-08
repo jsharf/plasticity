@@ -42,3 +42,16 @@ cc_binary(
         ":symbolic_util",
     ],
 )
+
+cc_binary(
+    name = "simple_test",
+    srcs = ["simple_test.cc"],
+    copts = [
+        "-std=c++1z",
+    ],
+    deps = [
+        ":symbolic",
+        ":symbolic_util",
+    ],
+)
+
