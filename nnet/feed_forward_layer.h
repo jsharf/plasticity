@@ -29,7 +29,7 @@ class FeedForwardLayer : public LayerImpl {
     };
   }
 
-  WeightArray weights() override;
+  WeightArray weights() const override;
 
   Matrix<symbolic::Expression> GenerateExpression(
       const Matrix<symbolic::Expression>& input) override;

@@ -4,9 +4,9 @@
 #include "math/nnet/activation_layer.h"
 #include "math/nnet/convolution_layer.h"
 #include "math/nnet/feed_forward_layer.h"
-#include "math/nnet/softmax_layer.h"
 #include "math/nnet/layer_impl.h"
 #include "math/nnet/max_pool_layer.h"
+#include "math/nnet/softmax_layer.h"
 #include "math/stats/normal.h"
 #include "math/symbolic/expression.h"
 #include "math/symbolic/symbolic_util.h"
@@ -74,11 +74,25 @@ class Layer {
                                 const AreaDimensions& output,
                                 SymbolGenerator* generator);
 
-  WeightArray weights();
+  WeightArray weights() const;
   Matrix<symbolic::Expression> GenerateExpression(
       const Matrix<symbolic::Expression>& input);
   stats::Normal XavierInitializer();
   Dimensions GetDimensions() const { return impl_->GetDimensions(); }
+
+  // This function returns the source code of an OpenCL kernel which evaluates
+  // the output of this layer, given the input.
+  std::string GenerateEvaluationKernel(
+      const Matrix<symbolic::Expression>& input);
+
+  std::string EvaluateKernelName() const {
+    return "evaluate_" + std::to_string(impl_->layer_index());
+  }
+
+  // This function returns the source code of two OpenCL kernels which calculate
+  // the weight update (via gradient descent) and the backpropagated weights for
+  // the next layer backwards.
+  std::string GenerateTrainingKernels() const;
 
   // Tread carefully... If you accidentally assign the wrong symbol generator to
   // a layer, you can end up in really weird hard to debug states.

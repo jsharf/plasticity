@@ -21,7 +21,7 @@ class ActivationLayer : public LayerImpl {
       : Super(Dimensions{size, size}, generator, layer_index),
         activation_function_(activation_function) {}
 
-  WeightArray weights() override { return {}; }
+  WeightArray weights() const override { return {}; }
 
   Matrix<symbolic::Expression> GenerateExpression(
       const Matrix<symbolic::Expression>& input) override;

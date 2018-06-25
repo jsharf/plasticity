@@ -8,7 +8,7 @@ double Calculate(global double* I, global double* W, size_t output_index) {
   return NAN;
 }
 
-kernel void evaluate(global double* inputs, global double* weights, global double* outputs) {
+kernel void evaluate_LAYERID(global double* inputs, global double* weights, global double* outputs) {
   size_t index = get_global_id(0);
   outputs[index] = Calculate(inputs, weights, index);
 }

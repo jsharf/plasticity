@@ -18,7 +18,7 @@ class SoftmaxLayer : public LayerImpl {
   SoftmaxLayer(size_t size, SymbolGenerator* generator, size_t layer_index)
       : Super(Dimensions{size, size}, generator, layer_index) {}
 
-  WeightArray weights() override { return {}; }
+  WeightArray weights() const override { return {}; }
 
   Matrix<symbolic::Expression> GenerateExpression(
       const Matrix<symbolic::Expression>& input) override;

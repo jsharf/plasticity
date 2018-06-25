@@ -157,7 +157,7 @@ class Nnet {
     model_.SetSymbolGenerator(&generator_);
 
     // "layer" is at first just a column vector of inputs.
-    Matrix<symbolic::Expression> layer = GenInputLayer();
+    Matrix<symbolic::Expression> layer = GenInputLayer(input_size());
 
     std::cout << "Generating layers..." << std::endl;
     for (size_t layer_idx = 0; layer_idx < model_.layers.size(); ++layer_idx) {
@@ -252,84 +252,96 @@ class Nnet {
     size_t weight_count_ = 0;
   };
 
-  std::string GenerateEvaluateKernelSource() {
-    std::ifstream evaluate_file("math/nnet/kernels/evaluate.kernel.cl");
-    std::stringstream buffer;
-    buffer << evaluate_file.rdbuf();
-    std::string evaluate_source = buffer.str();
-
-    std::stringstream outputs;
-    for (size_t i = 0; i < output_size(); ++i) {
-      outputs << "case " << i << ":" << std::endl;
-      outputs << "  return (" << neural_network_.at(i, 0).to_string() << ");"
-              << std::endl;
+  void CompileEvaluateCl(cl::Device device) {
+    std::vector<std::string> eval_kernel_sources;
+    // TODO const this.
+    for (Layer& layer : model_.layers) {
+      eval_kernel_sources.push_back(layer.GenerateEvaluationKernel(GenInputLayer(layer.GetDimensions().num_inputs)));
     }
-
-    std::string template_substring = "EXPRESSION_HERE";
-    size_t template_location = evaluate_source.find(template_substring);
-    if (template_location == std::string::npos) {
-      std::cerr << "Could not find template substring \"" << template_substring
-                << "\"" << std::endl;
-      std::exit(1);
-    }
-
-    evaluate_source.replace(template_location, template_substring.size(),
-                            outputs.str());
-    return evaluate_source;
+    evaluate_kernels_ = CompileCl(eval_kernel_sources, device);
   }
 
-  void CompileEvaluateCl() {
-    std::string kernel_source = GenerateEvaluateKernelSource();
+  static bool ClDevicesAreEqual(const cl::Device& a, const cl::Device& b) {
+    std::string aname;
+    std::string bname;
+    if (!a.getInfo(CL_DEVICE_NAME, &aname)) {
+      return false;
+    }
+    if (!b.getInfo(CL_DEVICE_NAME, &bname)) {
+      return false;
+    }
+
+    return aname == bname;
+  }
+
+  Matrix<Number> EvaluateCl(Matrix<Number> in) {
+    // Select the default OpenCL device.
     cl::Platform platform = clutil::GetDefaultPlatform();
     std::vector<cl::Device> devices = clutil::GetPlatformDevices(platform);
     if (devices.size() == 0) {
       std::cerr << "No OpenCL Devices on this platform." << std::endl;
       std::exit(1);
     }
-    evaluate_kernel_.device = devices[0];
-    evaluate_kernel_.compiled = true;
-    evaluate_kernel_.compilation_units =
-        clutil::Compile(evaluate_kernel_.device, {kernel_source});
-  }
+    cl::Device& device = devices[0];
 
-  Matrix<Number> EvaluateCl(Matrix<Number> in) {
-    if (!evaluate_kernel_.compiled) {
+    if (!evaluate_kernels_.compiled || !ClDevicesAreEqual(evaluate_kernels_.device, device)) {
       std::cerr << "Generating and compiling OpenCl kernel. This takes a while"
                 << " the first time..." << std::endl;
-      CompileEvaluateCl();
+      CompileEvaluateCl(device);
       std::cerr << "Done!" << std::endl;
     }
-    cl::Context& context = std::get<0>(evaluate_kernel_.compilation_units);
-    cl::Program& program = std::get<1>(evaluate_kernel_.compilation_units);
-    cl::Buffer outputs(context, CL_MEM_READ_WRITE,
-                       output_size() * sizeof(Number));
-    cl::Buffer weights(context, CL_MEM_READ_ONLY,
-                       generator_.NumberWeights() * sizeof(Number));
+    cl::Context& context = std::get<0>(evaluate_kernels_.compilation_units);
+    cl::Program& program = std::get<1>(evaluate_kernels_.compilation_units);
+
+    // Create a queue (a queue of commands that the GPU will execute)
+    // Assumes that all kernels compiled for same device.
+    cl::CommandQueue queue(context, device);
+
+    // Load input.
     cl::Buffer inputs(context, CL_MEM_READ_ONLY, input_size() * sizeof(Number));
-    Number weights_buf[generator_.NumberWeights()];
-    for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
-      weights_buf[i] = static_cast<double>(weights_[generator_.W(i)].real());
-    }
     Number inputs_buf[input_size()];
     for (size_t i = 0; i < input_size(); ++i) {
       inputs_buf[i] = in.at(i, 0);
     }
-
-    // create a queue (a queue of commands that the GPU will execute)
-    cl::CommandQueue queue(context, evaluate_kernel_.device);
-
     queue.enqueueWriteBuffer(inputs, CL_TRUE, 0, sizeof(Number) * input_size(),
                              inputs_buf);
-    queue.enqueueWriteBuffer(weights, CL_TRUE, 0,
-                             sizeof(Number) * generator_.NumberWeights(),
-                             weights_buf);
 
-    cl::Kernel evaluate(program, "evaluate");
-    evaluate.setArg(0, inputs);
-    evaluate.setArg(1, weights);
-    evaluate.setArg(2, outputs);
-    queue.enqueueNDRangeKernel(evaluate, cl::NullRange,
-                               cl::NDRange(output_size()), cl::NullRange);
+    cl::Buffer outputs;
+
+    // TODO Load invalidated layer weights. Skip ones which haven't changed.
+
+    for (const Layer& layer : model_.layers) {
+      outputs = cl::Buffer(context, CL_MEM_READ_WRITE,
+                           layer.GetDimensions().num_outputs * sizeof(Number));
+
+      // Load weights. TODO optimize the shit out of this by not re-loading
+      // layers if their weights haven't changed and also caching weights_buf in
+      // Layer.
+      const size_t number_weights = layer.weights().size();
+      Number weights_buf[number_weights];
+      cl::Buffer weights(context, CL_MEM_READ_WRITE,
+                         layer.weights().size() * sizeof(Number));
+      for (size_t i = 0; i < number_weights; ++i) {
+        weights_buf[i] =
+            static_cast<double>(weights_[layer.weights()[i]].real());
+      }
+      queue.enqueueWriteBuffer(weights, CL_TRUE, 0,
+                               sizeof(Number) * generator_.NumberWeights(),
+                               weights_buf);
+
+      // Evaluate.
+      std::string kernel_name = layer.EvaluateKernelName();
+      cl::Kernel evaluate(program, kernel_name.c_str());
+      evaluate.setArg(0, inputs);
+      evaluate.setArg(1, weights);
+      evaluate.setArg(2, outputs);
+      queue.enqueueNDRangeKernel(evaluate, cl::NullRange,
+                                 cl::NDRange(layer.GetDimensions().num_outputs),
+                                 cl::NullRange);
+
+      // inputs = outputs (output of this layer is input for next layer).
+      inputs = outputs;
+    }
 
     Number output_buf[output_size()];
     queue.enqueueReadBuffer(outputs, CL_TRUE, 0, sizeof(Number) * output_size(),
@@ -482,7 +494,7 @@ class Nnet {
     queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0, sizeof(Number),
                              &params.learning_rate);
 
-    cl::Kernel gradient_descent(program, "gradient_descent");
+    cl::Kernel gradient_descent(program, "weight_delta");
     gradient_descent.setArg(0, inputs);
     gradient_descent.setArg(1, old_weights);
     gradient_descent.setArg(2, outputs);
@@ -540,9 +552,9 @@ class Nnet {
     }
   }
 
-  Matrix<symbolic::Expression> GenInputLayer() const {
-    Matrix<symbolic::Expression> result(input_size(), 1);
-    for (size_t i = 0; i < input_size(); ++i) {
+  Matrix<symbolic::Expression> GenInputLayer(size_t size) const {
+    Matrix<symbolic::Expression> result(size, 1);
+    for (size_t i = 0; i < size; ++i) {
       result.at(i, 0) = symbolic::CreateExpression(generator_.I(i));
     }
     return result;
@@ -569,8 +581,21 @@ class Nnet {
     std::tuple<cl::Context, cl::Program> compilation_units;
     cl::Device device;
   };
+
+  OpenClState CompileCl(const std::vector<std::string>& kernel_source,
+                        cl::Device device) {
+    OpenClState evaluate_kernel;
+    evaluate_kernel.device = device;
+    evaluate_kernel.compiled = true;
+    evaluate_kernel.compilation_units =
+        clutil::Compile(device, kernel_source);
+    return evaluate_kernel;
+  }
+
+  OpenClState evaluate_kernels_;
+  // DEPRECATED -- do not use just yet...
   OpenClState grad_descent_kernel_;
-  OpenClState evaluate_kernel_;
+  std::vector<OpenClState> layer_backprop_kernels_;
 };
 
 }  // namespace nnet

@@ -11,7 +11,7 @@ FeedForwardLayer::FeedForwardLayer(
     : Super(dimensions, generator, layer_index),
       activation_function_(activation_function) {}
 
-LayerImpl::WeightArray FeedForwardLayer::weights() {
+LayerImpl::WeightArray FeedForwardLayer::weights() const {
   WeightArray weights(dimensions_.num_outputs * (dimensions_.num_inputs + 1));
   size_t back_index = 0;
   for (size_t i = 0; i < dimensions_.num_outputs; ++i) {

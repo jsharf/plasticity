@@ -66,7 +66,7 @@ class ConvolutionLayer : public LayerImpl {
                    const FilterParams& filters, SymbolGenerator* generator,
                    size_t layer_index);
 
-  WeightArray weights() override;
+  WeightArray weights() const override;
 
   Matrix<symbolic::Expression> GenerateExpression(
       const Matrix<symbolic::Expression>& input) override;

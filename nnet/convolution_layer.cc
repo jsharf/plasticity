@@ -89,7 +89,7 @@ std::tuple<size_t, size_t, size_t> ConvolutionLayer::GetOutputDimensions(
   return std::make_tuple(output_width, output_height, output_depth);
 }
 
-LayerImpl::WeightArray ConvolutionLayer::weights() {
+LayerImpl::WeightArray ConvolutionLayer::weights() const {
   WeightArray weights(filters_.num_filters *
                       (filters_.width * filters_.height * filters_.depth + 1));
   size_t back_index = 0;

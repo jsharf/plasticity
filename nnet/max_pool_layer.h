@@ -38,7 +38,7 @@ class MaxPoolLayer : public LayerImpl {
   MaxPoolLayer(const VolumeDimensions& input, const AreaDimensions& output,
                SymbolGenerator* generator, size_t layer_index);
 
-  WeightArray weights() override { return {}; }
+  WeightArray weights() const override { return {}; }
 
   Matrix<symbolic::Expression> GenerateExpression(
       const Matrix<symbolic::Expression>& input) override;

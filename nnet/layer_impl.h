@@ -39,12 +39,14 @@ class LayerImpl {
   using ActivationFunctionType =
       std::function<symbolic::Expression(const symbolic::Expression&)>;
 
-  virtual WeightArray weights() = 0;
+  virtual WeightArray weights() const = 0;
   virtual Matrix<symbolic::Expression> GenerateExpression(
       const Matrix<symbolic::Expression>& input) = 0;
   virtual stats::Normal XavierInitializer() const = 0;
   Dimensions GetDimensions() const { return dimensions_; }
   virtual std::unique_ptr<LayerImpl> Clone() const = 0;
+
+  size_t layer_index() const { return layer_index_; }
 
   // Tread carefully... If you accidentally assign the wrong symbol generator to
   // a layer, you can end up in really weird hard to debug states.
