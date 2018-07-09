@@ -252,29 +252,39 @@ class Nnet {
     size_t weight_count_ = 0;
   };
 
-  void CompileEvaluateCl(cl::Device device) {
+  void CompileEvaluateKernelsIfRequired(cl::Device device) {
+    if (evaluate_kernels_.compiled &&
+        ClDevicesAreEqual(evaluate_kernels_.device, SelectDevice())) {
+      return;
+    }
+    std::cerr << "Generating and compiling OpenCl kernel. This takes a while"
+              << " the first time..." << std::endl;
     std::vector<std::string> eval_kernel_sources;
+    // TODO(sharf): Shouldn't need to pass in dimensions here...
     // TODO const this.
     for (Layer& layer : model_.layers) {
-      eval_kernel_sources.push_back(layer.GenerateEvaluationKernel(GenInputLayer(layer.GetDimensions().num_inputs)));
+      eval_kernel_sources.push_back(layer.GenerateEvaluationKernel());
     }
     evaluate_kernels_ = CompileCl(eval_kernel_sources, device);
+    std::cerr << "Done!" << std::endl;
   }
 
   static bool ClDevicesAreEqual(const cl::Device& a, const cl::Device& b) {
     std::string aname;
     std::string bname;
-    if (!a.getInfo(CL_DEVICE_NAME, &aname)) {
+    if (CL_SUCCESS != a.getInfo(CL_DEVICE_NAME, &aname)) {
+      std::cerr << "Error getting device info." << std::endl;
       return false;
     }
-    if (!b.getInfo(CL_DEVICE_NAME, &bname)) {
+    if (CL_SUCCESS != b.getInfo(CL_DEVICE_NAME, &bname)) {
+      std::cerr << "Error getting device info." << std::endl;
       return false;
     }
 
     return aname == bname;
   }
 
-  Matrix<Number> EvaluateCl(Matrix<Number> in) {
+  cl::Device SelectDevice() {
     // Select the default OpenCL device.
     cl::Platform platform = clutil::GetDefaultPlatform();
     std::vector<cl::Device> devices = clutil::GetPlatformDevices(platform);
@@ -282,14 +292,18 @@ class Nnet {
       std::cerr << "No OpenCL Devices on this platform." << std::endl;
       std::exit(1);
     }
-    cl::Device& device = devices[0];
+    return devices[0];
+  }
 
-    if (!evaluate_kernels_.compiled || !ClDevicesAreEqual(evaluate_kernels_.device, device)) {
-      std::cerr << "Generating and compiling OpenCl kernel. This takes a while"
-                << " the first time..." << std::endl;
-      CompileEvaluateCl(device);
-      std::cerr << "Done!" << std::endl;
-    }
+  // (*out_layer_outputs)[i] is a column vector containing the outputs of layer
+  // i. Layer outputs will only be saved if out_layer_outputs is non-null.
+  // Otherwise it will be ignored.
+  Matrix<Number> EvaluateCl(
+      Matrix<Number> in,
+      std::unique_ptr<std::vector<Matrix<Number>>> out_layer_outputs = {}) {
+    cl::Device device = SelectDevice();
+    CompileEvaluateKernelsIfRequired(device);
+
     cl::Context& context = std::get<0>(evaluate_kernels_.compilation_units);
     cl::Program& program = std::get<1>(evaluate_kernels_.compilation_units);
 
@@ -309,7 +323,6 @@ class Nnet {
     cl::Buffer outputs;
 
     // TODO Load invalidated layer weights. Skip ones which haven't changed.
-
     for (const Layer& layer : model_.layers) {
       outputs = cl::Buffer(context, CL_MEM_READ_WRITE,
                            layer.GetDimensions().num_outputs * sizeof(Number));
@@ -338,6 +351,16 @@ class Nnet {
       queue.enqueueNDRangeKernel(evaluate, cl::NullRange,
                                  cl::NDRange(layer.GetDimensions().num_outputs),
                                  cl::NullRange);
+
+      if (out_layer_outputs) {
+        Number output_buf[layer.GetDimensions().num_outputs];
+        queue.enqueueReadBuffer(outputs, CL_TRUE, 0, sizeof(output_buf),
+                                output_buf);
+        out_layer_outputs->emplace_back(layer.GetDimensions().num_outputs, 1);
+        for (size_t i = 0; i < layer.GetDimensions().num_outputs; ++i) {
+          out_layer_outputs->back().at(i, 0) = output_buf[i];
+        }
+      }
 
       // inputs = outputs (output of this layer is input for next layer).
       inputs = outputs;
@@ -437,79 +460,80 @@ class Nnet {
     return grad_descent_source;
   }
 
-  void CompileGradientDescentCl() {
-    std::string kernel_source = GenerateTrainingKernelSource();
-    cl::Platform platform = clutil::GetDefaultPlatform();
-    std::vector<cl::Device> devices = clutil::GetPlatformDevices(platform);
-    if (devices.size() == 0) {
-      std::cerr << "No OpenCL Devices on this platform." << std::endl;
-      std::exit(1);
+  void CompileTrainingKernelsIfRequired(cl::Device device) {
+    if (training_kernels_.compiled) {
+      return;
     }
-    grad_descent_kernel_.device = devices[0];
-    grad_descent_kernel_.compiled = true;
-    grad_descent_kernel_.compilation_units =
-        clutil::Compile(grad_descent_kernel_.device, {kernel_source});
+
+    std::cerr << "Generating and compiling OpenCl kernel. This takes a while"
+              << " the first time..." << std::endl;
+    std::vector<std::string> training_kernel_sources;
+    // TODO(sharf): Shouldn't need to pass in dimensions here...
+    // TODO(sharf): const?
+    for (Layer& layer : model_.layers) {
+      training_kernel_sources.push_back(layer.GenerateTrainingKernels());
+    }
+    training_kernels_ = CompileCl(training_kernel_sources, device);
+    std::cerr << "Done!" << std::endl;
   }
 
   void TrainCl(Matrix<Number> in, Matrix<Number> o,
                const LearningParameters& params) {
-    if (!grad_descent_kernel_.compiled) {
-      std::cerr << "Generating and compiling OpenCl kernel. This takes a while"
-                << " the first time..." << std::endl;
-      CompileGradientDescentCl();
-      std::cerr << "Done!" << std::endl;
-    }
-    cl::Context& context = std::get<0>(grad_descent_kernel_.compilation_units);
-    cl::Program& program = std::get<1>(grad_descent_kernel_.compilation_units);
-    cl::Buffer new_weights(context, CL_MEM_READ_WRITE,
-                           generator_.NumberWeights() * sizeof(Number));
-    cl::Buffer old_weights(context, CL_MEM_READ_ONLY,
-                           generator_.NumberWeights() * sizeof(Number));
-    cl::Buffer inputs(context, CL_MEM_READ_ONLY, input_size() * sizeof(Number));
-    cl::Buffer outputs(context, CL_MEM_READ_ONLY,
-                       output_size() * sizeof(Number));
-    cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
-    Number OW[generator_.NumberWeights()];
-    for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
-      OW[i] = static_cast<double>(weights_[generator_.W(i)].real());
-    }
-    Number input[input_size()];
-    for (size_t i = 0; i < input_size(); ++i) {
-      input[i] = in.at(i, 0);
-    }
-    Number output[output_size()];
-    for (size_t i = 0; i < output_size(); ++i) {
-      output[i] = o.at(i, 0);
-    }
+    cl::Device device = SelectDevice();
 
-    // create a queue (a queue of commands that the GPU will execute)
-    cl::CommandQueue queue(context, grad_descent_kernel_.device);
+    CompileTrainingKernelsIfRequired(device);
 
-    queue.enqueueWriteBuffer(inputs, CL_TRUE, 0, sizeof(Number) * input_size(),
-                             input);
-    queue.enqueueWriteBuffer(outputs, CL_TRUE, 0,
-                             sizeof(Number) * output_size(), output);
-    queue.enqueueWriteBuffer(old_weights, CL_TRUE, 0,
-                             sizeof(Number) * generator_.NumberWeights(), OW);
-    queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0, sizeof(Number),
-                             &params.learning_rate);
+    //cl::Context& context = std::get<0>(grad_descent_kernel_.compilation_units);
+    //cl::Program& program = std::get<1>(grad_descent_kernel_.compilation_units);
+    //cl::Buffer new_weights(context, CL_MEM_READ_WRITE,
+    //                       generator_.NumberWeights() * sizeof(Number));
+    //cl::Buffer old_weights(context, CL_MEM_READ_ONLY,
+    //                       generator_.NumberWeights() * sizeof(Number));
+    //cl::Buffer inputs(context, CL_MEM_READ_ONLY, input_size() * sizeof(Number));
+    //cl::Buffer outputs(context, CL_MEM_READ_ONLY,
+    //                   output_size() * sizeof(Number));
+    //cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
+    //Number OW[generator_.NumberWeights()];
+    //for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
+    //  OW[i] = static_cast<double>(weights_[generator_.W(i)].real());
+    //}
+    //Number input[input_size()];
+    //for (size_t i = 0; i < input_size(); ++i) {
+    //  input[i] = in.at(i, 0);
+    //}
+    //Number output[output_size()];
+    //for (size_t i = 0; i < output_size(); ++i) {
+    //  output[i] = o.at(i, 0);
+    //}
 
-    cl::Kernel gradient_descent(program, "weight_delta");
-    gradient_descent.setArg(0, inputs);
-    gradient_descent.setArg(1, old_weights);
-    gradient_descent.setArg(2, outputs);
-    gradient_descent.setArg(3, new_weights);
-    gradient_descent.setArg(4, learning_rate_buff);
-    queue.enqueueNDRangeKernel(gradient_descent, cl::NullRange,
-                               cl::NDRange(generator_.NumberWeights()),
-                               cl::NullRange);
+    //// create a queue (a queue of commands that the GPU will execute)
+    //cl::CommandQueue queue(context, grad_descent_kernel_.device);
 
-    Number NW[generator_.NumberWeights()];
-    queue.enqueueReadBuffer(new_weights, CL_TRUE, 0,
-                            sizeof(Number) * generator_.NumberWeights(), NW);
-    for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
-      weights_[generator_.W(i)].real() = NW[i];
-    }
+    //queue.enqueueWriteBuffer(inputs, CL_TRUE, 0, sizeof(Number) * input_size(),
+    //                         input);
+    //queue.enqueueWriteBuffer(outputs, CL_TRUE, 0,
+    //                         sizeof(Number) * output_size(), output);
+    //queue.enqueueWriteBuffer(old_weights, CL_TRUE, 0,
+    //                         sizeof(Number) * generator_.NumberWeights(), OW);
+    //queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0, sizeof(Number),
+    //                         &params.learning_rate);
+
+    //cl::Kernel gradient_descent(program, "weight_delta");
+    //gradient_descent.setArg(0, inputs);
+    //gradient_descent.setArg(1, old_weights);
+    //gradient_descent.setArg(2, outputs);
+    //gradient_descent.setArg(3, new_weights);
+    //gradient_descent.setArg(4, learning_rate_buff);
+    //queue.enqueueNDRangeKernel(gradient_descent, cl::NullRange,
+    //                           cl::NDRange(generator_.NumberWeights()),
+    //                           cl::NullRange);
+
+    //Number NW[generator_.NumberWeights()];
+    //queue.enqueueReadBuffer(new_weights, CL_TRUE, 0,
+    //                        sizeof(Number) * generator_.NumberWeights(), NW);
+    //for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
+    //  weights_[generator_.W(i)].real() = NW[i];
+    //}
   }
 
   symbolic::Expression GetErrorExpression() const {
@@ -569,6 +593,8 @@ class Nnet {
   // The entire neural network is stored symbolically in a column vector of
   // type symbolic::Expression. To get your outputs, simply call Bind() on all
   // expressions in the column vector with weights_ and inputs.
+  // Allllso this is super inefficient. EvaluateCl and TrainCl both make use of
+  // the GPU and precompile these expressions to be efficient.
   Matrix<symbolic::Expression> neural_network_;  // Dim(output_size(), 1).
 
   FlatWeightSymbolGenerator generator_;
@@ -587,14 +613,12 @@ class Nnet {
     OpenClState evaluate_kernel;
     evaluate_kernel.device = device;
     evaluate_kernel.compiled = true;
-    evaluate_kernel.compilation_units =
-        clutil::Compile(device, kernel_source);
+    evaluate_kernel.compilation_units = clutil::Compile(device, kernel_source);
     return evaluate_kernel;
   }
 
   OpenClState evaluate_kernels_;
-  // DEPRECATED -- do not use just yet...
-  OpenClState grad_descent_kernel_;
+  OpenClState training_kernels_;
   std::vector<OpenClState> layer_backprop_kernels_;
 };
 

@@ -48,9 +48,15 @@ int main() {
   for (size_t i = 0; i < 1000; ++i) {
     double pointx = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
     double pointy = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
-    double output =
+    double output_cpu =
+        test_net.Evaluate(Matrix<nnet::Number>{{pointx}, {pointy}}).at(0, 0);
+    double output_cl =
         test_net.EvaluateCl(Matrix<nnet::Number>{{pointx}, {pointy}}).at(0, 0);
-    std::cout << "((" << pointx << "," << pointy << ")," << output << ")"
+    if (abs(output_cpu - output_cl) > 0.000001) {
+      std::cerr << "Error, CPU/GPU output mismatch." << std::endl;
+      std::exit(1);
+    }
+    std::cout << "((" << pointx << "," << pointy << ")," << output_cpu << ")"
               << std::endl;
   }
 

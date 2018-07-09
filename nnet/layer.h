@@ -82,8 +82,7 @@ class Layer {
 
   // This function returns the source code of an OpenCL kernel which evaluates
   // the output of this layer, given the input.
-  std::string GenerateEvaluationKernel(
-      const Matrix<symbolic::Expression>& input);
+  std::string GenerateEvaluationKernel();
 
   std::string EvaluateKernelName() const {
     return "evaluate_" + std::to_string(impl_->layer_index());
@@ -92,7 +91,15 @@ class Layer {
   // This function returns the source code of two OpenCL kernels which calculate
   // the weight update (via gradient descent) and the backpropagated weights for
   // the next layer backwards.
-  std::string GenerateTrainingKernels() const;
+  std::string GenerateTrainingKernels();
+
+  std::string InputGradientKernelName() const {
+    return "input_delta_"  + std::to_string(impl_->layer_index());
+  }
+
+  std::string WeightGradientKernelName() const {
+    return "weight_delta_" + std::to_string(impl_->layer_index());
+  }
 
   // Tread carefully... If you accidentally assign the wrong symbol generator to
   // a layer, you can end up in really weird hard to debug states.
@@ -100,7 +107,13 @@ class Layer {
     impl_->SetSymbolGenerator(generator);
   }
 
+  SymbolGenerator* symbol_generator() const {
+    return impl_->symbol_generator();
+  }
+
  private:
+  Matrix<symbolic::Expression> InputExpression() const;
+
   std::unique_ptr<LayerImpl> impl_;
 };
 

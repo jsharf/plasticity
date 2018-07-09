@@ -23,6 +23,12 @@ class SymbolGenerator {
 
   virtual std::string I(size_t i) const = 0;
   virtual std::string O(size_t i) const = 0;
+
+  // Residual gradients for back propagation.
+  virtual symbolic::Expression GRADIENT(size_t i) const {
+    return symbolic::Expression("GRADIENT[" + std::to_string(i) + "]");
+  }
+
   virtual ~SymbolGenerator() {}
 };
 
@@ -52,6 +58,10 @@ class LayerImpl {
   // a layer, you can end up in really weird hard to debug states.
   void SetSymbolGenerator(SymbolGenerator* generator) {
     generator_ = generator;
+  }
+
+  SymbolGenerator* symbol_generator() const {
+    return generator_;
   }
 
   virtual ~LayerImpl() {}
