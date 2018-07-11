@@ -40,11 +40,12 @@ Sample ConvertToSample(std::string word) {
 int main() {
   std::cout << "Starting... " << std::endl;
 
-  constexpr int kLayerSize = 4;
+  constexpr int kLayerSize = 3;
   constexpr int kOutputSize = 1;
   constexpr int kInputSize = kSampleSize;
 
   nnet::Nnet::Architecture model(kInputSize);
+  model.AddFeedForwardLayer(kLayerSize);
   model.AddFeedForwardLayer(kLayerSize);
   model.AddFeedForwardLayer(kOutputSize);
   nnet::Nnet test_net(model);

@@ -157,7 +157,7 @@ class Nnet {
     model_.SetSymbolGenerator(&generator_);
 
     // "layer" is at first just a column vector of inputs.
-    Matrix<symbolic::Expression> layer = GenInputLayer(input_size());
+    Matrix<symbolic::Expression> layer = GenerateInputLayer(input_size());
 
     std::cout << "Generating layers..." << std::endl;
     for (size_t layer_idx = 0; layer_idx < model_.layers.size(); ++layer_idx) {
@@ -483,68 +483,148 @@ class Nnet {
 
     CompileTrainingKernelsIfRequired(device);
 
-    //cl::Context& context = std::get<0>(grad_descent_kernel_.compilation_units);
-    //cl::Program& program = std::get<1>(grad_descent_kernel_.compilation_units);
-    //cl::Buffer new_weights(context, CL_MEM_READ_WRITE,
-    //                       generator_.NumberWeights() * sizeof(Number));
-    //cl::Buffer old_weights(context, CL_MEM_READ_ONLY,
-    //                       generator_.NumberWeights() * sizeof(Number));
-    //cl::Buffer inputs(context, CL_MEM_READ_ONLY, input_size() * sizeof(Number));
-    //cl::Buffer outputs(context, CL_MEM_READ_ONLY,
+    cl::Context& context = std::get<0>(training_kernels_.compilation_units);
+    cl::Program& program = std::get<1>(training_kernels_.compilation_units);
+
+    // Create a queue (a queue of commands that the GPU will execute)
+    // Assumes that all kernels compiled for same device.
+    cl::CommandQueue queue(context, device);
+
+    // Forward pass, store each layer's outputs as a column vector in
+    // layer_outputs.
+    std::unique_ptr<std::vector<Matrix<Number>>> layer_outputs;
+    EvaluateCl(in, layer_outputs);
+    Matrix<Number> output = layer_outputs->back();
+    if (std::get<0>(output.size()) != output_size()) {
+      std::cerr << "Invalid size of final layer output provided by EvaluateCl "
+                   "not equal to output_size()"
+                << std::endl;
+      std::exit(1);
+    }
+
+    Matrix<symbolic::Expression> output_symbolic =
+        GenerateOutputLayer(output_size());
+    symbolic::Expression error = GenerateErrorExpression(output_symbolic, o);
+
+    // Simultaneously generate symbolic expressions for output gradients and
+    // build environment for evaluating them.
+    Matrix<symbolic::Expression> output_gradients_symbolic(output_size(), 1);
+    symbolic::Environment env;
+    for (size_t i = 0; i < output_size(); ++i) {
+      output_gradients_symbolic.at(i, 0) =
+          error.Derive(output_symbolic.at(i, 0).to_string());
+
+      env[generator_.O(i)] = output.at(i, 0);
+    }
+
+    // Generate output gradients (first part of backprop).
+    Matrix<Number> gradients = output_gradients_symbolic.Map(
+        std::function<Number(const symbolic::Expression&)>(
+            [](const symbolic::Expression& e) -> Number {
+              symbolic::Expression bound = e.Bind(env);
+              auto value = bound.Evaluate();
+              if (!value) {
+                std::cerr << "Unable to evaluate error gradient expression: "
+                          << std::endl;
+                std::cerr << e.to_string() << std::endl;
+                std::exit(1);
+              }
+              return *value;
+            }));
+
+    // Propagate the gradients backwards.
+    // TODO(sharf): implement this...
+    for (auto layer = model_.layers.rbegin(); layer != model_.layers.rend();
+         layer++) {
+    }
+
+    // cl::Context& context =
+    // std::get<0>(grad_descent_kernel_.compilation_units);
+    // cl::Program& program =
+    // std::get<1>(grad_descent_kernel_.compilation_units);  cl::Buffer
+    // new_weights(context, CL_MEM_READ_WRITE,
+    //                       generator_.NumberWeights() *
+    //                       sizeof(Number));
+    // cl::Buffer old_weights(context, CL_MEM_READ_ONLY,
+    //                       generator_.NumberWeights() *
+    //                       sizeof(Number));
+    // cl::Buffer inputs(context, CL_MEM_READ_ONLY, input_size() *
+    // sizeof(Number));  cl::Buffer outputs(context, CL_MEM_READ_ONLY,
     //                   output_size() * sizeof(Number));
-    //cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
-    //Number OW[generator_.NumberWeights()];
-    //for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
+    // cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY,
+    // sizeof(Number)); Number OW[generator_.NumberWeights()]; for
+    // (size_t i = 0; i < generator_.NumberWeights(); ++i) {
     //  OW[i] = static_cast<double>(weights_[generator_.W(i)].real());
     //}
-    //Number input[input_size()];
-    //for (size_t i = 0; i < input_size(); ++i) {
+    // Number input[input_size()];
+    // for (size_t i = 0; i < input_size(); ++i) {
     //  input[i] = in.at(i, 0);
     //}
-    //Number output[output_size()];
-    //for (size_t i = 0; i < output_size(); ++i) {
+    // Number output[output_size()];
+    // for (size_t i = 0; i < output_size(); ++i) {
     //  output[i] = o.at(i, 0);
     //}
 
     //// create a queue (a queue of commands that the GPU will execute)
-    //cl::CommandQueue queue(context, grad_descent_kernel_.device);
+    // cl::CommandQueue queue(context, grad_descent_kernel_.device);
 
-    //queue.enqueueWriteBuffer(inputs, CL_TRUE, 0, sizeof(Number) * input_size(),
+    // queue.enqueueWriteBuffer(inputs, CL_TRUE, 0, sizeof(Number) *
+    // input_size(),
     //                         input);
-    //queue.enqueueWriteBuffer(outputs, CL_TRUE, 0,
+    // queue.enqueueWriteBuffer(outputs, CL_TRUE, 0,
     //                         sizeof(Number) * output_size(), output);
-    //queue.enqueueWriteBuffer(old_weights, CL_TRUE, 0,
-    //                         sizeof(Number) * generator_.NumberWeights(), OW);
-    //queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0, sizeof(Number),
+    // queue.enqueueWriteBuffer(old_weights, CL_TRUE, 0,
+    //                         sizeof(Number) *
+    //                         generator_.NumberWeights(), OW);
+    // queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0,
+    // sizeof(Number),
     //                         &params.learning_rate);
 
-    //cl::Kernel gradient_descent(program, "weight_delta");
-    //gradient_descent.setArg(0, inputs);
-    //gradient_descent.setArg(1, old_weights);
-    //gradient_descent.setArg(2, outputs);
-    //gradient_descent.setArg(3, new_weights);
-    //gradient_descent.setArg(4, learning_rate_buff);
-    //queue.enqueueNDRangeKernel(gradient_descent, cl::NullRange,
+    // cl::Kernel gradient_descent(program, "weight_delta");
+    // gradient_descent.setArg(0, inputs);
+    // gradient_descent.setArg(1, old_weights);
+    // gradient_descent.setArg(2, outputs);
+    // gradient_descent.setArg(3, new_weights);
+    // gradient_descent.setArg(4, learning_rate_buff);
+    // queue.enqueueNDRangeKernel(gradient_descent, cl::NullRange,
     //                           cl::NDRange(generator_.NumberWeights()),
     //                           cl::NullRange);
 
-    //Number NW[generator_.NumberWeights()];
-    //queue.enqueueReadBuffer(new_weights, CL_TRUE, 0,
-    //                        sizeof(Number) * generator_.NumberWeights(), NW);
-    //for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
+    // Number NW[generator_.NumberWeights()];
+    // queue.enqueueReadBuffer(new_weights, CL_TRUE, 0,
+    //                        sizeof(Number) *
+    //                        generator_.NumberWeights(), NW);
+    // for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
     //  weights_[generator_.W(i)].real() = NW[i];
     //}
   }
 
-  symbolic::Expression GetErrorExpression() const {
+  symbolic::Expression GetErrorExpression(
+      Matrix<symbolic::Expression>& actual,
+      Matrix<symbolic::Expression>& expected) {
+    if (actual.size() != expected.size()) {
+      std::err << "Invalid expression passed to "
+                  "GetErrorExpression(Matrix<symbolic::Expression>, "
+                  "Matrix<symbolic::Expression>)"
+               << std::endl;
+      std::exit(-1);
+    }
+
     symbolic::Expression error;
-    for (size_t out_idx = 0; out_idx < output_size(); ++out_idx) {
+    for (size_t row = 0; row < std::get<0>(actual.size()); ++row) {
       symbolic::Expression output_error =
-          neural_network_.at(out_idx, 0) -
-          symbolic::Expression(generator_.O(out_idx));
+          (expected.at(row, 0) - actual.at(row, 0));
       error = error + (output_error * output_error);
     }
     return error;
+  }
+
+  symbolic::Expression GetErrorExpression() const {
+    Matrix<symbolic::Expression> expected(output_size(), 1);
+    for (size_t out_idx = 0; out_idx < output_size(); ++out_idx) {
+      actual.at(out_idx, 0) = symbolic::Expression(generator_.O(out_idx));
+    }
+    return GetErrorExpression(neural_network_, expected);
   }
 
   Matrix<symbolic::Expression> GetExpression() const { return neural_network_; }
@@ -576,10 +656,18 @@ class Nnet {
     }
   }
 
-  Matrix<symbolic::Expression> GenInputLayer(size_t size) const {
+  Matrix<symbolic::Expression> GenerateInputLayer(size_t size) const {
     Matrix<symbolic::Expression> result(size, 1);
     for (size_t i = 0; i < size; ++i) {
       result.at(i, 0) = symbolic::CreateExpression(generator_.I(i));
+    }
+    return result;
+  }
+
+  Matrix<symbolic::Expression> GenerateOutputLayer(size_t size) const {
+    Matrix<symbolic::Expression> result(size, 1);
+    for (size_t i = 0; i < size; ++i) {
+      result.at(i, 0) = symbolic::CreateExpression(generator_.O(i));
     }
     return result;
   }
