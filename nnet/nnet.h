@@ -263,6 +263,7 @@ class Nnet {
     // TODO(sharf): Shouldn't need to pass in dimensions here...
     // TODO const this.
     for (Layer& layer : model_.layers) {
+      std::cerr << ".";
       eval_kernel_sources.push_back(layer.GenerateEvaluationKernel());
     }
     evaluate_kernels_ = CompileCl(eval_kernel_sources, device);
@@ -498,6 +499,7 @@ class Nnet {
     // TODO(sharf): Shouldn't need to pass in dimensions here...
     // TODO(sharf): const?
     for (Layer& layer : model_.layers) {
+      std::cerr << ".";
       training_kernel_sources.push_back(layer.GenerateTrainingKernels());
     }
     training_kernels_ = CompileCl(training_kernel_sources, device);
