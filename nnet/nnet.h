@@ -300,7 +300,7 @@ class Nnet {
   // Otherwise it will be ignored.
   Matrix<Number> EvaluateCl(
       Matrix<Number> in,
-      std::unique_ptr<std::vector<Matrix<Number>>> out_layer_outputs = {}) {
+      std::unique_ptr<std::vector<Matrix<Number>>>& out_layer_outputs = {}) {
     cl::Device device = SelectDevice();
     CompileEvaluateKernelsIfRequired(device);
 
@@ -330,6 +330,7 @@ class Nnet {
       // Load weights. TODO optimize the shit out of this by not re-loading
       // layers if their weights haven't changed and also caching weights_buf in
       // Layer.
+      // Also, transfer all weights at once outside of this for-loop.
       const size_t number_weights = layer.weights().size();
       Number weights_buf[number_weights];
       cl::Buffer weights(context, CL_MEM_READ_WRITE,
@@ -374,6 +375,27 @@ class Nnet {
       result.at(i, 0) = output_buf[i];
     }
     return result;
+  }
+
+  cl::Buffer ColumnVectorToGpuBuffer(const cl::Context& context,
+                                     cl::CommandQueue* queue,
+                                     Matrix<Number> colvec) {
+    if (std::get<1>(colvec.size()) != 1) {
+      std::cerr << "Matrix passed to ColumnVectorToGpuBuffer() is NOT a column "
+                   "vector, and has "
+                << std::get<1>(colvec.size()) << " columns." << std::endl;
+      std::exit(1);
+    }
+    size_t num_values = std::get<0>(colvec.size());
+    Number value_buf[num_values];
+    cl::Buffer gpu_buffer(context, CL_MEM_READ_WRITE,
+                          num_values * sizeof(Number));
+    for (size_t i = 0; i < num_values; ++i) {
+      value_buf[i] = colvec.at(i, 0);
+    }
+    queue->enqueueWriteBuffer(gpu_buffer, CL_TRUE, 0,
+                              sizeof(Number) * num_values, value_buf);
+    return gpu_buffer;
   }
 
   Matrix<Number> Evaluate(Matrix<Number> in) const {
@@ -493,14 +515,7 @@ class Nnet {
     // Forward pass, store each layer's outputs as a column vector in
     // layer_outputs.
     std::unique_ptr<std::vector<Matrix<Number>>> layer_outputs;
-    EvaluateCl(in, layer_outputs);
-    Matrix<Number> output = layer_outputs->back();
-    if (std::get<0>(output.size()) != output_size()) {
-      std::cerr << "Invalid size of final layer output provided by EvaluateCl "
-                   "not equal to output_size()"
-                << std::endl;
-      std::exit(1);
-    }
+    Matrix<Number> output = EvaluateCl(in, layer_outputs);
 
     Matrix<symbolic::Expression> output_symbolic =
         GenerateOutputLayer(output_size());
@@ -514,13 +529,13 @@ class Nnet {
       output_gradients_symbolic.at(i, 0) =
           error.Derive(output_symbolic.at(i, 0).to_string());
 
-      env[generator_.O(i)] = output.at(i, 0);
+      env[generator_.O(i)] = symbolic::NumericValue(output.at(i, 0));
     }
 
     // Generate output gradients (first part of backprop).
     Matrix<Number> gradients = output_gradients_symbolic.Map(
         std::function<Number(const symbolic::Expression&)>(
-            [](const symbolic::Expression& e) -> Number {
+            [env](const symbolic::Expression& e) -> Number {
               symbolic::Expression bound = e.Bind(env);
               auto value = bound.Evaluate();
               if (!value) {
@@ -529,82 +544,106 @@ class Nnet {
                 std::cerr << e.to_string() << std::endl;
                 std::exit(1);
               }
-              return *value;
+              return value->real();
             }));
 
     // Propagate the gradients backwards.
+    // For each layer, take the current backpropagated gradients (stored in
+    // variable Matrix<Number> gradients) and pass it to the weight gradient
+    // kernel to calculate weight updates. Then pass it to the input gradient
+    // kernel to calculate the gradient for the next layer.
     // TODO(sharf): implement this...
-    for (auto layer = model_.layers.rbegin(); layer != model_.layers.rend();
-         layer++) {
+    for (int i = model_.layers.size() - 1; i >= 0; --i) {
+      auto layer = model_.layers[i];
+      const Matrix<Number>& layer_input =
+          (i > 0) ? layer_outputs->at(i - 1) : in;
+
+      // Load weights. TODO(sharf) optimize the shit out of this by not
+      // re-loading layers if their weights haven't changed and also caching
+      // weights_buf in Layer.
+      // Also, transfer all weights at once outside of this for-loop.
+      const size_t number_weights = layer.weights().size();
+      Number weights_buf[number_weights];
+      cl::Buffer weights(context, CL_MEM_READ_WRITE,
+                         number_weights * sizeof(Number));
+      for (size_t i = 0; i < number_weights; ++i) {
+        weights_buf[i] =
+            static_cast<double>(weights_[layer.weights()[i]].real());
+      }
+      queue.enqueueWriteBuffer(weights, CL_TRUE, 0,
+                               sizeof(Number) * number_weights, weights_buf);
+
+      // Load layer inputs. TODO(sharf) optimize the shit out of this by
+      // keeping them in GPU memory instead of passing them to CPU and then back
+      // to GPU (copied to CPU in EvaluateCL and then back to GPU here).
+      // Also, transfer all inputs at once outside of this for-loop.
+      cl::Buffer gpu_layer_input =
+          ColumnVectorToGpuBuffer(context, &queue, layer_input);
+
+      cl::Buffer gpu_gradients = ColumnVectorToGpuBuffer(gradients);
+
+      cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
+      queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0, sizeof(Number),
+                               &params.learning_rate);
+
+      cl::Buffer gpu_new_weights(context, CL_MEM_READ_WRITE,
+                                 number_weights * sizeof(Number));
+
+      // Backprop layer weight updates.
+      std::string kernel_name = layer.WeightGradientKernelName();
+      cl::Kernel weight_update(program, kernel_name.c_str());
+      weight_update.setArg(0, inputs);
+      weight_update.setArg(1, weights);
+      weight_update.setArg(2, gpu_gradients);
+      weight_update.setArg(3, gpu_new_weights);
+      weight_update.setArg(4, learning_rate_buff);
+      queue.enqueueNDRangeKernel(weight_update, cl::NullRange,
+                                 cl::NDRange(layer.weights().size()),
+                                 cl::NullRange);
+
+      // Load in weight updates.
+      Number new_weights[number_weights];
+      queue.enqueueReadBuffer(gpu_new_weights, CL_TRUE, 0,
+                              sizeof(Number) * number_weights, new_weights);
+      for (size_t i = 0; i < number_weights; ++i) {
+        weights_[layer.weights(i)] = symbolic::NumericValue(new_weights[i]);
+      }
+
+      cl::Buffer new_gpu_gradients(
+          context, CL_MEM_READ_WRITE,
+          sizeof(Number) * layer.GetDimensions().number_inputs);
+
+      // Backprop gradient calculation.
+      std::string kernel_name = layer.InputGradientKernelName();
+      cl::Kernel input_update(program, kernel_name.c_str());
+      input_update.setArg(0, inputs);
+      input_update.setArg(1, weights);
+      input_update.setArg(2, gpu_gradients);
+      input_update.setArg(3, new_gpu_gradients);
+      queue.enqueueNDRangeKernel(input_update, cl::NullRange,
+                                 cl::NDRange(layer.GetDimensions().num_inputs),
+                                 cl::NullRange);
+
+      // Load in new gradients.
+      // TODO(sharf): this loads new gradients back to CPU and then next
+      // iteration puts them in GPU again. This can be optimized...
+      Number new_gradients[layer.GetDimensions().num_inputs];
+      queue.enqueueReadBuffer(gpu_new_gradients, CL_TRUE, 0,
+                              sizeof(Number) * layer.GetDimensions().num_inputs,
+                              new_gradients);
+      gradients = Matrix<Number>(layer.GetDimensions().num_inputs, 1);
+      for (size_t i = 0; i < layer.GetDimensions().num_inputs; ++i) {
+        gradients.at(i, 0) = new_gradients[i];
+      }
     }
-
-    // cl::Context& context =
-    // std::get<0>(grad_descent_kernel_.compilation_units);
-    // cl::Program& program =
-    // std::get<1>(grad_descent_kernel_.compilation_units);  cl::Buffer
-    // new_weights(context, CL_MEM_READ_WRITE,
-    //                       generator_.NumberWeights() *
-    //                       sizeof(Number));
-    // cl::Buffer old_weights(context, CL_MEM_READ_ONLY,
-    //                       generator_.NumberWeights() *
-    //                       sizeof(Number));
-    // cl::Buffer inputs(context, CL_MEM_READ_ONLY, input_size() *
-    // sizeof(Number));  cl::Buffer outputs(context, CL_MEM_READ_ONLY,
-    //                   output_size() * sizeof(Number));
-    // cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY,
-    // sizeof(Number)); Number OW[generator_.NumberWeights()]; for
-    // (size_t i = 0; i < generator_.NumberWeights(); ++i) {
-    //  OW[i] = static_cast<double>(weights_[generator_.W(i)].real());
-    //}
-    // Number input[input_size()];
-    // for (size_t i = 0; i < input_size(); ++i) {
-    //  input[i] = in.at(i, 0);
-    //}
-    // Number output[output_size()];
-    // for (size_t i = 0; i < output_size(); ++i) {
-    //  output[i] = o.at(i, 0);
-    //}
-
-    //// create a queue (a queue of commands that the GPU will execute)
-    // cl::CommandQueue queue(context, grad_descent_kernel_.device);
-
-    // queue.enqueueWriteBuffer(inputs, CL_TRUE, 0, sizeof(Number) *
-    // input_size(),
-    //                         input);
-    // queue.enqueueWriteBuffer(outputs, CL_TRUE, 0,
-    //                         sizeof(Number) * output_size(), output);
-    // queue.enqueueWriteBuffer(old_weights, CL_TRUE, 0,
-    //                         sizeof(Number) *
-    //                         generator_.NumberWeights(), OW);
-    // queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0,
-    // sizeof(Number),
-    //                         &params.learning_rate);
-
-    // cl::Kernel gradient_descent(program, "weight_delta");
-    // gradient_descent.setArg(0, inputs);
-    // gradient_descent.setArg(1, old_weights);
-    // gradient_descent.setArg(2, outputs);
-    // gradient_descent.setArg(3, new_weights);
-    // gradient_descent.setArg(4, learning_rate_buff);
-    // queue.enqueueNDRangeKernel(gradient_descent, cl::NullRange,
-    //                           cl::NDRange(generator_.NumberWeights()),
-    //                           cl::NullRange);
-
-    // Number NW[generator_.NumberWeights()];
-    // queue.enqueueReadBuffer(new_weights, CL_TRUE, 0,
-    //                        sizeof(Number) *
-    //                        generator_.NumberWeights(), NW);
-    // for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
-    //  weights_[generator_.W(i)].real() = NW[i];
-    //}
   }
 
-  symbolic::Expression GetErrorExpression(
+  symbolic::Expression GenerateErrorExpression(
       Matrix<symbolic::Expression>& actual,
       Matrix<symbolic::Expression>& expected) {
     if (actual.size() != expected.size()) {
       std::err << "Invalid expression passed to "
-                  "GetErrorExpression(Matrix<symbolic::Expression>, "
+                  "GenerateErrorExpression(Matrix<symbolic::Expression>, "
                   "Matrix<symbolic::Expression>)"
                << std::endl;
       std::exit(-1);
@@ -624,7 +663,7 @@ class Nnet {
     for (size_t out_idx = 0; out_idx < output_size(); ++out_idx) {
       actual.at(out_idx, 0) = symbolic::Expression(generator_.O(out_idx));
     }
-    return GetErrorExpression(neural_network_, expected);
+    return GenerateErrorExpression(neural_network_, expected);
   }
 
   Matrix<symbolic::Expression> GetExpression() const { return neural_network_; }
