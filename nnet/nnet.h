@@ -295,12 +295,17 @@ class Nnet {
     return devices[0];
   }
 
+  Matrix<Number> EvaluateCl(Matrix<Number> in) {
+    std::unique_ptr<std::vector<Matrix<Number>>> _(nullptr);
+    return EvaluateCl(in, _);
+  }
+
   // (*out_layer_outputs)[i] is a column vector containing the outputs of layer
   // i. Layer outputs will only be saved if out_layer_outputs is non-null.
   // Otherwise it will be ignored.
   Matrix<Number> EvaluateCl(
       Matrix<Number> in,
-      std::unique_ptr<std::vector<Matrix<Number>>>& out_layer_outputs = {}) {
+      std::unique_ptr<std::vector<Matrix<Number>>>& out_layer_outputs) {
     cl::Device device = SelectDevice();
     CompileEvaluateKernelsIfRequired(device);
 
@@ -380,13 +385,13 @@ class Nnet {
   cl::Buffer ColumnVectorToGpuBuffer(const cl::Context& context,
                                      cl::CommandQueue* queue,
                                      Matrix<Number> colvec) {
-    if (std::get<1>(colvec.size()) != 1) {
+    if (colvec.dimensions().cols != 1) {
       std::cerr << "Matrix passed to ColumnVectorToGpuBuffer() is NOT a column "
                    "vector, and has "
-                << std::get<1>(colvec.size()) << " columns." << std::endl;
+                << colvec.dimensions().cols << " columns." << std::endl;
       std::exit(1);
     }
-    size_t num_values = std::get<0>(colvec.size());
+    size_t num_values = colvec.dimensions().rows;
     Number value_buf[num_values];
     cl::Buffer gpu_buffer(context, CL_MEM_READ_WRITE,
                           num_values * sizeof(Number));
@@ -519,7 +524,12 @@ class Nnet {
 
     Matrix<symbolic::Expression> output_symbolic =
         GenerateOutputLayer(output_size());
-    symbolic::Expression error = GenerateErrorExpression(output_symbolic, o);
+    Matrix<symbolic::Expression> o_symbolic(o.dimensions().rows, 1);
+    for (size_t i = 0; i < o.dimensions().rows; ++i) {
+      o_symbolic.at(i, 0) = symbolic::Expression(o.at(i, 0));
+    }
+    symbolic::Expression error =
+        GenerateErrorExpression(output_symbolic, o_symbolic);
 
     // Simultaneously generate symbolic expressions for output gradients and
     // build environment for evaluating them.
@@ -580,7 +590,8 @@ class Nnet {
       cl::Buffer gpu_layer_input =
           ColumnVectorToGpuBuffer(context, &queue, layer_input);
 
-      cl::Buffer gpu_gradients = ColumnVectorToGpuBuffer(gradients);
+      cl::Buffer gpu_gradients =
+          ColumnVectorToGpuBuffer(context, &queue, gradients);
 
       cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
       queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0, sizeof(Number),
@@ -590,9 +601,9 @@ class Nnet {
                                  number_weights * sizeof(Number));
 
       // Backprop layer weight updates.
-      std::string kernel_name = layer.WeightGradientKernelName();
-      cl::Kernel weight_update(program, kernel_name.c_str());
-      weight_update.setArg(0, inputs);
+      std::string weight_kernel_name = layer.WeightGradientKernelName();
+      cl::Kernel weight_update(program, weight_kernel_name.c_str());
+      weight_update.setArg(0, gpu_layer_input);
       weight_update.setArg(1, weights);
       weight_update.setArg(2, gpu_gradients);
       weight_update.setArg(3, gpu_new_weights);
@@ -606,20 +617,20 @@ class Nnet {
       queue.enqueueReadBuffer(gpu_new_weights, CL_TRUE, 0,
                               sizeof(Number) * number_weights, new_weights);
       for (size_t i = 0; i < number_weights; ++i) {
-        weights_[layer.weights(i)] = symbolic::NumericValue(new_weights[i]);
+        weights_[layer.weights()[i]] = symbolic::NumericValue(new_weights[i]);
       }
 
-      cl::Buffer new_gpu_gradients(
+      cl::Buffer gpu_new_gradients(
           context, CL_MEM_READ_WRITE,
-          sizeof(Number) * layer.GetDimensions().number_inputs);
+          sizeof(Number) * layer.GetDimensions().num_inputs);
 
       // Backprop gradient calculation.
-      std::string kernel_name = layer.InputGradientKernelName();
-      cl::Kernel input_update(program, kernel_name.c_str());
-      input_update.setArg(0, inputs);
+      std::string input_kernel_name = layer.InputGradientKernelName();
+      cl::Kernel input_update(program, input_kernel_name.c_str());
+      input_update.setArg(0, gpu_layer_input);
       input_update.setArg(1, weights);
       input_update.setArg(2, gpu_gradients);
-      input_update.setArg(3, new_gpu_gradients);
+      input_update.setArg(3, gpu_new_gradients);
       queue.enqueueNDRangeKernel(input_update, cl::NullRange,
                                  cl::NDRange(layer.GetDimensions().num_inputs),
                                  cl::NullRange);
@@ -639,18 +650,18 @@ class Nnet {
   }
 
   symbolic::Expression GenerateErrorExpression(
-      Matrix<symbolic::Expression>& actual,
-      Matrix<symbolic::Expression>& expected) {
+      const Matrix<symbolic::Expression>& actual,
+      const Matrix<symbolic::Expression>& expected) const {
     if (actual.size() != expected.size()) {
-      std::err << "Invalid expression passed to "
-                  "GenerateErrorExpression(Matrix<symbolic::Expression>, "
-                  "Matrix<symbolic::Expression>)"
-               << std::endl;
+      std::cerr << "Invalid expression passed to "
+                   "GenerateErrorExpression(Matrix<symbolic::Expression>, "
+                   "Matrix<symbolic::Expression>)"
+                << std::endl;
       std::exit(-1);
     }
 
     symbolic::Expression error;
-    for (size_t row = 0; row < std::get<0>(actual.size()); ++row) {
+    for (size_t row = 0; row < actual.dimensions().rows; ++row) {
       symbolic::Expression output_error =
           (expected.at(row, 0) - actual.at(row, 0));
       error = error + (output_error * output_error);
@@ -661,7 +672,7 @@ class Nnet {
   symbolic::Expression GetErrorExpression() const {
     Matrix<symbolic::Expression> expected(output_size(), 1);
     for (size_t out_idx = 0; out_idx < output_size(); ++out_idx) {
-      actual.at(out_idx, 0) = symbolic::Expression(generator_.O(out_idx));
+      expected.at(out_idx, 0) = symbolic::Expression(generator_.O(out_idx));
     }
     return GenerateErrorExpression(neural_network_, expected);
   }

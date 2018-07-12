@@ -148,7 +148,7 @@ std::string Layer::GenerateEvaluationKernel() {
 
 std::string Layer::GenerateTrainingKernels() {
   std::string train_source =
-      FileToString("math/nnet/kernes/back_prop.kernel.cl");
+      FileToString("math/nnet/kernels/back_prop.kernel.cl");
 
   Matrix<symbolic::Expression> input = InputExpression();
 
@@ -165,11 +165,11 @@ std::string Layer::GenerateTrainingKernels() {
     std::exit(1);
   }
 
-  Matrix<symbolic::Expression> bp_gradients(1,
-                                            impl_->GetDimensions().num_outputs);
-  for (size_t output_num = 0; output_num < std::get<1>(bp_gradients.size());
+  Matrix<symbolic::Expression> bp_gradients(impl_->GetDimensions().num_outputs,
+                                            1);
+  for (size_t output_num = 0; output_num < std::get<0>(bp_gradients.size());
        ++output_num) {
-    bp_gradients.at(0, output_num) =
+    bp_gradients.at(output_num, 0) =
         symbolic::Expression(impl_->symbol_generator()->GRADIENT(output_num));
   }
 
@@ -230,14 +230,14 @@ std::string Layer::GenerateTrainingKernels() {
 
   if (!FindAndReplace(&train_source, "INPUT_GRADIENTS_HERE",
                       input_gradients.str())) {
-    std::cerr << "Could not find template substring \"EXPRESSION_HERE\"."
+    std::cerr << "Could not find template substring \"INPUT_GRADIENTS_HERE\"."
               << std::endl;
     std::exit(1);
   }
 
   if (!FindAndReplace(&train_source, "WEIGHT_GRADIENTS_HERE",
                       weight_gradients.str())) {
-    std::cerr << "Could not find template substring \"EXPRESSION_HERE\"."
+    std::cerr << "Could not find template substring \"WEIGHT_GRADIENTS_HERE\"."
               << std::endl;
     std::exit(1);
   }
@@ -269,4 +269,3 @@ Matrix<symbolic::Expression> Layer::InputExpression() const {
 }
 
 }  // namespace nnet
-

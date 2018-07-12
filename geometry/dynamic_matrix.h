@@ -13,6 +13,11 @@ using std::string;
 template <typename T>
 class Matrix {
  public:
+  struct Dimensions {
+    size_t rows;
+    size_t cols;
+  };
+
   Matrix(std::initializer_list<std::initializer_list<T>> values) {
     size_t i = 0;
     size_t j = 0;
@@ -37,6 +42,10 @@ class Matrix {
     resize(rows, cols);
   }
 
+  Matrix(Dimensions d) {
+    resize(d);
+  }
+
   Matrix(const Matrix<T>& other) : data_(other.data_) {}
 
   explicit Matrix(size_t rows, size_t cols, T value) {
@@ -46,6 +55,10 @@ class Matrix {
         at(i, j) = value;
       }
     }
+  }
+
+  Dimensions dimensions() const {
+    return Dimensions{data_.size(), data_[0].size()};
   }
 
   // <rows, columns> or <height, width>
@@ -58,6 +71,10 @@ class Matrix {
     for (size_t i = 0; i < rows; ++i) {
       data_[i].resize(cols);
     }
+  }
+
+  void resize(Dimensions d) {
+    resize(d.rows, d.cols);
   }
 
   static constexpr Matrix<T> Eye(size_t rows, size_t cols) {
