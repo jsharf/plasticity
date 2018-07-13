@@ -191,8 +191,8 @@ int main() {
 
   std::cout << std::endl;
 
-  std::cout << "Output expression:" << std::endl;
-  std::cout << test_net.to_string() << std::endl;
+  std::cout << "Network Weights: " << std::endl;
+  std::cout << test_net.WeightsToString() << std::endl;
 
   std::cout << std::endl;
   return 0;

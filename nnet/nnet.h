@@ -521,7 +521,8 @@ class Nnet {
 
     // Forward pass, store each layer's outputs as a column vector in
     // layer_outputs.
-    std::unique_ptr<std::vector<Matrix<Number>>> layer_outputs;
+    std::unique_ptr<std::vector<Matrix<Number>>> layer_outputs =
+        std::make_unique < std::vector<Matrix<Number>>>();
     Matrix<Number> output = EvaluateCl(in, layer_outputs);
 
     Matrix<symbolic::Expression> output_symbolic =
