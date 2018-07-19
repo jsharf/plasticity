@@ -26,7 +26,7 @@ std::experimental::optional<NumericValue> NumericValue::TryEvaluate() const {
 }
 
 // Returns the symbolic partial derivative of this expression.
-std::shared_ptr<ExpressionNode> NumericValue::Derive(
+std::shared_ptr<const ExpressionNode> NumericValue::Derive(
     const std::string& x) const {
   if (!is_bound_ && (name_ == x)) {
     return std::make_shared<NumericValue>(1);

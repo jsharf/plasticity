@@ -32,7 +32,7 @@ class NumericValue : public ExpressionNode {
   std::experimental::optional<NumericValue> TryEvaluate() const override;
 
   // Returns the symbolic partial derivative of this expression.
-  std::shared_ptr<ExpressionNode> Derive(const std::string& x) const override;
+  std::shared_ptr<const ExpressionNode> Derive(const std::string& x) const override;
 
   std::string to_string() const override;
 

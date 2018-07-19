@@ -16,9 +16,8 @@ Expression Sigmoid(const Expression& a) {
 
 Expression Relu(const Expression& a) {
   return Expression(std::make_shared<IfExpression>(
-      std::make_shared<GteExpression>(a.GetPointer(),
-                                      CreateExpression("0").GetPointer()),
-      a.GetPointer(), CreateExpression("0").GetPointer()));
+      Expression(std::make_shared<GteExpression>(a, CreateExpression("0"))), a,
+      CreateExpression("0")));
 }
 
 Expression Identity(const Expression& a) { return a; }
@@ -46,12 +45,11 @@ Expression maxexpr(Expression a, std::vector<Expression> exprs) {
     std::exit(1);
   }
   std::shared_ptr<const ExpressionNode> condexpr =
-      std::make_shared<const GteExpression>(a.GetPointer(),
-                                            exprs[0].GetPointer());
+      std::make_shared<const GteExpression>(a, exprs[0]);
   for (size_t i = 1; i < exprs.size(); ++i) {
     condexpr = std::make_shared<const AndExpression>(
-        std::move(condexpr), std::make_shared<const GteExpression>(
-                                 a.GetPointer(), exprs[i].GetPointer()));
+        condexpr,
+        Expression(std::make_shared<const GteExpression>(a, exprs[i])));
   }
   return Expression(std::move(condexpr));
 }

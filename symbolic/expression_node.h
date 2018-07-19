@@ -25,7 +25,7 @@ class ExpressionNode {
   virtual std::experimental::optional<NumericValue> TryEvaluate() const = 0;
 
   // Returns the symbolic partial derivative of this expression.
-  virtual std::shared_ptr<ExpressionNode> Derive(
+  virtual std::shared_ptr<const ExpressionNode> Derive(
       const std::string& x) const = 0;
 
   virtual std::string to_string() const = 0;
