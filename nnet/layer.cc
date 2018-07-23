@@ -68,12 +68,25 @@ Layer Layer::MakeSoftmaxLayer(size_t layer_index, size_t size,
 
 Layer::WeightArray Layer::weights() const { return impl_->weights(); }
 
-Matrix<symbolic::Expression> Layer::GenerateExpression(
-    const Matrix<symbolic::Expression>& input) {
+Matrix<symbolic::Expression> Layer::GenerateExpression() {
+  Matrix<symbolic::Expression> input = InputExpression();
   return impl_->GenerateExpression(input);
 }
 
-stats::Normal Layer::XavierInitializer() { return impl_->XavierInitializer(); }
+stats::Normal Layer::XavierInitializer() const {
+  return impl_->XavierInitializer();
+}
+
+void Layer::XavierInitializeWeights() {
+  if (weights().size() == 0) {
+    return;
+  }
+
+  stats::Normal X = XavierInitializer();
+  for (const std::string& weight : weights()) {
+    env()[weight].real() = X.sample();
+  }
+}
 
 namespace {
 
@@ -113,7 +126,7 @@ std::string Layer::GenerateEvaluationKernel() {
     std::exit(1);
   }
 
-  Matrix<symbolic::Expression> output_expressions = GenerateExpression(input);
+  Matrix<symbolic::Expression> output_expressions = GenerateExpression();
 
   std::stringstream outputs;
   for (size_t i = 0; i < GetDimensions().num_outputs; ++i) {
@@ -146,36 +159,36 @@ std::string Layer::GenerateEvaluationKernel() {
   return evaluate_source;
 }
 
-std::string Layer::GenerateTrainingKernels() {
-  std::string train_source =
-      FileToString("math/nnet/kernels/back_prop.kernel.cl");
-
-  Matrix<symbolic::Expression> input = InputExpression();
-
-  Matrix<symbolic::Expression> output_expressions = GenerateExpression(input);
-
-  size_t rows = std::get<0>(input.size());
-  size_t cols = std::get<1>(input.size());
-
-  // Validate input dimensions.
-  if ((rows != impl_->GetDimensions().num_inputs) || (cols != 1)) {
-    std::cerr << "Error: Layer::GenerateTrainingKernels() called on input "
-                 "of incorrect size: "
-              << "(" << rows << ", " << cols << ")" << std::endl;
-    std::exit(1);
+std::string Layer::WeightsToString() const {
+  std::stringstream output;
+  output << "layer_" << impl_->layer_index() << ": {" << std::endl;
+  for (const auto& kv : env_) {
+    output << kv.first << ":" << kv.second.to_string() << "," << std::endl;
   }
+  output << "}" << std::endl;
+  return output.str();
+}
 
+Matrix<symbolic::Expression> Layer::BackpropGradients() const {
   Matrix<symbolic::Expression> bp_gradients(impl_->GetDimensions().num_outputs,
                                             1);
-  for (size_t output_num = 0; output_num < std::get<0>(bp_gradients.size());
+  for (size_t output_num = 0; output_num < bp_gradients.dimensions().rows;
        ++output_num) {
     bp_gradients.at(output_num, 0) =
         symbolic::Expression(impl_->symbol_generator()->GRADIENT(output_num));
   }
+  return bp_gradients;
+}
 
-  Matrix<symbolic::Expression> input_gradient_expressions(rows, 1);
+Matrix<symbolic::Expression> Layer::InputGradients() {
+  Matrix<symbolic::Expression> input = InputExpression();
+  Matrix<symbolic::Expression> output_expressions = GenerateExpression();
+  Matrix<symbolic::Expression> bp_gradients = BackpropGradients();
+
+  size_t rows = std::get<0>(input.size());
 
   // For each input... calculate the propagated differential expression.
+  Matrix<symbolic::Expression> input_gradient_expressions(rows, 1);
   for (size_t i = 0; i < rows; ++i) {
     Matrix<symbolic::Expression> output_deriv_expressions =
         output_expressions.Map(
@@ -186,21 +199,20 @@ std::string Layer::GenerateTrainingKernels() {
                 }));
     Matrix<symbolic::Expression> input_gradient_expression =
         bp_gradients.Transpose() * output_deriv_expressions;
-    if ((std::get<0>(input_gradient_expression.size()) != 1) ||
-        (std::get<1>(input_gradient_expression.size()) != 1)) {
+    if ((input_gradient_expression.dimensions().rows != 1) ||
+        (input_gradient_expression.dimensions().cols != 1)) {
       std::cerr << "Error: invalid dimension of result mat mult." << std::endl;
       std::exit(1);
     }
     input_gradient_expressions.at(i, 0) = input_gradient_expression.at(0, 0);
   }
+  return input_gradient_expressions;
+}
 
-  std::stringstream input_gradients;
-  for (size_t i = 0; i < GetDimensions().num_inputs; ++i) {
-    input_gradients << "case " << i << ":" << std::endl;
-    input_gradients << "  return ("
-                    << input_gradient_expressions.at(i, 0).to_string() << ");"
-                    << std::endl;
-  }
+Matrix<symbolic::Expression> Layer::WeightGradients() {
+  Matrix<symbolic::Expression> input = InputExpression();
+  Matrix<symbolic::Expression> output_expressions = GenerateExpression();
+  Matrix<symbolic::Expression> bp_gradients = BackpropGradients();
 
   Matrix<symbolic::Expression> weight_gradient_expressions(weights().size(), 1);
   for (size_t i = 0; i < weights().size(); ++i) {
@@ -219,6 +231,24 @@ std::string Layer::GenerateTrainingKernels() {
     }
     weight_gradient_expressions.at(i, 0) = weight_gradient_expression.at(0, 0);
   }
+  return weight_gradient_expressions;
+}
+
+std::string Layer::GenerateTrainingKernels() {
+  std::string train_source =
+      FileToString("math/nnet/kernels/back_prop.kernel.cl");
+
+  Matrix<symbolic::Expression> input_gradient_expressions = InputGradients();
+
+  std::stringstream input_gradients;
+  for (size_t i = 0; i < GetDimensions().num_inputs; ++i) {
+    input_gradients << "case " << i << ":" << std::endl;
+    input_gradients << "  return ("
+                    << input_gradient_expressions.at(i, 0).to_string() << ");"
+                    << std::endl;
+  }
+
+  Matrix<symbolic::Expression> weight_gradient_expressions = WeightGradients();
 
   std::stringstream weight_gradients;
   for (size_t i = 0; i < weights().size(); ++i) {
@@ -264,6 +294,15 @@ Matrix<symbolic::Expression> Layer::InputExpression() const {
   Matrix<symbolic::Expression> result(num_inputs, 1);
   for (size_t i = 0; i < num_inputs; ++i) {
     result.at(i, 0) = symbolic::CreateExpression(symbol_generator()->I(i));
+  }
+  return result;
+}
+
+Matrix<symbolic::Expression> Layer::OutputExpression() const {
+  const size_t num_outputs = GetDimensions().num_outputs;
+  Matrix<symbolic::Expression> result(num_outputs, 1);
+  for (size_t i = 0; i < num_outputs; ++i) {
+    result.at(i, 0) = symbolic::CreateExpression(symbol_generator()->O(i));
   }
   return result;
 }

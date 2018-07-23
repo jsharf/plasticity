@@ -44,9 +44,24 @@ cc_library(
       "--std=c++1z",
     ],
     deps = [
+        ":symbol_generator",
         "//math/geometry:dynamic_matrix",
         "//math/symbolic:symbolic",
         "//math/symbolic:symbolic_util",
+        "//math/stats:normal",
+    ],
+)
+
+cc_library(
+    name = "symbol_generator",
+    visibility = ["//math"],
+    hdrs = ["symbol_generator.h"],
+    copts = [
+      "--std=c++1z",
+    ],
+    deps = [
+        "//math/geometry:dynamic_matrix",
+        "//math/symbolic:symbolic",
         "//math/stats:normal",
     ],
 )
@@ -111,6 +126,7 @@ cc_library(
     ],
     deps = [
         ":layer_impl",
+        ":symbol_generator",
         "//math/geometry:dynamic_matrix",
         "//math/symbolic:symbolic",
         "//math/symbolic:symbolic_util",

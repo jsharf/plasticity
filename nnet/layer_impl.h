@@ -2,6 +2,7 @@
 #define LAYER_IMPL_H
 
 #include "math/geometry/dynamic_matrix.h"
+#include "math/nnet/symbol_generator.h"
 #include "math/stats/normal.h"
 #include "math/symbolic/expression.h"
 #include "math/symbolic/symbolic_util.h"
@@ -10,27 +11,6 @@ namespace nnet {
 
 // Adds a bias input to the end of a column vector.
 Matrix<symbolic::Expression> AddBias(Matrix<symbolic::Expression> x);
-
-class SymbolGenerator {
- public:
-  // Feed-forward layer weights.
-  virtual std::string W(size_t layer, size_t node, size_t edge) = 0;
-  // Convolution layer weights.
-  virtual std::string W(size_t layer, size_t filter, size_t x, size_t y,
-                        size_t z) = 0;
-  // Convolution layer bias weights.
-  virtual std::string W(size_t layer, size_t filter) = 0;
-
-  virtual std::string I(size_t i) const = 0;
-  virtual std::string O(size_t i) const = 0;
-
-  // Residual gradients for back propagation.
-  virtual symbolic::Expression GRADIENT(size_t i) const {
-    return symbolic::Expression("GRADIENT[" + std::to_string(i) + "]");
-  }
-
-  virtual ~SymbolGenerator() {}
-};
 
 class LayerImpl {
  public:
@@ -60,9 +40,7 @@ class LayerImpl {
     generator_ = generator;
   }
 
-  SymbolGenerator* symbol_generator() const {
-    return generator_;
-  }
+  SymbolGenerator* symbol_generator() const { return generator_; }
 
   virtual ~LayerImpl() {}
 

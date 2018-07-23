@@ -52,9 +52,13 @@ int main() {
         test_net.Evaluate(Matrix<nnet::Number>{{pointx}, {pointy}}).at(0, 0);
     double output_cl =
         test_net.EvaluateCl(Matrix<nnet::Number>{{pointx}, {pointy}}).at(0, 0);
+    std::cerr << output_cpu << std::endl;
     if (abs(output_cpu - output_cl) > 0.000001) {
       std::cerr << "Error, CPU/GPU output mismatch." << std::endl;
-      std::exit(1);
+      std::cerr << "CPU: " << output_cpu << std::endl;
+      std::cerr << "GPU: " << output_cl << std::endl;
+      std::cerr << "Input: " << "(" << pointx << "," << pointy << ")" << std::endl;
+      std::cerr << "Weights: " << test_net.WeightsToString() << std::endl;
     }
     std::cout << "((" << pointx << "," << pointy << ")," << output_cpu << ")"
               << std::endl;

@@ -3,6 +3,7 @@
 #include "clutil/util.h"
 #include "math/geometry/dynamic_matrix.h"
 #include "math/nnet/layer.h"
+#include "math/nnet/symbol_generator.h"
 #include "math/stats/normal.h"
 #include "math/symbolic/expression.h"
 #include "math/symbolic/symbolic_util.h"
@@ -154,103 +155,8 @@ class Nnet {
       std::exit(1);
     }
 
-    model_.SetSymbolGenerator(&generator_);
-
-    // "layer" is at first just a column vector of inputs.
-    Matrix<symbolic::Expression> layer = GenerateInputLayer(input_size());
-
-    std::cout << "Generating layers..." << std::endl;
-    for (size_t layer_idx = 0; layer_idx < model_.layers.size(); ++layer_idx) {
-      std::cout << "layers: " << layer_idx << std::endl;
-      layer = model_.layers[layer_idx].GenerateExpression(layer);
-    }
-
-    // After processing all the layers, we are left with a column vector of
-    // symbolic expressions. Each expression in the vector describes
-    // (mathematically) the value of the output of the network W.R.T the inputs.
-    neural_network_ = layer;
-
     CalculateInitialWeights();
   }
-
-  // This class generates symbol names for neural network values. Since these
-  // will be used for codegen for opencl, the symbols are all one-dimensional
-  // indices into arrays.
-  class FlatWeightSymbolGenerator : public SymbolGenerator {
-   public:
-    // Feed-forward layer weights.
-    virtual std::string W(size_t layer, size_t node, size_t edge) {
-      auto tuple = std::make_tuple(layer, node, edge);
-      if (ff_weight_index_.count(tuple) == 0) {
-        ff_weight_index_[tuple] = weight_count_;
-        ff_rev_weight_index_[weight_count_] = tuple;
-        weight_count_++;
-      }
-      return "W[" + std::to_string(ff_weight_index_[tuple]) + "]";
-    }
-
-    // Convolution layer weights.
-    virtual std::string W(size_t layer, size_t filter, size_t x, size_t y,
-                          size_t z) {
-      auto tuple = std::make_tuple(layer, filter, x, y, z);
-      if (conv_weight_index_.count(tuple) == 0) {
-        conv_weight_index_[tuple] = weight_count_;
-        conv_rev_weight_index_[weight_count_] = tuple;
-        weight_count_++;
-      }
-      return "W[" + std::to_string(conv_weight_index_[tuple]) + "]";
-    }
-
-    // Convolution layer bias weights.
-    virtual std::string W(size_t layer, size_t filter) {
-      auto tuple = std::make_tuple(layer, filter);
-      if (conv_bias_weight_index_.count(tuple) == 0) {
-        conv_bias_weight_index_[tuple] = weight_count_;
-        conv_bias_rev_weight_index_[weight_count_] = tuple;
-        weight_count_++;
-      }
-      return "W[" + std::to_string(conv_bias_weight_index_[tuple]) + "]";
-    }
-
-    virtual std::string W(size_t i) const {
-      return "W[" + std::to_string(i) + "]";
-    }
-    virtual std::string I(size_t i) const {
-      return "I[" + std::to_string(i) + "]";
-    }
-    virtual std::string O(size_t i) const {
-      return "O[" + std::to_string(i) + "]";
-    }
-
-    // TODO(sharf): delete this commented out code.
-    //// Used to interpret results from opencl call.
-    // std::map<int, std::tuple<int, int, int>> reverse_weight_map() const {
-    //  return rev_weight_index_;
-    //}
-
-    size_t NumberWeights() const { return weight_count_; }
-
-   private:
-    // Mapping from <layer, node, edge> -> int. This lets each weight have a
-    // single unique index.
-    std::map<std::tuple<int, int, int>, int> ff_weight_index_;
-    // Reverse mapping.
-    std::map<int, std::tuple<int, int, int>> ff_rev_weight_index_;
-
-    // Mapping from <layer, filter, x, y, z> -> int. This lets each weight have
-    // a single unique index.
-    std::map<std::tuple<int, int, int, int, int>, int> conv_weight_index_;
-    // Reverse mapping.
-    std::map<int, std::tuple<int, int, int, int, int>> conv_rev_weight_index_;
-
-    // Mapping from <layer, filter> -> int. This lets each weight have a
-    // single unique index.
-    std::map<std::tuple<int, int>, int> conv_bias_weight_index_;
-    // Reverse mapping.
-    std::map<int, std::tuple<int, int>> conv_bias_rev_weight_index_;
-
-    size_t weight_count_ = 0;
-  };
 
   void CompileEvaluateKernelsIfRequired(cl::Device device) {
     if (evaluate_kernels_.compiled &&
@@ -329,7 +235,7 @@ class Nnet {
     cl::Buffer outputs;
 
     // TODO Load invalidated layer weights. Skip ones which haven't changed.
-    for (const Layer& layer : model_.layers) {
+    for (Layer& layer : model_.layers) {
       outputs = cl::Buffer(context, CL_MEM_READ_WRITE,
                            layer.GetDimensions().num_outputs * sizeof(Number));
 
@@ -337,16 +243,20 @@ class Nnet {
       // layers if their weights haven't changed and also caching weights_buf in
       // Layer.
       // Also, transfer all weights at once outside of this for-loop.
+      std::cerr << "DONT FORGET... there is a bug in EvaluateCl() here where "
+                   "generator_ still uses global weight namespace, but only "
+                   "layer weights are loaded into the kernel."
+                << std::endl;
       const size_t number_weights = layer.weights().size();
       Number weights_buf[number_weights];
       cl::Buffer weights(context, CL_MEM_READ_WRITE,
                          layer.weights().size() * sizeof(Number));
       for (size_t i = 0; i < number_weights; ++i) {
         weights_buf[i] =
-            static_cast<double>(weights_[layer.weights()[i]].real());
+            static_cast<double>(layer.env()[layer.weights()[i]].real());
       }
       queue.enqueueWriteBuffer(weights, CL_TRUE, 0,
-                               sizeof(Number) * generator_.NumberWeights(),
+                               sizeof(Number) * layer.weights().size(),
                                weights_buf);
 
       // Evaluate.
@@ -404,88 +314,117 @@ class Nnet {
     return gpu_buffer;
   }
 
-  Matrix<Number> Evaluate(Matrix<Number> in) const {
-    symbolic::Environment env = weights_;
-    for (size_t i = 0; i < input_size(); ++i) {
-      env[generator_.I(i)].real() = in.at(i, 0);
+  Matrix<Number> Evaluate(Matrix<Number> in) {
+    std::unique_ptr<std::vector<Matrix<Number>>> _(nullptr);
+    return Evaluate(in, _);
+  }
+
+  Matrix<Number> Evaluate(
+      Matrix<Number> in,
+      std::unique_ptr<std::vector<Matrix<Number>>>& out_layer_outputs) {
+    Matrix<Number> inputs = in;
+    Matrix<Number> outputs;
+    for (Layer& layer : model_.layers) {
+      symbolic::Environment env = layer.env();
+      for (size_t i = 0; i < inputs.dimensions().rows; ++i) {
+        env[layer.symbol_generator()->I(i)].real() = inputs.at(i, 0);
+      }
+
+      outputs = MapBindAndEvaluate(layer.GenerateExpression(), env);
+      inputs = outputs;
+
+      if (out_layer_outputs) {
+        out_layer_outputs->emplace_back(outputs);
+      }
     }
 
-    std::function<Number(const symbolic::Expression&)> real_evaluator =
-        [&env](const symbolic::Expression& exp) {
-          symbolic::Expression bound_exp = exp.Bind(env);
-          auto maybe_value = bound_exp.Evaluate();
-          if (!maybe_value) {
-            // Shit.
-            std::cerr << "Well, fuck, not sure how this happened" << std::endl;
-          }
-          return maybe_value->real();
-        };
+    return outputs;
+  }
 
-    Matrix<Number> results = neural_network_.Map(real_evaluator);
-
-    return results;
+  // Evaluates a matrix of symbolics given an execution environment and returns
+  // a matrix of real values.
+  static Matrix<Number> MapBindAndEvaluate(
+      Matrix<symbolic::Expression> symbolic, symbolic::Environment env) {
+    // Turns symbolic expressions into real numbers.
+    std::function<Number(const symbolic::Expression& e)> real_evaluator =
+        [&env](const symbolic::Expression& e) -> Number {
+      auto maybe_value = e.Bind(env).Evaluate();
+      if (!maybe_value) {
+        // Shit.
+        std::cerr << "Well, fuck, not sure how this happened" << std::endl;
+        std::exit(1);
+      }
+      return maybe_value->real();
+    };
+    return symbolic.Map(real_evaluator);
   }
 
   // Back propagation
   void Train(Matrix<Number> in, Matrix<Number> o,
              const LearningParameters& params) {
-    symbolic::Environment env = weights_;
-    for (size_t i = 0; i < input_size(); ++i) {
-      env[generator_.I(i)].real() = in.at(i, 0);
-    }
-    symbolic::Environment outputs;
-    for (size_t i = 0; i < output_size(); ++i) {
-      env[generator_.O(i)].real() = o.at(i, 0);
-    }
-
-    symbolic::Expression error = GetErrorExpression();
-
     Number learning_rate = params.learning_rate;
 
-    for (const auto& kv : weights_) {
-      const std::string& weight_name = kv.first;
-      symbolic::NumericValue value = kv.second;
-      symbolic::Expression symbolic_gradient = error.Derive(weight_name);
-      symbolic::Expression gradient = symbolic_gradient.Bind(env);
-      auto gradient_value = gradient.Evaluate();
-      if (!gradient_value) {
-        std::cerr << "Shit" << std::endl;
-        for (const std::string& variable : gradient.variables()) {
-          std::cerr << variable << std::endl;
-        }
-        std::cerr << WeightsToString() << std::endl;
+    // Forward pass, store each layer's outputs as a column vector in
+    // layer_outputs.
+    std::unique_ptr<std::vector<Matrix<Number>>> layer_outputs =
+        std::make_unique<std::vector<Matrix<Number>>>();
+    Matrix<Number> output = Evaluate(in, layer_outputs);
+
+    Matrix<symbolic::Expression> output_symbolic =
+        GenerateOutputLayer(output_size());
+
+    Matrix<symbolic::Expression> expected_symbolic(o.dimensions().rows, 1);
+    for (size_t i = 0; i < o.dimensions().rows; ++i) {
+      expected_symbolic.at(i, 0) = symbolic::Expression(o.at(i, 0));
+    }
+    symbolic::Expression error =
+        GenerateErrorExpression(output_symbolic, expected_symbolic);
+
+    // Simultaneously generate symbolic expressions for output gradients and
+    // build environment for evaluating them.
+    Matrix<symbolic::Expression> output_gradients_symbolic(output_size(), 1);
+    symbolic::Environment env;
+    for (size_t i = 0; i < output_size(); ++i) {
+      output_gradients_symbolic.at(i, 0) =
+          error.Derive(output_symbolic.at(i, 0).to_string());
+
+      env[generator_.O(i)] = symbolic::NumericValue(output.at(i, 0));
+    }
+
+    // Generate output gradients (first part of backprop).
+    Matrix<Number> gradients =
+        MapBindAndEvaluate(output_gradients_symbolic, env);
+
+    // Propagate the gradients backwards.
+    // For each layer, take the current backpropagated gradients (stored in
+    // variable Matrix<Number> gradients) and pass it to the weight gradient
+    // kernel to calculate weight updates. Then pass it to the input gradient
+    // kernel to calculate the gradient for the next layer.
+    for (int i = model_.layers.size() - 1; i >= 0; --i) {
+      auto layer = model_.layers[i];
+      const Matrix<Number>& layer_input =
+          (i > 0) ? layer_outputs->at(i - 1) : in;
+
+      Matrix<symbolic::Expression> input_gradients = layer.InputGradients();
+
+      symbolic::Environment env = layer.env();
+      for (size_t i = 0; i < layer_input.dimensions().rows; ++i) {
+        env[generator_.I(i)].real() = layer_input.at(i, 0);
       }
-      Number weight_update = -gradient_value->real() * learning_rate;
-      weights_[weight_name].real() += weight_update;
+      for (size_t i = 0; i < gradients.dimensions().rows; ++i) {
+        env[generator_.GRADIENT(i)].real() = gradients.at(i, 0);
+      }
+
+      // Backprop layer weight updates.
+      Matrix<Number> weight_gradients =
+          MapBindAndEvaluate(layer.WeightGradients(), env);
+      for (size_t i = 0; i < layer.weights().size(); ++i) {
+        layer.env()[layer.weights()[i]].real() -=
+            learning_rate * weight_gradients.at(i, 0);
+      }
+
+      gradients = MapBindAndEvaluate(layer.InputGradients(), env);
     }
-  }
-
-  std::string GenerateTrainingKernelSource() {
-    std::ifstream grad_descent_file(
-        "math/nnet/kernels/gradient_descent.kernel.cl");
-    std::stringstream buffer;
-    buffer << grad_descent_file.rdbuf();
-    std::string grad_descent_source = buffer.str();
-
-    symbolic::Expression err = GetErrorExpression();
-    std::stringstream gradients;
-    for (size_t i = 0; i < generator_.NumberWeights(); ++i) {
-      gradients << "case " << i << ":" << std::endl;
-      gradients << "  return (" << err.Derive(generator_.W(i)).to_string()
-                << ");" << std::endl;
-    }
-
-    std::string template_substring = "GRADIENTS_HERE";
-    size_t template_location = grad_descent_source.find(template_substring);
-    if (template_location == std::string::npos) {
-      std::cerr << "Could not find template substring \"" << template_substring
-                << "\"" << std::endl;
-      std::exit(1);
-    }
-
-    grad_descent_source.replace(template_location, template_substring.size(),
-                                gradients.str());
-    return grad_descent_source;
   }
 
   void CompileTrainingKernelsIfRequired(cl::Device device) {
@@ -496,7 +435,6 @@ class Nnet {
     std::cerr << "Generating and compiling OpenCl kernel. This takes a while"
               << " the first time..." << std::endl;
     std::vector<std::string> training_kernel_sources;
-    // TODO(sharf): Shouldn't need to pass in dimensions here...
     // TODO(sharf): const?
     for (Layer& layer : model_.layers) {
       std::cerr << ".";
@@ -522,17 +460,19 @@ class Nnet {
     // Forward pass, store each layer's outputs as a column vector in
     // layer_outputs.
     std::unique_ptr<std::vector<Matrix<Number>>> layer_outputs =
-        std::make_unique < std::vector<Matrix<Number>>>();
+        std::make_unique<std::vector<Matrix<Number>>>();
     Matrix<Number> output = EvaluateCl(in, layer_outputs);
 
     Matrix<symbolic::Expression> output_symbolic =
         GenerateOutputLayer(output_size());
-    Matrix<symbolic::Expression> o_symbolic(o.dimensions().rows, 1);
+
+    Matrix<symbolic::Expression> expected_symbolic(o.dimensions().rows, 1);
     for (size_t i = 0; i < o.dimensions().rows; ++i) {
-      o_symbolic.at(i, 0) = symbolic::Expression(o.at(i, 0));
+      expected_symbolic.at(i, 0) = symbolic::Expression(o.at(i, 0));
     }
+
     symbolic::Expression error =
-        GenerateErrorExpression(output_symbolic, o_symbolic);
+        GenerateErrorExpression(output_symbolic, expected_symbolic);
 
     // Simultaneously generate symbolic expressions for output gradients and
     // build environment for evaluating them.
@@ -546,26 +486,14 @@ class Nnet {
     }
 
     // Generate output gradients (first part of backprop).
-    Matrix<Number> gradients = output_gradients_symbolic.Map(
-        std::function<Number(const symbolic::Expression&)>(
-            [env](const symbolic::Expression& e) -> Number {
-              symbolic::Expression bound = e.Bind(env);
-              auto value = bound.Evaluate();
-              if (!value) {
-                std::cerr << "Unable to evaluate error gradient expression: "
-                          << std::endl;
-                std::cerr << e.to_string() << std::endl;
-                std::exit(1);
-              }
-              return value->real();
-            }));
+    Matrix<Number> gradients =
+        MapBindAndEvaluate(output_gradients_symbolic, env);
 
     // Propagate the gradients backwards.
     // For each layer, take the current backpropagated gradients (stored in
     // variable Matrix<Number> gradients) and pass it to the weight gradient
     // kernel to calculate weight updates. Then pass it to the input gradient
     // kernel to calculate the gradient for the next layer.
-    // TODO(sharf): implement this...
     for (int i = model_.layers.size() - 1; i >= 0; --i) {
       auto layer = model_.layers[i];
       const Matrix<Number>& layer_input =
@@ -581,7 +509,7 @@ class Nnet {
                          number_weights * sizeof(Number));
       for (size_t i = 0; i < number_weights; ++i) {
         weights_buf[i] =
-            static_cast<double>(weights_[layer.weights()[i]].real());
+            static_cast<double>(layer.env()[layer.weights()[i]].real());
       }
       queue.enqueueWriteBuffer(weights, CL_TRUE, 0,
                                sizeof(Number) * number_weights, weights_buf);
@@ -620,7 +548,8 @@ class Nnet {
       queue.enqueueReadBuffer(gpu_new_weights, CL_TRUE, 0,
                               sizeof(Number) * number_weights, new_weights);
       for (size_t i = 0; i < number_weights; ++i) {
-        weights_[layer.weights()[i]] = symbolic::NumericValue(new_weights[i]);
+        layer.env()[layer.weights()[i]] =
+            symbolic::NumericValue(new_weights[i]);
       }
 
       cl::Buffer gpu_new_gradients(
@@ -660,7 +589,7 @@ class Nnet {
                    "GenerateErrorExpression(Matrix<symbolic::Expression>, "
                    "Matrix<symbolic::Expression>)"
                 << std::endl;
-      std::exit(-1);
+      std::exit(1);
     }
 
     symbolic::Expression error;
@@ -672,23 +601,11 @@ class Nnet {
     return error;
   }
 
-  symbolic::Expression GetErrorExpression() const {
-    Matrix<symbolic::Expression> expected(output_size(), 1);
-    for (size_t out_idx = 0; out_idx < output_size(); ++out_idx) {
-      expected.at(out_idx, 0) = symbolic::Expression(generator_.O(out_idx));
-    }
-    return GenerateErrorExpression(neural_network_, expected);
-  }
-
-  Matrix<symbolic::Expression> GetExpression() const { return neural_network_; }
-
-  std::string to_string() const { return neural_network_.to_string(); }
-
   std::string WeightsToString() const {
     std::stringstream output;
     output << "{";
-    for (const auto& kv : weights_) {
-      output << kv.first << ":" << kv.second.to_string() << "," << std::endl;
+    for (auto layer : model_.layers) {
+      output << layer.WeightsToString() << "," << std::endl;
     }
     output << "}";
     return output.str();
@@ -697,32 +614,12 @@ class Nnet {
  private:
   void CalculateInitialWeights() {
     for (size_t layer = 0; layer < model_.layers.size(); ++layer) {
-      // Skip empty layers.
-      if (model_.layers[layer].weights().size() == 0) {
-        continue;
-      }
-
-      stats::Normal X = model_.layers[layer].XavierInitializer();
-      for (const std::string& weight : model_.layers[layer].weights()) {
-        weights_[weight].real() = X.sample();
-      }
+      model_.layers[layer].XavierInitializeWeights();
     }
-  }
-
-  Matrix<symbolic::Expression> GenerateInputLayer(size_t size) const {
-    Matrix<symbolic::Expression> result(size, 1);
-    for (size_t i = 0; i < size; ++i) {
-      result.at(i, 0) = symbolic::CreateExpression(generator_.I(i));
-    }
-    return result;
   }
 
   Matrix<symbolic::Expression> GenerateOutputLayer(size_t size) const {
-    Matrix<symbolic::Expression> result(size, 1);
-    for (size_t i = 0; i < size; ++i) {
-      result.at(i, 0) = symbolic::CreateExpression(generator_.O(i));
-    }
-    return result;
+    return model_.layers[model_.layers.size() - 1].OutputExpression();
   }
 
   size_t output_size() const { return model_.output_size(); }
@@ -731,16 +628,7 @@ class Nnet {
 
   Architecture model_;
 
-  // The entire neural network is stored symbolically in a column vector of
-  // type symbolic::Expression. To get your outputs, simply call Bind() on all
-  // expressions in the column vector with weights_ and inputs.
-  // Allllso this is super inefficient. EvaluateCl and TrainCl both make use of
-  // the GPU and precompile these expressions to be efficient.
-  Matrix<symbolic::Expression> neural_network_;  // Dim(output_size(), 1).
-
   FlatWeightSymbolGenerator generator_;
-
-  symbolic::Environment weights_;
 
   // OpenCL state variables.
   struct OpenClState {

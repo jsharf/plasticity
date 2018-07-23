@@ -75,9 +75,21 @@ class Layer {
                                 SymbolGenerator* generator);
 
   WeightArray weights() const;
-  Matrix<symbolic::Expression> GenerateExpression(
-      const Matrix<symbolic::Expression>& input);
-  stats::Normal XavierInitializer();
+
+  symbolic::Environment& env() { return env_; }
+  //const symbolic::Environment& env() const { return env_; }
+
+  std::string WeightsToString() const;
+
+  Matrix<symbolic::Expression> BackpropGradients() const;
+  Matrix<symbolic::Expression> InputGradients();
+  Matrix<symbolic::Expression> WeightGradients();
+
+  Matrix<symbolic::Expression> GenerateExpression();
+
+  stats::Normal XavierInitializer() const;
+  void XavierInitializeWeights();
+  
   Dimensions GetDimensions() const { return impl_->GetDimensions(); }
 
   // This function returns the source code of an OpenCL kernel which evaluates
@@ -107,14 +119,16 @@ class Layer {
     impl_->SetSymbolGenerator(generator);
   }
 
+  Matrix<symbolic::Expression> InputExpression() const;
+  Matrix<symbolic::Expression> OutputExpression() const;
+
   SymbolGenerator* symbol_generator() const {
     return impl_->symbol_generator();
   }
 
  private:
-  Matrix<symbolic::Expression> InputExpression() const;
-
   std::unique_ptr<LayerImpl> impl_;
+  symbolic::Environment env_;
 };
 
 }  // namespace nnet
