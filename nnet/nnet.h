@@ -3,6 +3,7 @@
 #include "clutil/util.h"
 #include "math/geometry/dynamic_matrix.h"
 #include "math/nnet/layer.h"
+#include "math/nnet/layer_dimensions.h"
 #include "math/nnet/symbol_generator.h"
 #include "math/stats/normal.h"
 #include "math/symbolic/expression.h"
@@ -48,18 +49,8 @@ class Nnet {
 
     Architecture() {}
 
-    // Struct in layer_impl.h.
-    using Dimensions = Layer::Dimensions;
-
     // std::function<symbolic::Expression(const symbolic::Expression&)>
     using ActivationFunctionType = Layer::ActivationFunctionType;
-
-    // Structs defined in convolution_layer.h.
-    using VolumeDimensions = ConvolutionLayer::VolumeDimensions;
-    using FilterParams = ConvolutionLayer::FilterParams;
-
-    // Struct defined in max_pool_layer.h
-    using AreaDimensions = MaxPoolLayer::AreaDimensions;
 
     // Input layer is just an activation layer with zero activation. Used for
     // semantics and to specify input size.
@@ -235,10 +226,6 @@ class Nnet {
       // layers if their weights haven't changed and also caching weights_buf in
       // Layer.
       // Also, transfer all weights at once outside of this for-loop.
-      std::cerr << "DONT FORGET... there is a bug in EvaluateCl() here where "
-                   "generator_ still uses global weight namespace, but only "
-                   "layer weights are loaded into the kernel."
-                << std::endl;
       const size_t number_weights = layer.weights().size();
       Number weights_buf[number_weights];
       cl::Buffer weights(context, CL_MEM_READ_WRITE,
@@ -319,7 +306,7 @@ class Nnet {
     for (Layer& layer : model_.layers) {
       symbolic::Environment env = layer.env();
       for (size_t i = 0; i < inputs.dimensions().rows; ++i) {
-        env[layer.symbol_generator()->I(i)].real() = inputs.at(i, 0);
+        env[generator_.I(i)].real() = inputs.at(i, 0);
       }
 
       outputs = MapBindAndEvaluate(layer.GenerateExpression(), env);

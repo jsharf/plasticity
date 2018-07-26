@@ -22,7 +22,7 @@ ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
 }
 
 ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
-                                   const FilterParams& filters, layer_index)
+                                   const FilterParams& filters, size_t layer_index)
     : Super(GenLinearDimensions(dimensions, filters), layer_index),
       generator_(filters),
       filters_(filters),
@@ -63,7 +63,7 @@ ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
   };
 }
 
-ConvolutionLayer::LinearDimensions ConvolutionLayer::GenLinearDimensions(
+LinearDimensions ConvolutionLayer::GenLinearDimensions(
     const VolumeDimensions& dim, const FilterParams& filters) {
   std::tuple<size_t, size_t, size_t> output_dims =
       GetOutputDimensions(dim, filters);

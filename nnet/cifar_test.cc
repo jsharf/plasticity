@@ -1,4 +1,5 @@
 #include "math/geometry/dynamic_matrix.h"
+#include "math/nnet/layer_dimensions.h"
 #include "math/nnet/nnet.h"
 #include "math/symbolic/expression.h"
 
@@ -110,8 +111,8 @@ int main() {
           })
       .AddActivationLayer(symbolic::Relu)
       .AddMaxPoolLayer(
-          /* Input size */ nnet::ConvolutionLayer::VolumeDimensions{32, 32, 16},
-          /* output size */ nnet::MaxPoolLayer::AreaDimensions{16, 16})
+          /* Input size */ nnet::VolumeDimensions{32, 32, 16},
+          /* output size */ nnet::AreaDimensions{16, 16})
       .AddConvolutionLayer(
           {
               16,  // width
@@ -128,8 +129,8 @@ int main() {
           })
       .AddActivationLayer(symbolic::Relu)
       .AddMaxPoolLayer(
-          /* Input size */ nnet::ConvolutionLayer::VolumeDimensions{16, 16, 20},
-          /* output size */ nnet::MaxPoolLayer::AreaDimensions{8, 8})
+          /* Input size */ nnet::VolumeDimensions{16, 16, 20},
+          /* output size */ nnet::AreaDimensions{8, 8})
       .AddConvolutionLayer(
           {
               8,   // width

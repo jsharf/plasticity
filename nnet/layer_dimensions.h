@@ -6,6 +6,10 @@ namespace nnet {
     size_t num_outputs;
   };
 
+  // An alias to make life easier for classes which refer to a layer by more
+  // than one dimension type.
+  using LinearDimensions=Dimensions;
+
   struct FilterParams {
     // Dimensions of each filter.
     size_t width;

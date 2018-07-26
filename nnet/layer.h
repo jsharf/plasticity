@@ -26,11 +26,7 @@ class Layer {
  public:
   // Public exported types
   using WeightArray = LayerImpl::WeightArray;
-  using Dimensions = LayerImpl::Dimensions;
   using ActivationFunctionType = LayerImpl::ActivationFunctionType;
-  using VolumeDimensions = ConvolutionLayer::VolumeDimensions;
-  using AreaDimensions = MaxPoolLayer::AreaDimensions;
-  using FilterParams = ConvolutionLayer::FilterParams;
 
   // Constructors.
   Layer() {}

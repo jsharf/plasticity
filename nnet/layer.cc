@@ -285,7 +285,7 @@ Matrix<symbolic::Expression> Layer::InputExpression() const {
   const size_t num_inputs = GetDimensions().num_inputs;
   Matrix<symbolic::Expression> result(num_inputs, 1);
   for (size_t i = 0; i < num_inputs; ++i) {
-    result.at(i, 0) = symbolic::CreateExpression(symbol_generator()->I(i));
+    result.at(i, 0) = symbolic::CreateExpression(generator_.I(i));
   }
   return result;
 }
@@ -294,7 +294,7 @@ Matrix<symbolic::Expression> Layer::OutputExpression() const {
   const size_t num_outputs = GetDimensions().num_outputs;
   Matrix<symbolic::Expression> result(num_outputs, 1);
   for (size_t i = 0; i < num_outputs; ++i) {
-    result.at(i, 0) = symbolic::CreateExpression(symbol_generator()->O(i));
+    result.at(i, 0) = symbolic::CreateExpression(generator_.O(i));
   }
   return result;
 }

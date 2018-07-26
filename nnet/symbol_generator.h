@@ -6,6 +6,7 @@
 #include "math/symbolic/expression.h"
 
 #include <map>
+#include <unordered_map>
 #include <utility>
 
 namespace nnet {
@@ -32,17 +33,42 @@ struct FFWeightAddress {
   size_t node = 0;
   size_t edge = 0;
 
+  bool operator==(const FFWeightAddress& rhs) const {
+    if (is_bias) {
+      return node == rhs.node;
+    } else {
+      return (node == rhs.node) && (edge == rhs.edge);
+    }
+  }
+
+  // This is used to make hashing FFWeightAddress simpler.
+  std::string to_string() const {
+    if (is_bias) {
+      return "{\n\tnode: " + std::to_string(node) + "\n}";
+    } else {
+      return "{\n\tnode: " + std::to_string(node) + "\n\tedge: " +
+             std::to_string(node) + "\n}";
+    }
+  }
+
   FFWeightAddress(size_t p_node) : is_bias(true), node(p_node) {}
   FFWeightAddress(size_t p_node, size_t p_edge)
       : is_bias(false), node(p_node), edge(p_edge) {}
+};
+
+struct FFWeightAddressHash {
+  std::hash<std::string> hasher;
+  size_t operator()(const FFWeightAddress& obj) const {
+    return hasher(obj.to_string());
+  }
 };
 
 class FFSymbolGenerator {
   public:
     explicit FFSymbolGenerator(Dimensions dimensions) {
       size_t index = 0;
-      for (size_t node = 0; node < dimensions_.num_outputs; ++node) {
-        for (size_t edge = 0; edge < dimensions_.num_inputs; ++edge) {
+      for (size_t node = 0; node < dimensions.num_outputs; ++node) {
+        for (size_t edge = 0; edge < dimensions.num_inputs; ++edge) {
           FFWeightAddress addr(node, edge);
           weight_addr_to_index_[addr] = index;
           index++;
@@ -54,11 +80,11 @@ class FFSymbolGenerator {
       }
     }
     std::string W(size_t node, size_t edge) const {
-      return "W[" + std::to_string(weight_addr_to_index_[FFWeightAddress(node, edge)] + "]";
+      return "W[" + std::to_string(weight_addr_to_index_.at(FFWeightAddress(node, edge))) + "]";
     }
     // Used for bias weight for a given output node.
     std::string W(size_t node) const {
-      return "W[" + std::to_string(weight_addr_to_index_[FFWeightAddress(node)] + "]";
+      return "W[" + std::to_string(weight_addr_to_index_.at(FFWeightAddress(node))) + "]";
     }
     std::vector<std::string> weights() const {
       std::vector<std::string> weights(weight_addr_to_index_.size());
@@ -75,7 +101,7 @@ class FFSymbolGenerator {
     }
 
    private:
-    std::map<FFWeightAddress, int> weight_addr_to_index_;
+    std::unordered_map<FFWeightAddress, int, FFWeightAddressHash> weight_addr_to_index_;
 };
 
 struct ConvWeightAddress {
@@ -90,9 +116,34 @@ struct ConvWeightAddress {
   size_t y = 0;
   size_t z = 0;
 
+  bool operator==(const ConvWeightAddress& rhs) const {
+    if (is_bias) {
+      return filter == rhs.filter;
+    } else {
+      return (filter == rhs.filter) && (x == rhs.x) && (y == rhs.y) && (z == rhs.z);
+    }
+  }
+
+  std::string to_string() const {
+    if (is_bias) {
+      return "{\n\tfilter: " + std::to_string(filter) + "\n}";
+    } else {
+      return "{\n\tfilter: " + std::to_string(filter) + "\n\tx: " +
+             std::to_string(x) + "\n\ty: " + std::to_string(y) + "\n\tz: " +
+             std::to_string(z) + "\n}";
+    }
+  }
+
   ConvWeightAddress(size_t p_filter)
       : is_bias(true), filter(p_filter) {}
   ConvWeightAddress(size_t p_filter, size_t p_x, size_t p_y, size_t p_z) : is_bias(false), filter(p_filter), x(p_x), y(p_y), z(p_z) {}
+};
+
+struct ConvWeightAddressHash {
+  std::hash<std::string> hasher;
+  size_t operator()(const ConvWeightAddress& obj) const {
+    return hasher(obj.to_string());
+  }
 };
 
 class ConvSymbolGenerator {
@@ -103,7 +154,8 @@ class ConvSymbolGenerator {
        for (size_t x = 0; x < filters.width; ++x) {
          for (size_t y = 0; y < filters.height; ++y) {
            for (size_t z = 0; z < filters.depth; ++z) {
-             weight_addr_to_index[addr] = index;
+             ConvWeightAddress addr(filter_no, x, y, z);
+             weight_addr_to_index_[addr] = index;
              index++;
            }
          }
@@ -118,13 +170,13 @@ class ConvSymbolGenerator {
   // Convolution layer weights.
   std::string W(size_t filter, size_t x, size_t y, size_t z) const {
     ConvWeightAddress addr(filter, x, y, z);
-    return "W["+std::to_string(weight_addr_to_index_[addr])+"]";
+    return "W["+std::to_string(weight_addr_to_index_.at(addr))+"]";
   }
 
   // Convolution layer bias weights.
   std::string W(size_t filter) const {
     ConvWeightAddress addr(filter);
-    return "W["+std::to_string(weight_addr_to_index_[addr])+"]";
+    return "W["+std::to_string(weight_addr_to_index_.at(addr))+"]";
   }
 
   std::vector<std::string> weights() const {
@@ -141,7 +193,7 @@ class ConvSymbolGenerator {
     return weights;
   }
   private:
-    std::map<ConvWeightAddress, int> weight_addr_to_index_;
+    std::unordered_map<ConvWeightAddress, int, ConvWeightAddressHash> weight_addr_to_index_;
 };
 
 // This class generates symbol names for neural network values. Since these

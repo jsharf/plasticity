@@ -14,7 +14,6 @@ class MaxPoolLayer : public LayerImpl {
  public:
   using Super = LayerImpl;
   using WeightArray = typename Super::WeightArray;
-  using LinearDimensions = typename Dimensions;
 
   static LinearDimensions GenLinearDimensions(const VolumeDimensions& dim,
                                               const AreaDimensions& output) {
