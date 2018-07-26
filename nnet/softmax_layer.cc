@@ -24,7 +24,7 @@ Matrix<symbolic::Expression> SoftmaxLayer::GenerateExpression(const Matrix<symbo
 }
 
 std::unique_ptr<LayerImpl> SoftmaxLayer::Clone() const {
-  return std::make_unique<SoftmaxLayer>(dimensions_.num_inputs, generator_, layer_index_);
+  return std::make_unique<SoftmaxLayer>(dimensions_.num_inputs, layer_index_);
 }
 
 }  // namespace nnet

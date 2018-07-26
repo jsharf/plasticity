@@ -7,9 +7,9 @@ namespace nnet {
 ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
                                    const FilterParams& filters,
                                    IndexMap input_map, IndexMap output_map,
-                                   SymbolGenerator* generator,
                                    size_t layer_index)
-    : Super(GenLinearDimensions(dimensions, filters), generator, layer_index),
+    : Super(GenLinearDimensions(dimensions, filters), layer_index),
+      generator_(filters),
       filters_(filters),
       imdim_(dimensions),
       input_map_(input_map),
@@ -22,10 +22,9 @@ ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
 }
 
 ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
-                                   const FilterParams& filters,
-                                   SymbolGenerator* generator,
-                                   size_t layer_index)
-    : Super(GenLinearDimensions(dimensions, filters), generator, layer_index),
+                                   const FilterParams& filters, layer_index)
+    : Super(GenLinearDimensions(dimensions, filters), layer_index),
+      generator_(filters),
       filters_(filters),
       imdim_(dimensions) {
   if (filters_.depth != imdim_.depth) {
@@ -90,24 +89,7 @@ std::tuple<size_t, size_t, size_t> ConvolutionLayer::GetOutputDimensions(
 }
 
 LayerImpl::WeightArray ConvolutionLayer::weights() const {
-  WeightArray weights(filters_.num_filters *
-                      (filters_.width * filters_.height * filters_.depth + 1));
-  size_t back_index = 0;
-  for (size_t filter_no = 0; filter_no < filters_.num_filters; ++filter_no) {
-    for (size_t x = 0; x < filters_.width; ++x) {
-      for (size_t y = 0; y < filters_.height; ++y) {
-        for (size_t z = 0; z < filters_.depth; ++z) {
-          assert(back_index < weights.size());
-          weights[back_index++] =
-              Super::generator_->W(Super::layer_index_, filter_no, x, y, z);
-        }
-      }
-    }
-    // Bias.
-    weights[back_index++] =
-        Super::generator_->W(Super::layer_index_, filter_no);
-  }
-  return weights;
+  return generator_.weights();
 }
 
 Matrix<symbolic::Expression> ConvolutionLayer::GenerateExpression(
@@ -140,7 +122,8 @@ Matrix<symbolic::Expression> ConvolutionLayer::GenerateExpression(
     int start_y = -filters_.padding;
     for (size_t out_x = 0; out_x < output_width; ++out_x) {
       for (size_t out_y = 0; out_y < output_height; ++out_y) {
-        symbolic::Expression convolution = symbolic::CreateExpression("0");
+        symbolic::Expression convolution =
+            symbolic::CreateExpression(generator_.W(filter_no));  // bias term.
         for (size_t f_x = 0; f_x < filters_.width; ++f_x) {
           for (size_t f_y = 0; f_y < filters_.height; ++f_y) {
             for (size_t f_z = 0; f_z < filters_.depth; ++f_z) {
@@ -157,8 +140,8 @@ Matrix<symbolic::Expression> ConvolutionLayer::GenerateExpression(
                   (input_z < static_cast<int>(imdim_.depth))) {
                 convolution +=
                     input.at(input_map_(input_x, input_y, input_z), 0) *
-                    symbolic::CreateExpression(Super::generator_->W(
-                        Super::layer_index_, filter_no, f_x, f_y, f_z));
+                    symbolic::CreateExpression(
+                        generator_.W(filter_no, f_x, f_y, f_z));
               }
             }
           }
@@ -171,15 +154,8 @@ Matrix<symbolic::Expression> ConvolutionLayer::GenerateExpression(
   return output;
 }
 
-stats::Normal ConvolutionLayer::XavierInitializer() const {
-  // + filters_.num_filters since each filter has an implicit bias input.
-  return stats::Normal(0,
-                       1.0 / (dimensions_.num_inputs + filters_.num_filters));
-}
-
 std::unique_ptr<LayerImpl> ConvolutionLayer::Clone() const {
-  return std::make_unique<ConvolutionLayer>(imdim_, filters_, generator_,
-                                            layer_index_);
+  return std::make_unique<ConvolutionLayer>(imdim_, filters_, Super::layer_index_);
 }
 
 }  // namespace nnet

@@ -1,6 +1,7 @@
 #ifndef FEED_FORWARD_LAYER_H
 #define FEED_FORWARD_LAYER_H
 #include "math/geometry/dynamic_matrix.h"
+#include "math/nnet/layer_dimensions.h"
 #include "math/nnet/layer_impl.h"
 #include "math/nnet/symbol_generator.h"
 #include "math/stats/normal.h"
@@ -14,17 +15,15 @@ class FeedForwardLayer : public LayerImpl {
   // Reference objects in superclass with Super::
   using Super = LayerImpl;
   using WeightArray = typename Super::WeightArray;
-  using Dimensions = typename Super::Dimensions;
 
   using ActivationFunctionType = LayerImpl::ActivationFunctionType;
 
   FeedForwardLayer(const Dimensions& dimensions,
                    const ActivationFunctionType& activation_function,
-                   SymbolGenerator* generator, size_t layer_index);
+                   size_t layer_index);
 
-  FeedForwardLayer(const Dimensions& dimensions, SymbolGenerator* generator,
-                   size_t layer_index)
-      : Super(dimensions, generator, layer_index) {
+  FeedForwardLayer(const Dimensions& dimensions, size_t layer_index)
+      : Super(dimensions, layer_index), generator_(dimensions) {
     activation_function_ = [](const symbolic::Expression& exp) {
       return symbolic::Sigmoid(exp);
     };
@@ -35,12 +34,10 @@ class FeedForwardLayer : public LayerImpl {
   Matrix<symbolic::Expression> GenerateExpression(
       const Matrix<symbolic::Expression>& input) override;
 
-  stats::Normal XavierInitializer() const override {
-    // + 1 for implicit bias input.
-    return stats::Normal(0, 1.0 / (dimensions_.num_inputs + 1));
-  }
-
   std::unique_ptr<LayerImpl> Clone() const override;
+
+ private:
+  FFSymbolGenerator generator_;
 
   // This function will be used to map the activation function to a matrix
   // of symbolic expressions.

@@ -6,22 +6,13 @@ namespace nnet {
 
 FeedForwardLayer::FeedForwardLayer(
     const Dimensions& dimensions,
-    const ActivationFunctionType& activation_function,
-    SymbolGenerator* generator, size_t layer_index)
-    : Super(dimensions, generator, layer_index),
+    const ActivationFunctionType& activation_function, size_t layer_index)
+    : Super(dimensions, layer_index),
+      generator_(dimensions),
       activation_function_(activation_function) {}
 
 LayerImpl::WeightArray FeedForwardLayer::weights() const {
-  WeightArray weights(dimensions_.num_outputs * (dimensions_.num_inputs + 1));
-  size_t back_index = 0;
-  for (size_t i = 0; i < dimensions_.num_outputs; ++i) {
-    // + 1 for Bias.
-    for (size_t j = 0; j < dimensions_.num_inputs + 1; ++j) {
-      assert(back_index < weights.size());
-      weights[back_index++] = Super::generator_->W(Super::layer_index_, i, j);
-    }
-  }
-  return weights;
+  return generator_.weights();
 }
 
 Matrix<symbolic::Expression> FeedForwardLayer::GenerateExpression(
@@ -40,8 +31,7 @@ Matrix<symbolic::Expression> FeedForwardLayer::GenerateExpression(
                                              dimensions_.num_inputs + 1);
   for (size_t i = 0; i < dimensions_.num_outputs; ++i) {
     for (size_t j = 0; j < dimensions_.num_inputs; ++j) {
-      weight_matrix.at(i, j) = symbolic::CreateExpression(
-          Super::generator_->W(Super::layer_index_, i, j));
+      weight_matrix.at(i, j) = symbolic::CreateExpression(generator_.W(i, j));
     }
   }
 
@@ -51,8 +41,8 @@ Matrix<symbolic::Expression> FeedForwardLayer::GenerateExpression(
     // Bias is the final column in the weights matrix. Since size
     // is kNumInputs + 1 and it is zero-indexed, kNumInputs is the final
     // index (index of bias).
-    weight_matrix.at(i, dimensions_.num_inputs) = symbolic::CreateExpression(
-        Super::generator_->W(Super::layer_index_, i, dimensions_.num_inputs));
+    weight_matrix.at(i, dimensions_.num_inputs) =
+        symbolic::CreateExpression(generator_.W(i));
   }
 
   return (weight_matrix * biased_input).Map(activation_function_);
@@ -60,7 +50,7 @@ Matrix<symbolic::Expression> FeedForwardLayer::GenerateExpression(
 
 std::unique_ptr<LayerImpl> FeedForwardLayer::Clone() const {
   return std::make_unique<FeedForwardLayer>(dimensions_, activation_function_,
-                                            generator_, layer_index_);
+                                            layer_index_);
 }
 
 }  // namespace nnet

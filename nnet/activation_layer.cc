@@ -24,7 +24,7 @@ Matrix<symbolic::Expression> ActivationLayer::GenerateExpression(const Matrix<sy
 }
 
 std::unique_ptr<LayerImpl> ActivationLayer::Clone() const {
-  return std::make_unique<ActivationLayer>(dimensions_.num_inputs, activation_function_, generator_, layer_index_);
+  return std::make_unique<ActivationLayer>(dimensions_.num_inputs, activation_function_, layer_index_);
 }
 
 }  // namespace nnet

@@ -44,7 +44,7 @@ cc_library(
       "--std=c++1z",
     ],
     deps = [
-        ":symbol_generator",
+        ":layer_dimensions",
         "//math/geometry:dynamic_matrix",
         "//math/symbolic:symbolic",
         "//math/symbolic:symbolic_util",
@@ -60,9 +60,22 @@ cc_library(
       "--std=c++1z",
     ],
     deps = [
+        ":layer_impl",
+        ":layer_dimensions",
         "//math/geometry:dynamic_matrix",
         "//math/symbolic:symbolic",
         "//math/stats:normal",
+    ],
+)
+
+cc_library(
+    name = "layer_dimensions",
+    visibility = ["//math"],
+    hdrs = ["layer_dimensions.h"],
+    copts = [
+      "--std=c++1z",
+    ],
+    deps = [
     ],
 )
 
@@ -76,6 +89,8 @@ cc_library(
     ],
     deps = [
         ":layer_impl",
+        ":symbol_generator",
+        ":layer_dimensions",
         "//math/geometry:dynamic_matrix",
         "//math/symbolic:symbolic",
         "//math/symbolic:symbolic_util",
@@ -93,6 +108,7 @@ cc_library(
     ],
     deps = [
         ":layer_impl",
+        ":layer_dimensions",
         "//math/geometry:dynamic_matrix",
         "//math/symbolic:symbolic",
         "//math/stats:normal",
@@ -109,6 +125,7 @@ cc_library(
     ],
     deps = [
         ":layer_impl",
+        ":layer_dimensions",
         "//math/geometry:dynamic_matrix",
         "//math/stats:normal",
         "//math/symbolic:symbolic",
@@ -127,6 +144,7 @@ cc_library(
     deps = [
         ":layer_impl",
         ":symbol_generator",
+        ":layer_dimensions",
         "//math/geometry:dynamic_matrix",
         "//math/symbolic:symbolic",
         "//math/symbolic:symbolic_util",
@@ -145,6 +163,7 @@ cc_library(
     deps = [
         ":convolution_layer",
         ":layer_impl",
+        ":layer_dimensions",
         "//math/geometry:dynamic_matrix",
         "//math/symbolic:symbolic",
         "//math/symbolic:symbolic_util",

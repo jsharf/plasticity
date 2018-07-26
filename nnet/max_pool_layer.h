@@ -2,6 +2,7 @@
 #define MAX_POOL_LAYER_H
 #include "math/geometry/dynamic_matrix.h"
 #include "math/nnet/convolution_layer.h"
+#include "math/nnet/layer_dimensions.h"
 #include "math/nnet/layer_impl.h"
 #include "math/stats/normal.h"
 #include "math/symbolic/expression.h"
@@ -13,13 +14,7 @@ class MaxPoolLayer : public LayerImpl {
  public:
   using Super = LayerImpl;
   using WeightArray = typename Super::WeightArray;
-  using LinearDimensions = typename Super::Dimensions;
-  using FilterParams = ConvolutionLayer::Dimensions;
-  using VolumeDimensions = ConvolutionLayer::VolumeDimensions;
-
-  struct AreaDimensions {
-    size_t width, height;
-  };
+  using LinearDimensions = typename Dimensions;
 
   static LinearDimensions GenLinearDimensions(const VolumeDimensions& dim,
                                               const AreaDimensions& output) {
@@ -36,19 +31,12 @@ class MaxPoolLayer : public LayerImpl {
       const VolumeDimensions& dim, const AreaDimensions& output);
 
   MaxPoolLayer(const VolumeDimensions& input, const AreaDimensions& output,
-               SymbolGenerator* generator, size_t layer_index);
+               size_t layer_index);
 
   WeightArray weights() const override { return {}; }
 
   Matrix<symbolic::Expression> GenerateExpression(
       const Matrix<symbolic::Expression>& input) override;
-
-  stats::Normal XavierInitializer() const override {
-    // No weights in a maxpool layer.
-    std::cerr << "Warning: XavierInitializer() called on MaxPool layer"
-              << std::endl;
-    return stats::Normal(0, 0);
-  }
 
   std::unique_ptr<LayerImpl> Clone() const override;
 

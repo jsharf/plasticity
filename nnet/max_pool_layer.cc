@@ -4,10 +4,8 @@
 namespace nnet {
 
 MaxPoolLayer::MaxPoolLayer(const VolumeDimensions& input,
-                           const AreaDimensions& output,
-                           SymbolGenerator* generator, size_t layer_index)
-    : Super(MaxPoolLayer::GenLinearDimensions(input, output), generator,
-            layer_index),
+                           const AreaDimensions& output, size_t layer_index)
+    : Super(MaxPoolLayer::GenLinearDimensions(input, output), layer_index),
       input_(input),
       target_(output) {
   if (dimensions_.num_outputs > dimensions_.num_inputs) {
@@ -117,8 +115,7 @@ Matrix<symbolic::Expression> MaxPoolLayer::GenerateExpression(
 }
 
 std::unique_ptr<LayerImpl> MaxPoolLayer::Clone() const {
-  return std::make_unique<MaxPoolLayer>(input_, target_, generator_,
-                                        layer_index_);
+  return std::make_unique<MaxPoolLayer>(input_, target_, layer_index_);
 }
 
 }  // namespace nnet

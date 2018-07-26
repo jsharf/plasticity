@@ -24,46 +24,39 @@ Layer& Layer::operator=(Layer&& rhs) {
 // FeedForward layer static constructors.
 Layer Layer::MakeFeedForwardLayer(
     size_t layer_index, const Dimensions& dimensions,
-    const ActivationFunctionType& activation_function,
-    SymbolGenerator* generator) {
+    const ActivationFunctionType& activation_function) {
   return Layer(std::make_unique<FeedForwardLayer>(
-      dimensions, activation_function, generator, layer_index));
+      dimensions, activation_function, layer_index));
 }
 
 Layer Layer::MakeFeedForwardLayer(size_t layer_index,
-                                  const Dimensions& dimensions,
-                                  SymbolGenerator* generator) {
-  return Layer(
-      std::make_unique<FeedForwardLayer>(dimensions, generator, layer_index));
+                                  const Dimensions& dimensions) {
+  return Layer(std::make_unique<FeedForwardLayer>(dimensions, layer_index));
 }
 
 // Convolution layer static constructor.
 Layer Layer::MakeConvolutionLayer(size_t layer_index,
                                   const VolumeDimensions& dimensions,
-                                  const FilterParams& params,
-                                  SymbolGenerator* generator) {
-  return Layer(std::make_unique<ConvolutionLayer>(dimensions, params, generator,
-                                                  layer_index));
+                                  const FilterParams& params) {
+  return Layer(
+      std::make_unique<ConvolutionLayer>(dimensions, params, layer_index));
 }
 
 Layer Layer::MakeMaxPoolLayer(size_t layer_index, const VolumeDimensions& input,
-                              const AreaDimensions& output,
-                              SymbolGenerator* generator) {
-  return Layer(
-      std::make_unique<MaxPoolLayer>(input, output, generator, layer_index));
+                              const AreaDimensions& output) {
+  return Layer(std::make_unique<MaxPoolLayer>(input, output, layer_index));
 }
 
 Layer Layer::MakeActivationLayer(
     size_t layer_index, size_t size,
-    const ActivationFunctionType& activation_function,
-    SymbolGenerator* generator) {
+    const ActivationFunctionType& activation_function) {
   return Layer(std::make_unique<ActivationLayer>(size, activation_function,
-                                                 generator, layer_index));
+                                                 layer_index));
 }
 
-Layer Layer::MakeSoftmaxLayer(size_t layer_index, size_t size,
-                              SymbolGenerator* generator) {
-  return Layer(std::make_unique<SoftmaxLayer>(size, generator, layer_index));
+Layer Layer::MakeSoftmaxLayer(size_t layer_index, size_t size
+    ) {
+  return Layer(std::make_unique<SoftmaxLayer>(size, layer_index));
 }
 
 Layer::WeightArray Layer::weights() const { return impl_->weights(); }
@@ -74,7 +67,7 @@ Matrix<symbolic::Expression> Layer::GenerateExpression() {
 }
 
 stats::Normal Layer::XavierInitializer() const {
-  return impl_->XavierInitializer();
+  return stats::Normal(0, 1.0 / (impl_->GetDimensions().num_inputs));
 }
 
 void Layer::XavierInitializeWeights() {
@@ -109,7 +102,6 @@ std::string FileToString(std::string filepath) {
 
 }  // namespace
 
-// TODO teardown symbolgenerator concept. Make this const again. :/.
 std::string Layer::GenerateEvaluationKernel() {
   std::string evaluate_source =
       FileToString("math/nnet/kernels/evaluate.kernel.cl");
@@ -175,7 +167,7 @@ Matrix<symbolic::Expression> Layer::BackpropGradients() const {
   for (size_t output_num = 0; output_num < bp_gradients.dimensions().rows;
        ++output_num) {
     bp_gradients.at(output_num, 0) =
-        symbolic::Expression(impl_->symbol_generator()->GRADIENT(output_num));
+        symbolic::Expression(generator_.GRADIENT(output_num));
   }
   return bp_gradients;
 }

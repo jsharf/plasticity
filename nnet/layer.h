@@ -48,31 +48,25 @@ class Layer {
   // FeedForward Layer constructors.
   static Layer MakeFeedForwardLayer(
       size_t layer_index, const Dimensions& dimensions,
-      const ActivationFunctionType& activation_function,
-      SymbolGenerator* generator);
+      const ActivationFunctionType& activation_function);
 
   static Layer MakeFeedForwardLayer(size_t layer_index,
-                                    const Dimensions& dimensions,
-                                    SymbolGenerator* generator);
+                                    const Dimensions& dimensions);
 
   // Convolutional Layer constructors.
   static Layer MakeConvolutionLayer(size_t layer_index,
                                     const VolumeDimensions& dimensions,
-                                    const FilterParams& params,
-                                    SymbolGenerator* generator);
+                                    const FilterParams& params);
 
   static Layer MakeActivationLayer(
       size_t layer_index, size_t size,
-      const ActivationFunctionType& activation_function,
-      SymbolGenerator* generator);
+      const ActivationFunctionType& activation_function);
 
-  static Layer MakeSoftmaxLayer(size_t layer_index, size_t size,
-                                SymbolGenerator* generator);
+  static Layer MakeSoftmaxLayer(size_t layer_index, size_t size);
 
   static Layer MakeMaxPoolLayer(size_t layer_index,
                                 const VolumeDimensions& input,
-                                const AreaDimensions& output,
-                                SymbolGenerator* generator);
+                                const AreaDimensions& output);
 
   WeightArray weights() const;
 
@@ -113,20 +107,11 @@ class Layer {
     return "weight_delta_" + std::to_string(impl_->layer_index());
   }
 
-  // Tread carefully... If you accidentally assign the wrong symbol generator to
-  // a layer, you can end up in really weird hard to debug states.
-  void SetSymbolGenerator(SymbolGenerator* generator) {
-    impl_->SetSymbolGenerator(generator);
-  }
-
   Matrix<symbolic::Expression> InputExpression() const;
   Matrix<symbolic::Expression> OutputExpression() const;
 
-  SymbolGenerator* symbol_generator() const {
-    return impl_->symbol_generator();
-  }
-
  private:
+  SymbolGenerator generator_;
   std::unique_ptr<LayerImpl> impl_;
   symbolic::Environment env_;
 };

@@ -77,7 +77,7 @@ class Nnet {
       };
 
       layers.push_back(Layer::MakeFeedForwardLayer(
-          layers.size(), dimensions, activation_function, nullptr));
+          layers.size(), dimensions, activation_function));
       return *this;
     }
 
@@ -90,26 +90,26 @@ class Nnet {
       };
 
       layers.push_back(
-          Layer::MakeFeedForwardLayer(layers.size(), dimensions, nullptr));
+          Layer::MakeFeedForwardLayer(layers.size(), dimensions));
       return *this;
     }
 
     Architecture& AddConvolutionLayer(const VolumeDimensions& dimensions,
                                       const FilterParams& params) {
       layers.push_back(Layer::MakeConvolutionLayer(layers.size(), dimensions,
-                                                   params, nullptr));
+                                                   params));
       return *this;
     }
 
     Architecture& AddSoftmaxLayer(size_t size) {
-      layers.push_back(Layer::MakeSoftmaxLayer(layers.size(), size, nullptr));
+      layers.push_back(Layer::MakeSoftmaxLayer(layers.size(), size));
       return *this;
     }
 
     Architecture& AddActivationLayer(
         size_t size, const ActivationFunctionType& activation_function) {
       layers.push_back(Layer::MakeActivationLayer(
-          layers.size(), size, activation_function, nullptr));
+          layers.size(), size, activation_function));
       return *this;
     }
 
@@ -123,7 +123,7 @@ class Nnet {
     Architecture& AddMaxPoolLayer(const VolumeDimensions& input,
                                   const AreaDimensions& output) {
       layers.push_back(
-          Layer::MakeMaxPoolLayer(layers.size(), input, output, nullptr));
+          Layer::MakeMaxPoolLayer(layers.size(), input, output));
       return *this;
     }
 
@@ -138,14 +138,6 @@ class Nnet {
     size_t output_size() const {
       return layers[layers.size() - 1].GetDimensions().num_outputs;
     }
-
-   private:
-    friend Nnet;
-    void SetSymbolGenerator(SymbolGenerator* generator) {
-      for (auto& layer : layers) {
-        layer.SetSymbolGenerator(generator);
-      }
-    };
   };
 
   Nnet(const Architecture& model) : model_(model) {
@@ -628,7 +620,7 @@ class Nnet {
 
   Architecture model_;
 
-  FlatWeightSymbolGenerator generator_;
+  SymbolGenerator generator_;
 
   // OpenCL state variables.
   struct OpenClState {

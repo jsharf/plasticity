@@ -2,7 +2,7 @@
 #define LAYER_IMPL_H
 
 #include "math/geometry/dynamic_matrix.h"
-#include "math/nnet/symbol_generator.h"
+#include "math/nnet/layer_dimensions.h"
 #include "math/stats/normal.h"
 #include "math/symbolic/expression.h"
 #include "math/symbolic/symbolic_util.h"
@@ -14,12 +14,9 @@ Matrix<symbolic::Expression> AddBias(Matrix<symbolic::Expression> x);
 
 class LayerImpl {
  public:
-  struct Dimensions {
-    size_t num_inputs;
-    size_t num_outputs;
-  };
-
   // Dim(num_outputs * (num_inputs + 1))
+  // TODO(sharf): use std::vector<std::string> instead and rename weights() to
+  // weightnames();
   using WeightArray = std::vector<std::string>;
 
   using ActivationFunctionType =
@@ -28,31 +25,20 @@ class LayerImpl {
   virtual WeightArray weights() const = 0;
   virtual Matrix<symbolic::Expression> GenerateExpression(
       const Matrix<symbolic::Expression>& input) = 0;
-  virtual stats::Normal XavierInitializer() const = 0;
-  Dimensions GetDimensions() const { return dimensions_; }
+
   virtual std::unique_ptr<LayerImpl> Clone() const = 0;
 
+  Dimensions GetDimensions() const { return dimensions_; }
+
   size_t layer_index() const { return layer_index_; }
-
-  // Tread carefully... If you accidentally assign the wrong symbol generator to
-  // a layer, you can end up in really weird hard to debug states.
-  void SetSymbolGenerator(SymbolGenerator* generator) {
-    generator_ = generator;
-  }
-
-  SymbolGenerator* symbol_generator() const { return generator_; }
 
   virtual ~LayerImpl() {}
 
  protected:
-  LayerImpl(const Dimensions& dimensions, SymbolGenerator* generator,
-            size_t layer_index)
-      : dimensions_(dimensions),
-        generator_(generator),
-        layer_index_(layer_index) {}
+  LayerImpl(const Dimensions& dimensions, size_t layer_index)
+      : dimensions_(dimensions), layer_index_(layer_index) {}
 
   Dimensions dimensions_;
-  SymbolGenerator* generator_;
   size_t layer_index_;
 };
 
