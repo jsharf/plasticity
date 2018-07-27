@@ -104,7 +104,7 @@ std::string FileToString(std::string filepath) {
 
 std::string Layer::GenerateEvaluationKernel() {
   std::string evaluate_source =
-      FileToString("kernels/evaluate.kernel.cl");
+      FileToString("math/nnet/kernels/evaluate.kernel.cl");
 
   Matrix<symbolic::Expression> input = InputExpression();
   size_t rows = std::get<0>(input.size());
@@ -228,7 +228,7 @@ Matrix<symbolic::Expression> Layer::WeightGradients() {
 
 std::string Layer::GenerateTrainingKernels() {
   std::string train_source =
-      FileToString("kernels/back_prop.kernel.cl");
+      FileToString("math/nnet/kernels/back_prop.kernel.cl");
 
   Matrix<symbolic::Expression> input_gradient_expressions = InputGradients();
 
