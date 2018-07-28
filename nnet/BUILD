@@ -1,10 +1,24 @@
 cc_library(
+    name = "architecture",
+    visibility = ["//math"],
+    hdrs = ["architecture.h"],
+    deps = [
+        ":layer",
+        ":layer_dimensions",
+        "//math/symbolic:symbolic",
+        "//math/symbolic:symbolic_util",
+    ],
+)
+    
+cc_library(
     name = "nnet",
     visibility = ["//math"],
     hdrs = ["nnet.h"],
     data = glob(["kernels/*"]),
     deps = [
+        ":architecture",
         ":layer",
+        ":layer_dimensions",
         "//math/geometry:dynamic_matrix",
         "//math/symbolic:symbolic",
         "//math/symbolic:symbolic_util",

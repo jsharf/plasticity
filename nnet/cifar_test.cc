@@ -93,7 +93,7 @@ std::string OneHotEncodedOutputToString(Matrix<double> output) {
 int main() {
   constexpr int kInputSize = kSampleSize;
 
-  nnet::Nnet::Architecture model(kInputSize);
+  nnet::Architecture model(kInputSize);
   model
       .AddConvolutionLayer(
           {

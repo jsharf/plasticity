@@ -44,14 +44,12 @@ int main() {
   constexpr int kOutputSize = 1;
   constexpr int kInputSize = kSampleSize;
 
-  nnet::Nnet::Architecture model(kInputSize);
+  nnet::Architecture model(kInputSize);
   model.AddFeedForwardLayer(kLayerSize);
   model.AddFeedForwardLayer(kLayerSize);
   model.AddFeedForwardLayer(kOutputSize);
   nnet::Nnet test_net(model);
 
-  std::cout << "Expr: " << std::endl << test_net.to_string() << std::endl;
- 
   constexpr const char* dictionary_path = "/usr/share/dict/words";
   std::ifstream dictionary_obj(dictionary_path);
 

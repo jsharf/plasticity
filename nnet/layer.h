@@ -29,7 +29,13 @@ class Layer {
   using ActivationFunctionType = LayerImpl::ActivationFunctionType;
 
   // Constructors.
-  Layer() {}
+  Layer() {
+    // Default to zero initialization. For Xavier initialization, call
+    // XavierInitializeWeights().
+    for (const std::string& weight : weights()) {
+      env()[weight].real() = 0;
+    }
+  }
   Layer(std::unique_ptr<LayerImpl>&& root);
   explicit Layer(Layer&& rhs);
   Layer(const Layer& rhs);

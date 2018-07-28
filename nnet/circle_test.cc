@@ -17,7 +17,7 @@ int main() {
   constexpr int kOutputSize = 1;
   constexpr int kInputSize = kSampleSize;
 
-  nnet::Nnet::Architecture model(kInputSize);
+  nnet::Architecture model(kInputSize);
   model.AddFeedForwardLayer(kLayerSize);
   model.AddFeedForwardLayer(kOutputSize);
   nnet::Nnet test_net(model);
@@ -34,7 +34,7 @@ int main() {
     examples.push_back(std::make_tuple(Sample({{x}, {y}}), in_unit_circle));
   }
 
-  nnet::Nnet::LearningParameters params{.learning_rate = 1};
+  nnet::Nnet::LearningParameters params{.learning_rate = 0.1};
 
   for (const std::tuple<Sample, double>& example : examples) {
     test_net.TrainCl(std::get<0>(example),
