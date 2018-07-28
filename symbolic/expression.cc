@@ -99,7 +99,16 @@ Expression Expression::Log(NumericValue base, const Expression& exp) {
     return std::static_pointer_cast<const ExpressionNode>(std::make_shared<const LogExpression>(base, exp));
 }
 
+Expression Expression::Log(const Expression& exp) {
+    return std::static_pointer_cast<const ExpressionNode>(std::make_shared<const LogExpression>(M_E, exp));
+}
+
 Expression Expression::Exp(NumericValue base, const Expression& exp) {
+  return std::static_pointer_cast<const ExpressionNode>(
+      std::make_shared<const ExponentExpression>(base, exp));
+}
+
+Expression Expression::Exp(const Expression& exp) {
   return std::static_pointer_cast<const ExpressionNode>(
       std::make_shared<const ExponentExpression>(base, exp));
 }

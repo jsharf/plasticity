@@ -51,7 +51,13 @@ class Expression {
   // Returns log of exp with base base. Aka log(exp)/log(base).
   static Expression Log(NumericValue base, const Expression& exp);
 
+  // Natural logarithm.
+  static Expression Log(const Expression& exp);
+
   // Returns base^expression.
+  static Expression Exp(NumericValue base, const Expression& exp);
+
+  // e^(exp).
   static Expression Exp(NumericValue base, const Expression& exp);
 
   // TODO(sharf): make this immutable, remove these.
