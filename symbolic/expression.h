@@ -48,10 +48,17 @@ class Expression {
   Expression operator*(const Expression& rhs) const;
   Expression operator/(const Expression& rhs) const;
 
+  // Returns log of exp with base base. Aka log(exp)/log(base).
+  static Expression Log(NumericValue base, const Expression& exp);
+
+  // Returns base^expression.
+  static Expression Exp(NumericValue base, const Expression& exp);
+
   // TODO(sharf): make this immutable, remove these.
   Expression& operator=(const Expression& rhs);
   Expression& operator=(Expression&& rhs);
 
+  // TODO(sharf): make this immutable, remove this.
   Expression& operator+=(const Expression& rhs);
 
   friend std::ostream& operator<<(std::ostream& output, const Expression& exp) {
@@ -315,11 +322,50 @@ class ExponentExpression : public ExpressionNode {
  public:
   ExponentExpression(const NumericValue& b, const Expression& child)
       : b_(b), child_(child) {}
+
   // Variables which need to be resolved in order to evaluate the expression.
-  std::set<std::string> variables() const override;
+  std::set<std::string> variables() const override {
+    return child_.variables();
+  }
+
   // Bind variables to values to create an expression which can be evaluated.
   std::shared_ptr<const ExpressionNode> Bind(
       const Environment& env) const override;
+
+  // If all variables in the expression have been bound, this produces a
+  // numerical evaluation of the expression.
+  std::experimental::optional<NumericValue> TryEvaluate() const override;
+
+  // Returns the symbolic partial derivative of this expression.
+  std::shared_ptr<const ExpressionNode> Derive(
+      const std::string& x) const override;
+
+  std::string to_string() const override;
+
+  std::shared_ptr<const ExpressionNode> Clone() const override;
+
+ private:
+  NumericValue b_;
+  Expression child_;
+};
+
+// NOTE: as a judgement call, I'm not implementing LogExpression with complex
+// values. If you'd like to implement that, here's the details:
+// https://en.wikipedia.org/wiki/Complex_logarithm
+class LogExpression : public ExpressionNode {
+ public:
+  LogExpression(const NumericValue& base, const Expression& child)
+      : b_(base), child_(child) {}
+
+  // Variables which need to be resolved in order to evaluate the expression.
+  std::set<std::string> variables() const override {
+    return child_.variables();
+  }
+
+  // Bind variables to values to create an expression which can be evaluated.
+  std::shared_ptr<const ExpressionNode> Bind(
+      const Environment& env) const override;
+
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
   std::experimental::optional<NumericValue> TryEvaluate() const override;

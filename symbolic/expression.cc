@@ -95,6 +95,15 @@ Expression Expression::operator/(const Expression& rhs) const {
                                                          rhs.expression_root_));
 }
 
+Expression Expression::Log(NumericValue base, const Expression& exp) {
+    return std::static_pointer_cast<const ExpressionNode>(std::make_shared<const LogExpression>(base, exp));
+}
+
+Expression Expression::Exp(NumericValue base, const Expression& exp) {
+  return std::static_pointer_cast<const ExpressionNode>(
+      std::make_shared<const ExponentExpression>(base, exp));
+}
+
 Expression& Expression::operator=(const Expression& rhs) {
   expression_root_ = rhs.expression_root_->Clone();
   return *this;
@@ -426,10 +435,6 @@ std::string DivisionExpression::to_string() const {
 
 // ExponentExpression Impl.
 
-std::set<std::string> ExponentExpression::variables() const {
-  return child_.variables();
-}
-
 std::shared_ptr<const ExpressionNode> ExponentExpression::Bind(
     const Environment& env) const {
   return std::make_shared<ExponentExpression>(b_, child_.Bind(env));
@@ -468,8 +473,8 @@ std::shared_ptr<const ExpressionNode> ExponentExpression::Derive(
   Expression derivative = multiplier * Expression(Clone());
 
   // Chain rule.
-  return std::static_pointer_cast<const ExpressionNode>(
-      std::make_shared<MultiplicationExpression>(derivative, child_.Derive(x)));
+  return std::make_shared<const MultiplicationExpression>(derivative,
+                                                          child_.Derive(x));
 }
 
 std::string ExponentExpression::to_string() const {
@@ -478,6 +483,54 @@ std::string ExponentExpression::to_string() const {
 
 std::shared_ptr<const ExpressionNode> ExponentExpression::Clone() const {
   return std::make_shared<const ExponentExpression>(b_, child_);
+}
+
+// LogExpression Impl.
+
+std::shared_ptr<const ExpressionNode> LogExpression::Bind(
+    const Environment& env) const {
+  return std::make_shared<LogExpression>(b_, child_.Bind(env));
+}
+
+std::experimental::optional<NumericValue> LogExpression::TryEvaluate() const {
+  std::experimental::optional<NumericValue> child_result = child_.Evaluate();
+  if (!child_result) {
+    return std::experimental::nullopt;
+  }
+
+  if ((child_result->imag() != 0) || (b_.imag() != 0)) {
+    std::cerr << "Warning: Tried evaluating a LogExpression() on a complex "
+                 "expression. LogExpression is only implemented for real "
+                 "numbers."
+              << std::endl;
+    return std::experimental::nullopt;
+  }
+
+  // https://oregonstate.edu/instruct/mth251/cq/Stage6/Lesson/logDeriv.html
+  Number base = b_.real();
+  Number exp = child_result->real();
+
+  return NumericValue(log(exp) / log(base));
+}
+
+std::shared_ptr<const ExpressionNode> LogExpression::Derive(
+    const std::string& x) const {
+  Expression derivative =
+      symbolic::CreateExpression("1") / (child_ * log(b_.real()));
+
+  Expression child_derivative = child_.Derive(x);
+
+  // Chain rule.
+  return std::make_shared<const MultiplicationExpression>(derivative,
+                                                          child_derivative);
+}
+
+std::string LogExpression::to_string() const {
+  return "log(" + child_.to_string() + ") / log(" + b_.to_string() + ")";
+}
+
+std::shared_ptr<const ExpressionNode> LogExpression::Clone() const {
+  return std::make_shared<const LogExpression>(b_, child_);
 }
 
 }  // namespace symbolic

@@ -1,3 +1,6 @@
+#define CATCH_CONFIG_MAIN
+#include "math/third_party/catch.h"
+
 #include <cstdlib>
 
 #include <experimental/optional>
@@ -14,7 +17,7 @@ using symbolic::GteExpression;
 using symbolic::IfExpression;
 using symbolic::NumericValue;
 
-int main() {
+TEST_CASE("Simple expression output is validated", "[symbolic]") {
   Expression equation = symbolic::CreateExpression("a*x + b + 0.5i");
 
   std::cout << "Equation: \n" << equation.to_string() << std::endl;
@@ -27,16 +30,13 @@ int main() {
   std::cout << "x" << std::endl;
   equation = equation.Bind("x", NumericValue(1));
 
-  std::cout << "Fixed Equation: \n" << equation.to_string() << std::endl;
-
-  std::cout << "Evaluating..." << std::endl;
-
   std::experimental::optional<NumericValue> result = equation.Evaluate();
-  if (result) {
-    std::cout << "Result of ax + b + 0.5i, a = 1, b = 1, x = 1: "
-              << result->to_string() << std::endl;
-  }
+  REQUIRE(result);
+  REQUIRE(result->real() == 2);
+  REQUIRE(result->imag() == Approx(0.5));
+}
 
+TEST_CASE("Pieceweise function is evaluated", "[symbolic]") {
   Expression eq1 = symbolic::CreateExpression("x * x");
   Expression eq2 = symbolic::CreateExpression("25");
   Expression pieceweise_fn = Expression(std::make_shared<IfExpression>(
@@ -45,27 +45,22 @@ int main() {
       eq1, eq2));
   Expression pieceweise_deriv = pieceweise_fn.Derive("x");
 
-  std::cout << "f(x) = " << pieceweise_fn.to_string() << std::endl;
-  std::cout << "Printing f(x) and f'(x) for x = [0, 30]" << std::endl;
-  std::cout << "x" << '\t' << "f(x)" << '\t' << "f'(x)" << std::endl;
   for (size_t x = 0; x < 30; ++x) {
-    std::cout
-        << x << '\t'
-        << pieceweise_fn.Bind("x", NumericValue(x)).Evaluate()->to_string()
-        << '\t'
-        << pieceweise_deriv.Bind("x", NumericValue(x)).Evaluate()->to_string()
-        << std::endl;
+    if (x <= 5) {
+      REQUIRE(pieceweise_fn.Bind("x", x).Evaluate()->real() == Approx(x * x));
+      REQUIRE(pieceweise_deriv.Bind("x", x).Evaluate()->real() ==
+              Approx(2 * x));
+    } else {
+      REQUIRE(pieceweise_fn.Bind("x", x).Evaluate()->real() == 25);
+      REQUIRE(pieceweise_deriv.Bind("x", x).Evaluate()->real() == 0);
+    }
   }
+}
 
+TEST_CASE("Test max expression", "[symbolic]") {
   Expression max_test = symbolic::Max(
       {symbolic::CreateExpression("3"), symbolic::CreateExpression("2"),
        symbolic::CreateExpression("1"), symbolic::CreateExpression("5")});
 
-  std::cout << "max(3, 2, 1, 5) = " << std::endl
-            << max_test.to_string() << std::endl;
-
-  std::cout << "Eval = " << std::endl
-            << max_test.Evaluate()->real() << std::endl;
-
-  std::cout << "DONE" << std::endl;
+  REQUIRE(max_test.Evaluate()->real() == 5);
 }

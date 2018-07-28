@@ -32,18 +32,6 @@ cc_library(
 )
 
 cc_binary(
-    name = "symbolic_test",
-    srcs = ["symbolic_test.cc"],
-    copts = [
-        "-std=c++1z",
-    ],
-    deps = [
-        ":symbolic",
-        ":symbolic_util",
-    ],
-)
-
-cc_binary(
     name = "simple_test",
     srcs = ["simple_test.cc"],
     copts = [
@@ -55,3 +43,15 @@ cc_binary(
     ],
 )
 
+cc_test(
+    name = "symbolic_test",
+    srcs = ["symbolic_test.cc"],
+    copts = [
+        "-std=c++1z",
+    ],
+    deps = [
+        ":symbolic",
+        ":symbolic_util",
+        "//math/third_party:catch2",
+    ],
+)
