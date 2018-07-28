@@ -27,6 +27,16 @@ class Expression;
 
 Expression CreateExpression(std::string expression);
 
+// Returns log of exp with base base. Aka log(exp)/log(base).
+Expression Log(NumericValue base, const Expression& exp);
+// Natural logarithm.
+Expression Log(const Expression& exp);
+
+// Returns base^expression.
+Expression Exp(NumericValue base, const Expression& exp);
+// e^(exp).
+Expression Exp(const Expression& exp);
+
 // Class which holds the ExpressionNode tree and provides an easy-to-use
 // interface.
 class Expression {
@@ -47,18 +57,6 @@ class Expression {
   Expression operator-(const Expression& rhs) const;
   Expression operator*(const Expression& rhs) const;
   Expression operator/(const Expression& rhs) const;
-
-  // Returns log of exp with base base. Aka log(exp)/log(base).
-  static Expression Log(NumericValue base, const Expression& exp);
-
-  // Natural logarithm.
-  static Expression Log(const Expression& exp);
-
-  // Returns base^expression.
-  static Expression Exp(NumericValue base, const Expression& exp);
-
-  // e^(exp).
-  static Expression Exp(const Expression& exp);
 
   // TODO(sharf): make this immutable, remove these.
   Expression& operator=(const Expression& rhs);

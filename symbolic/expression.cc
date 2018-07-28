@@ -53,6 +53,24 @@ Expression CreateExpression(std::string expression) {
   return Expression(std::make_shared<NumericValue>(value));
 }
 
+Expression Log(NumericValue base, const Expression& exp) {
+    return std::static_pointer_cast<const ExpressionNode>(std::make_shared<const LogExpression>(base, exp));
+}
+
+Expression Log(const Expression& exp) {
+    return std::static_pointer_cast<const ExpressionNode>(std::make_shared<const LogExpression>(M_E, exp));
+}
+
+Expression Exp(NumericValue base, const Expression& exp) {
+  return std::static_pointer_cast<const ExpressionNode>(
+      std::make_shared<const ExponentExpression>(base, exp));
+}
+
+Expression Exp(const Expression& exp) {
+  return std::static_pointer_cast<const ExpressionNode>(
+      std::make_shared<const ExponentExpression>(M_E, exp));
+}
+
 // Expression Implementation.
 
 Expression::Expression(std::shared_ptr<const ExpressionNode> root)
@@ -93,24 +111,6 @@ Expression Expression::operator*(const Expression& rhs) const {
 Expression Expression::operator/(const Expression& rhs) const {
   return Expression(std::make_shared<DivisionExpression>(expression_root_,
                                                          rhs.expression_root_));
-}
-
-Expression Expression::Log(NumericValue base, const Expression& exp) {
-    return std::static_pointer_cast<const ExpressionNode>(std::make_shared<const LogExpression>(base, exp));
-}
-
-Expression Expression::Log(const Expression& exp) {
-    return std::static_pointer_cast<const ExpressionNode>(std::make_shared<const LogExpression>(M_E, exp));
-}
-
-Expression Expression::Exp(NumericValue base, const Expression& exp) {
-  return std::static_pointer_cast<const ExpressionNode>(
-      std::make_shared<const ExponentExpression>(base, exp));
-}
-
-Expression Expression::Exp(const Expression& exp) {
-  return std::static_pointer_cast<const ExpressionNode>(
-      std::make_shared<const ExponentExpression>(M_E, exp));
 }
 
 Expression& Expression::operator=(const Expression& rhs) {
