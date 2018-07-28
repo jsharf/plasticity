@@ -23,11 +23,9 @@ class FeedForwardLayer : public LayerImpl {
                    size_t layer_index);
 
   FeedForwardLayer(const Dimensions& dimensions, size_t layer_index)
-      : Super(dimensions, layer_index), generator_(dimensions) {
-    activation_function_ = [](const symbolic::Expression& exp) {
-      return symbolic::Sigmoid(exp);
-    };
-  }
+      : Super(dimensions, layer_index),
+        generator_(dimensions),
+        activation_function_(symbolic::Sigmoid) {}
 
   WeightArray weights() const override;
 

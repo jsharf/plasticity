@@ -8,16 +8,22 @@ namespace nnet {
 
 // Boilerplate constructors.
 Layer::Layer(std::unique_ptr<LayerImpl>&& root) : impl_(std::move(root)) {}
-Layer::Layer(Layer&& other) : impl_(std::move(other.impl_)) {}
-Layer::Layer(const Layer& other) : impl_(other.impl_->Clone()) {}
+Layer::Layer(Layer&& other)
+    : impl_(std::move(other.impl_)),
+      env_(std::move(other.env_)) {}
+Layer::Layer(const Layer& other)
+    : impl_(other.impl_->Clone()),
+      env_(other.env_) {}
 
 // Boilerplate operator.
 Layer& Layer::operator=(const Layer& rhs) {
   impl_ = rhs.impl_->Clone();
+  env_ = rhs.env_;
   return *this;
 }
 Layer& Layer::operator=(Layer&& rhs) {
   impl_ = std::move(rhs.impl_);
+  env_ = std::move(rhs.env_);
   return *this;
 }
 

@@ -15,7 +15,7 @@ using Number = double;
 
 class NumericValue : public ExpressionNode {
  public:
-  explicit NumericValue(Number a) : is_bound_(true), a_(a), b_(0) {}
+  NumericValue(Number a) : is_bound_(true), a_(a), b_(0) {}
   NumericValue(Number a, Number b) : is_bound_(true), a_(a), b_(b) {}
   NumericValue(std::string name) : is_bound_(false), name_(name) {}
   NumericValue() : is_bound_(true), a_(0), b_(0) {}

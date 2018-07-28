@@ -73,7 +73,7 @@ class Layer {
   WeightArray weights() const;
 
   symbolic::Environment& env() { return env_; }
-  //const symbolic::Environment& env() const { return env_; }
+  const symbolic::Environment& env() const { return env_; }
 
   std::string WeightsToString() const;
 

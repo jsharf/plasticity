@@ -186,9 +186,9 @@ cc_library(
 )
 
 cc_binary(
-    name = "nnet_test",
+    name = "nnet_demo",
     visibility = ["//math"],
-    srcs = ["nnet_test.cc"],
+    srcs = ["nnet_demo.cc"],
     copts = [
       "--std=c++1z",
     ],
@@ -245,5 +245,26 @@ cc_binary(
     ],
     data = [
         "//math/nnet/data:cifar-10"
+    ],
+)
+
+cc_test(
+    name = "nnet_test",
+    srcs = ["nnet_test.cc"],
+    copts = [
+        "--std=c++1z",
+    ],
+    linkopts = select({
+        "//clutil:osx" : ["-framework OpenCL"],
+        "//clutil:linux" : ["-lOpenCL"],
+        "//conditions:default" : ["-lOpenCL"],
+    }),
+    deps = [
+        ":nnet",
+        ":layer",
+        ":symbol_generator",
+        "//math/symbolic:symbolic",
+        "//math/geometry:dynamic_matrix",
+        "//math/third_party:catch2",
     ],
 )

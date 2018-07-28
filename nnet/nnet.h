@@ -29,8 +29,10 @@ class Nnet {
   };
 
   enum InitStrategy {
-    zero = 0,
-    xavier = 1,
+    xavier = 0,
+    // none init strategy is made available for testing only (to manually set
+    // weights).
+    none
   };
 
   Nnet(const Architecture& model, InitStrategy weight_initialization = xavier)
@@ -232,19 +234,23 @@ class Nnet {
   // Evaluates a matrix of symbolics given an execution environment and returns
   // a matrix of real values.
   static Matrix<Number> MapBindAndEvaluate(
-      Matrix<symbolic::Expression> symbolic, symbolic::Environment env) {
+      Matrix<symbolic::Expression> symbols, symbolic::Environment env) {
     // Turns symbolic expressions into real numbers.
     std::function<Number(const symbolic::Expression& e)> real_evaluator =
-        [&env](const symbolic::Expression& e) -> Number {
+        [&env, &symbols](const symbolic::Expression& e) -> Number {
       auto maybe_value = e.Bind(env).Evaluate();
       if (!maybe_value) {
         // Shit.
         std::cerr << "Well, fuck, not sure how this happened" << std::endl;
+        std::cerr << "Failed to evaluate this expression: \n\t" << symbols.to_string() << "\nWith environment: \n";
+        for (const auto& val : env) {
+          std::cerr << "\t" << val.first << ": " << val.second.to_string() << std::endl;
+        }
         std::exit(1);
       }
       return maybe_value->real();
     };
-    return symbolic.Map(real_evaluator);
+    return symbols.Map(real_evaluator);
   }
 
   // Back propagation
@@ -502,7 +508,7 @@ class Nnet {
  private:
   void CalculateInitialWeights(InitStrategy weight_initialization) {
     switch(weight_initialization) {
-      case zero:
+      case none:
         break;
       case xavier:
         XavierInitializeWeights();
