@@ -58,7 +58,7 @@ class Expression {
   static Expression Exp(NumericValue base, const Expression& exp);
 
   // e^(exp).
-  static Expression Exp(NumericValue base, const Expression& exp);
+  static Expression Exp(const Expression& exp);
 
   // TODO(sharf): make this immutable, remove these.
   Expression& operator=(const Expression& rhs);
