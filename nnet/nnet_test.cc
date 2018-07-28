@@ -108,7 +108,7 @@ TEST_CASE("Simple neural network output is validated", "[nnet]") {
 
 
   // Use the model to generate a neural network.
-  Nnet test_net(model, Nnet::none);
+  Nnet test_net(model, Nnet::NoWeightInit, Nnet::CrossEntropy);
 
   SECTION("Verify output (CPU)") {
     std::unique_ptr<std::vector<Matrix<Number>>> layer_outputs =
@@ -123,18 +123,22 @@ TEST_CASE("Simple neural network output is validated", "[nnet]") {
     REQUIRE(output.at(0, 0) == Approx(0.19858).epsilon(EPSILON));
     REQUIRE(output.at(1, 0) == Approx(0.28559).epsilon(EPSILON));
     REQUIRE(output.at(2, 0) == Approx(0.51583).epsilon(EPSILON));
-
-    int layer_index = 0;
-    for (const auto& layer_output : *layer_outputs) {
-      std::cout << "output layer " << layer_index << " : \n"
-                << layer_output.to_string() << std::endl;
-      layer_index++;
-    }
-    // Note that there's a separate layer (layer 4) for softmax, so layer 4's
-    // outputs should be used to compare to the outputs of layer 3 in the example.
   }
 
-  // TODO(sharf): add unit test to verify GPU driver.
+  SECTION("Verify output (GPU)") {
+    std::unique_ptr<std::vector<Matrix<Number>>> layer_outputs =
+        std::make_unique<std::vector<Matrix<Number>>>();
+    Matrix<Number> output = test_net.EvaluateCl(MakeInput(0.1, 0.2, 0.7), layer_outputs);
+    REQUIRE(output.dimensions().rows == 3);
+    REQUIRE(output.dimensions().cols == 1);
+    // Input is counted as a layer and the softmax layer is actually two layers.
+    // So 5... up from the 3 in the example.
+    REQUIRE(layer_outputs->size() == 5);
+
+    REQUIRE(output.at(0, 0) == Approx(0.19858).epsilon(EPSILON));
+    REQUIRE(output.at(1, 0) == Approx(0.28559).epsilon(EPSILON));
+    REQUIRE(output.at(2, 0) == Approx(0.51583).epsilon(EPSILON));
+  }
 }
 
 }  // namespace nnet

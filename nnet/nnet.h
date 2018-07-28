@@ -29,14 +29,22 @@ class Nnet {
   };
 
   enum InitStrategy {
-    xavier = 0,
+    Xavier = 0,
     // none init strategy is made available for testing only (to manually set
     // weights).
-    none
+    NoWeightInit
   };
 
-  Nnet(const Architecture& model, InitStrategy weight_initialization = xavier)
-      : model_(model) {
+  enum LossFunction {
+    MeanSquared = 0,
+    CrossEntropy,
+  };
+
+  // TODO(sharf): create factory class since C++'s doesn't allow named
+  // parameters and I want this API to be readable.
+  Nnet(const Architecture& model, InitStrategy weight_initialization = Xavier,
+       LossFunction loss_function = MeanSquared)
+      : model_(model), loss_function_(loss_function) {
     if (!model_.VerifyArchitecture()) {
       std::cerr << "Invalid dimensions passed to Nnet(): " << model.to_string()
                 << std::endl;
@@ -54,7 +62,6 @@ class Nnet {
     std::cerr << "Generating and compiling OpenCl kernel. This takes a while"
               << " the first time..." << std::endl;
     std::vector<std::string> eval_kernel_sources;
-    // TODO(sharf): Shouldn't need to pass in dimensions here...
     // TODO const this.
     for (Layer& layer : model_.layers) {
       std::cerr << ".";
@@ -182,7 +189,6 @@ class Nnet {
               << "\n}" << std::endl;
   }
 
-
   cl::Buffer ColumnVectorToGpuBuffer(const cl::Context& context,
                                      cl::CommandQueue* queue,
                                      Matrix<Number> colvec) {
@@ -233,8 +239,8 @@ class Nnet {
 
   // Evaluates a matrix of symbolics given an execution environment and returns
   // a matrix of real values.
-  static Matrix<Number> MapBindAndEvaluate(
-      Matrix<symbolic::Expression> symbols, symbolic::Environment env) {
+  static Matrix<Number> MapBindAndEvaluate(Matrix<symbolic::Expression> symbols,
+                                           symbolic::Environment env) {
     // Turns symbolic expressions into real numbers.
     std::function<Number(const symbolic::Expression& e)> real_evaluator =
         [&env, &symbols](const symbolic::Expression& e) -> Number {
@@ -242,9 +248,11 @@ class Nnet {
       if (!maybe_value) {
         // Shit.
         std::cerr << "Well, fuck, not sure how this happened" << std::endl;
-        std::cerr << "Failed to evaluate this expression: \n\t" << symbols.to_string() << "\nWith environment: \n";
+        std::cerr << "Failed to evaluate this expression: \n\t"
+                  << symbols.to_string() << "\nWith environment: \n";
         for (const auto& val : env) {
-          std::cerr << "\t" << val.first << ": " << val.second.to_string() << std::endl;
+          std::cerr << "\t" << val.first << ": " << val.second.to_string()
+                    << std::endl;
         }
         std::exit(1);
       }
@@ -475,16 +483,33 @@ class Nnet {
     }
   }
 
+  // TODO(sharf): move loss functions to separate file.
   symbolic::Expression GenerateErrorExpression(
+      const Matrix<symbolic::Expression>& actual,
+      const Matrix<symbolic::Expression>& expected) const {
+    switch (loss_function_) {
+      case MeanSquared:
+        return GenerateMseErrorExpression(actual, expected);
+      case CrossEntropy:
+        return GenerateCrossEntropyErrorExpression(actual, expected);
+      default:
+        std::cerr << "Error: Unknown loss function selected." << std::endl;
+        std::exit(1);
+    }
+  }
+
+  symbolic::Expression GenerateMseErrorExpression(
       const Matrix<symbolic::Expression>& actual,
       const Matrix<symbolic::Expression>& expected) const {
     if (actual.size() != expected.size()) {
       std::cerr << "Invalid expression passed to "
-                   "GenerateErrorExpression(Matrix<symbolic::Expression>, "
+                   "GenerateMseErrorExpression(Matrix<symbolic::Expression>, "
                    "Matrix<symbolic::Expression>)"
                 << std::endl;
       std::exit(1);
     }
+
+    size_t n = actual.dimensions().rows;
 
     symbolic::Expression error;
     for (size_t row = 0; row < actual.dimensions().rows; ++row) {
@@ -492,7 +517,33 @@ class Nnet {
           (expected.at(row, 0) - actual.at(row, 0));
       error = error + (output_error * output_error);
     }
-    return error;
+    return error / n;
+  }
+
+  symbolic::Expression GenerateCrossEntropyErrorExpression(
+      const Matrix<symbolic::Expression>& actual,
+      const Matrix<symbolic::Expression>& expected) const {
+    if (actual.size() != expected.size()) {
+      std::cerr << "Invalid expression passed to "
+                   "GenerateCrossEntropyErrorExpression(Matrix<symbolic::"
+                   "Expression>, "
+                   "Matrix<symbolic::Expression>)"
+                << std::endl;
+      std::exit(1);
+    }
+
+    size_t n = actual.dimensions().rows;
+
+    symbolic::Expression error;
+    for (size_t row = 0; row < actual.dimensions().rows; ++row) {
+      symbolic::Expression e = expected.at(row, 0);
+      symbolic::Expression a = actual.at(row, 0);
+      symbolic::Expression output_error =
+          (e * symbolic::Log(a)) + ((symbolic::Expression(1) - e) *
+                                    symbolic::Log(symbolic::Expression(1) - a));
+      error = error + output_error;
+    }
+    return symbolic::Expression(-1) * (error / n);
   }
 
   std::string WeightsToString() const {
@@ -507,10 +558,10 @@ class Nnet {
 
  private:
   void CalculateInitialWeights(InitStrategy weight_initialization) {
-    switch(weight_initialization) {
-      case none:
+    switch (weight_initialization) {
+      case NoWeightInit:
         break;
-      case xavier:
+      case Xavier:
         XavierInitializeWeights();
         break;
       default:
@@ -538,6 +589,7 @@ class Nnet {
   Architecture model_;
 
   SymbolGenerator generator_;
+  LossFunction loss_function_;
 
   // OpenCL state variables.
   struct OpenClState {
