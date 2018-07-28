@@ -110,7 +110,7 @@ Expression Expression::Exp(NumericValue base, const Expression& exp) {
 
 Expression Expression::Exp(const Expression& exp) {
   return std::static_pointer_cast<const ExpressionNode>(
-      std::make_shared<const ExponentExpression>(base, exp));
+      std::make_shared<const ExponentExpression>(M_E, exp));
 }
 
 Expression& Expression::operator=(const Expression& rhs) {
