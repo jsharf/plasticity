@@ -78,4 +78,28 @@ Expression Max(const std::vector<Expression>& exprs) {
   return Expression(std::move(maxstatement));
 }
 
+// Evaluates a matrix of symbolics given an execution environment and returns
+// a matrix of real values.
+Matrix<Number> MapBindAndEvaluate(Matrix<symbolic::Expression> symbols,
+                                  symbolic::Environment env) {
+  // Turns symbolic expressions into real numbers.
+  std::function<Number(const symbolic::Expression& e)> real_evaluator =
+      [&env, &symbols](const symbolic::Expression& e) -> Number {
+    auto maybe_value = e.Bind(env).Evaluate();
+    if (!maybe_value) {
+      // Shit.
+      std::cerr << "Well, fuck, not sure how this happened" << std::endl;
+      std::cerr << "Failed to evaluate this expression: \n\t"
+                << symbols.to_string() << "\nWith environment: \n";
+      for (const auto& val : env) {
+        std::cerr << "\t" << val.first << ": " << val.second.to_string()
+                  << std::endl;
+      }
+      std::exit(1);
+    }
+    return maybe_value->real();
+  };
+  return symbols.Map(real_evaluator);
+}
+
 }  // namespace symbolic

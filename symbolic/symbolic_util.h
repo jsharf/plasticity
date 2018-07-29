@@ -19,6 +19,9 @@ Expression Softmax(const Matrix<Expression>& column_vector, int index);
 
 Expression Max(const std::vector<Expression>& exprs);
 
+Matrix<Number> MapBindAndEvaluate(Matrix<symbolic::Expression> symbols,
+                                  symbolic::Environment env);
+
 }  // namespace symbolic
 
 #endif /* SYMBOLIC_UTIL_H */

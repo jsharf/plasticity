@@ -54,6 +54,11 @@ class Nnet {
     CalculateInitialWeights(weight_initialization);
   }
 
+  // Intended mostly for testing or low-level hacks. Proceed with caution.
+  Architecture model() {
+    return model_;
+  }
+
   void CompileEvaluateKernelsIfRequired(cl::Device device) {
     if (evaluate_kernels_.compiled &&
         ClDevicesAreEqual(evaluate_kernels_.device, SelectDevice())) {
@@ -226,7 +231,7 @@ class Nnet {
         env[generator_.I(i)].real() = inputs.at(i, 0);
       }
 
-      outputs = MapBindAndEvaluate(layer.GenerateExpression(), env);
+      outputs = symbolic::MapBindAndEvaluate(layer.GenerateExpression(), env);
       inputs = outputs;
 
       if (out_layer_outputs) {
@@ -235,30 +240,6 @@ class Nnet {
     }
 
     return outputs;
-  }
-
-  // Evaluates a matrix of symbolics given an execution environment and returns
-  // a matrix of real values.
-  static Matrix<Number> MapBindAndEvaluate(Matrix<symbolic::Expression> symbols,
-                                           symbolic::Environment env) {
-    // Turns symbolic expressions into real numbers.
-    std::function<Number(const symbolic::Expression& e)> real_evaluator =
-        [&env, &symbols](const symbolic::Expression& e) -> Number {
-      auto maybe_value = e.Bind(env).Evaluate();
-      if (!maybe_value) {
-        // Shit.
-        std::cerr << "Well, fuck, not sure how this happened" << std::endl;
-        std::cerr << "Failed to evaluate this expression: \n\t"
-                  << symbols.to_string() << "\nWith environment: \n";
-        for (const auto& val : env) {
-          std::cerr << "\t" << val.first << ": " << val.second.to_string()
-                    << std::endl;
-        }
-        std::exit(1);
-      }
-      return maybe_value->real();
-    };
-    return symbols.Map(real_evaluator);
   }
 
   // Back propagation
@@ -270,7 +251,7 @@ class Nnet {
     // layer_outputs.
     std::unique_ptr<std::vector<Matrix<Number>>> layer_outputs =
         std::make_unique<std::vector<Matrix<Number>>>();
-    Matrix<Number> output = Evaluate(in, layer_outputs);
+    Matrix<Number> actual_output = Evaluate(in, layer_outputs);
 
     Matrix<symbolic::Expression> output_symbolic =
         GenerateOutputLayer(output_size());
@@ -290,12 +271,12 @@ class Nnet {
       output_gradients_symbolic.at(i, 0) =
           error.Derive(output_symbolic.at(i, 0).to_string());
 
-      env[generator_.O(i)] = symbolic::NumericValue(output.at(i, 0));
+      env[generator_.O(i)] = symbolic::NumericValue(actual_output.at(i, 0));
     }
 
     // Generate output gradients (first part of backprop).
     Matrix<Number> gradients =
-        MapBindAndEvaluate(output_gradients_symbolic, env);
+        symbolic::MapBindAndEvaluate(output_gradients_symbolic, env);
 
     // Propagate the gradients backwards.
     // For each layer, take the current backpropagated gradients (stored in
@@ -319,13 +300,13 @@ class Nnet {
 
       // Backprop layer weight updates.
       Matrix<Number> weight_gradients =
-          MapBindAndEvaluate(layer.WeightGradients(), env);
+          symbolic::MapBindAndEvaluate(layer.WeightGradients(), env);
       for (size_t i = 0; i < layer.weights().size(); ++i) {
         layer.env()[layer.weights()[i]].real() -=
             learning_rate * weight_gradients.at(i, 0);
       }
 
-      gradients = MapBindAndEvaluate(layer.InputGradients(), env);
+      gradients = symbolic::MapBindAndEvaluate(layer.InputGradients(), env);
     }
   }
 
@@ -363,7 +344,7 @@ class Nnet {
     // layer_outputs.
     std::unique_ptr<std::vector<Matrix<Number>>> layer_outputs =
         std::make_unique<std::vector<Matrix<Number>>>();
-    Matrix<Number> output = EvaluateCl(in, layer_outputs);
+    Matrix<Number> actual_output = EvaluateCl(in, layer_outputs);
 
     Matrix<symbolic::Expression> output_symbolic =
         GenerateOutputLayer(output_size());
@@ -384,12 +365,12 @@ class Nnet {
       output_gradients_symbolic.at(i, 0) =
           error.Derive(output_symbolic.at(i, 0).to_string());
 
-      env[generator_.O(i)] = symbolic::NumericValue(output.at(i, 0));
+      env[generator_.O(i)] = symbolic::NumericValue(actual_output.at(i, 0));
     }
 
     // Generate output gradients (first part of backprop).
     Matrix<Number> gradients =
-        MapBindAndEvaluate(output_gradients_symbolic, env);
+        symbolic::MapBindAndEvaluate(output_gradients_symbolic, env);
 
     // Propagate the gradients backwards.
     // For each layer, take the current backpropagated gradients (stored in
@@ -543,7 +524,7 @@ class Nnet {
                                     symbolic::Log(symbolic::Expression(1) - a));
       error = error + output_error;
     }
-    return symbolic::Expression(-1) * (error / n);
+    return (symbolic::Expression(-1) / n) * (error);
   }
 
   std::string WeightsToString() const {

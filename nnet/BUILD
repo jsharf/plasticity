@@ -264,6 +264,7 @@ cc_test(
         ":layer",
         ":symbol_generator",
         "//math/symbolic:symbolic",
+        "//math/symbolic:symbolic_util",
         "//math/geometry:dynamic_matrix",
         "//math/third_party:catch2",
     ],
