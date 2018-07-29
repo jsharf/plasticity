@@ -372,6 +372,9 @@ class Nnet {
     Matrix<Number> gradients =
         symbolic::MapBindAndEvaluate(output_gradients_symbolic, env);
 
+    cl::Buffer gpu_gradients =
+          ColumnVectorToGpuBuffer(context, &queue, gradients);
+
     // Propagate the gradients backwards.
     // For each layer, take the current backpropagated gradients (stored in
     // variable Matrix<Number> gradients) and pass it to the weight gradient
@@ -403,9 +406,6 @@ class Nnet {
       // Also, transfer all inputs at once outside of this for-loop.
       cl::Buffer gpu_layer_input =
           ColumnVectorToGpuBuffer(context, &queue, layer_input);
-
-      cl::Buffer gpu_gradients =
-          ColumnVectorToGpuBuffer(context, &queue, gradients);
 
       cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
       queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0, sizeof(Number),
@@ -451,17 +451,10 @@ class Nnet {
                                  cl::NDRange(layer.GetDimensions().num_inputs),
                                  cl::NullRange);
 
-      // Load in new gradients.
-      // TODO(sharf): this loads new gradients back to CPU and then next
-      // iteration puts them in GPU again. This can be optimized...
-      Number new_gradients[layer.GetDimensions().num_inputs];
-      queue.enqueueReadBuffer(gpu_new_gradients, CL_TRUE, 0,
-                              sizeof(Number) * layer.GetDimensions().num_inputs,
-                              new_gradients);
-      gradients = Matrix<Number>(layer.GetDimensions().num_inputs, 1);
-      for (size_t i = 0; i < layer.GetDimensions().num_inputs; ++i) {
-        gradients.at(i, 0) = new_gradients[i];
-      }
+      // Use the new input gradients for the next layer backwards (the one
+      // before this one, we're iterating backwards).
+      gpu_gradients = gpu_new_gradients;
+
     }
   }
 

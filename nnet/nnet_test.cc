@@ -220,10 +220,18 @@ TEST_CASE("Simple neural network output and gradient descent is validated",
     REQUIRE(error.Evaluate()->real() == Approx(0.298371109));
   }
 
-  SECTION("Verify back propagation of neural network (CPU)", "[nnet]") {
+  SECTION("Verify back propagation of neural network", "[nnet]") {
     Matrix<Number> expected({{0.01}, {0.99}});
-    test_net.TrainCl(MakeInput(0.05, 0.10), expected,
-                   Nnet::LearningParameters{0.5});
+
+    SECTION("Verify CPU backprop", "[nnet]") {
+      test_net.Train(MakeInput(0.05, 0.10), expected,
+                     Nnet::LearningParameters{0.5});
+    }
+
+    SECTION("Verify GPU backprop", "[nnet]") {
+      test_net.TrainCl(MakeInput(0.05, 0.10), expected,
+                     Nnet::LearningParameters{0.5});
+    }
 
     Architecture model = test_net.model();
 

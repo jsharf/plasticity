@@ -13,7 +13,7 @@ using Sample = Matrix<nnet::Number>;
 
 // Trains a neural network to learn if given point is in unit circle.
 int main() {
-  constexpr int kLayerSize = 4;
+  constexpr int kLayerSize = 10;
   constexpr int kOutputSize = 1;
   constexpr int kInputSize = kSampleSize;
 
@@ -25,7 +25,7 @@ int main() {
   std::vector<std::tuple<Sample, bool>> examples;
 
   // Generate training samples.
-  for (size_t i = 0; i < 3000; ++i) {
+  for (size_t i = 0; i < 10000; ++i) {
     double x = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
     double y = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
 
@@ -34,7 +34,7 @@ int main() {
     examples.push_back(std::make_tuple(Sample({{x}, {y}}), in_unit_circle));
   }
 
-  nnet::Nnet::LearningParameters params{.learning_rate = 0.1};
+  nnet::Nnet::LearningParameters params{.learning_rate = 0.3};
 
   for (const std::tuple<Sample, double>& example : examples) {
     test_net.TrainCl(std::get<0>(example),
