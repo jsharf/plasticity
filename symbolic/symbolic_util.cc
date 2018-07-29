@@ -22,9 +22,24 @@ Expression Relu(const Expression& a) {
 
 Expression Identity(const Expression& a) { return a; }
 
-Expression Exp(const Expression& a) {
-  return Expression(
-      std::make_shared<ExponentExpression>(NumericValue::e, a.GetPointer()));
+Expression Log(NumericValue base, const Expression& exp) {
+  return std::static_pointer_cast<const ExpressionNode>(
+      std::make_shared<const LogExpression>(base, exp));
+}
+
+Expression Log(const Expression& exp) {
+  return std::static_pointer_cast<const ExpressionNode>(
+      std::make_shared<const LogExpression>(NumericValue::e, exp));
+}
+
+Expression Exp(NumericValue base, const Expression& exp) {
+  return std::static_pointer_cast<const ExpressionNode>(
+      std::make_shared<const ExponentExpression>(base, exp));
+}
+
+Expression Exp(const Expression& exp) {
+  return std::static_pointer_cast<const ExpressionNode>(
+      std::make_shared<const ExponentExpression>(NumericValue::e, exp));
 }
 
 Expression Softmax(const Matrix<Expression>& column_vector, int index) {

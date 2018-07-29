@@ -27,16 +27,6 @@ class Expression;
 
 Expression CreateExpression(std::string expression);
 
-// Returns log of exp with base base. Aka log(exp)/log(base).
-Expression Log(NumericValue base, const Expression& exp);
-// Natural logarithm.
-Expression Log(const Expression& exp);
-
-// Returns base^expression.
-Expression Exp(NumericValue base, const Expression& exp);
-// e^(exp).
-Expression Exp(const Expression& exp);
-
 // Class which holds the ExpressionNode tree and provides an easy-to-use
 // interface.
 class Expression {

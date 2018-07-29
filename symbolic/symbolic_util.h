@@ -13,7 +13,17 @@ Expression Relu(const Expression& a);
 
 Expression Identity(const Expression& a);
 
-Expression Exp(const Expression& a);
+// Returns log of exp with base base. Aka log(exp)/log(base).
+Expression Log(NumericValue base, const Expression& exp);
+
+// Natural logarithm.
+Expression Log(const Expression& exp);
+
+// Returns base^expression.
+Expression Exp(NumericValue base, const Expression& exp);
+
+// e^(exp).
+Expression Exp(const Expression& exp);
 
 Expression Softmax(const Matrix<Expression>& column_vector, int index);
 
