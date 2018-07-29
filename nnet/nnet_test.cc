@@ -222,7 +222,7 @@ TEST_CASE("Simple neural network output and gradient descent is validated",
 
   SECTION("Verify back propagation of neural network (CPU)", "[nnet]") {
     Matrix<Number> expected({{0.01}, {0.99}});
-    test_net.Train(MakeInput(0.05, 0.10), expected,
+    test_net.TrainCl(MakeInput(0.05, 0.10), expected,
                    Nnet::LearningParameters{0.5});
 
     Architecture model = test_net.model();
@@ -230,20 +230,20 @@ TEST_CASE("Simple neural network output and gradient descent is validated",
     // Layer 1.
     //
     // Node 1 edges.
-    REQUIRE(model.layers[1].env()[s.W(0, 0)].real() == 0.149780716);
-    REQUIRE(model.layers[1].env()[s.W(0, 1)].real() == 0.19956143);
+    REQUIRE(model.layers[1].env()[s.W(0, 0)].real() == Approx(0.149780716));
+    REQUIRE(model.layers[1].env()[s.W(0, 1)].real() == Approx(0.19956143));
     // Node 2 edges.
-    REQUIRE(model.layers[1].env()[s.W(1, 0)].real() == 0.24975114);
-    REQUIRE(model.layers[1].env()[s.W(1, 1)].real() == 0.29950229);
+    REQUIRE(model.layers[1].env()[s.W(1, 0)].real() == Approx(0.24975114));
+    REQUIRE(model.layers[1].env()[s.W(1, 1)].real() == Approx(0.29950229));
 
     // Layer 2.
     //
     // Node 1 edges.
-    REQUIRE(model.layers[2].env()[s.W(0, 0)].real() == 0.35891648);
-    REQUIRE(model.layers[2].env()[s.W(0, 1)].real() == 0.408666186);
+    REQUIRE(model.layers[2].env()[s.W(0, 0)].real() == Approx(0.35891648));
+    REQUIRE(model.layers[2].env()[s.W(0, 1)].real() == Approx(0.408666186));
     // Node 2 edges.
-    REQUIRE(model.layers[2].env()[s.W(1, 0)].real() == 0.511301270);
-    REQUIRE(model.layers[2].env()[s.W(1, 1)].real() == 0.561370121);
+    REQUIRE(model.layers[2].env()[s.W(1, 0)].real() == Approx(0.511301270));
+    REQUIRE(model.layers[2].env()[s.W(1, 1)].real() == Approx(0.561370121));
   }
 }
 

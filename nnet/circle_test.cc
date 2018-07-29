@@ -20,7 +20,7 @@ int main() {
   nnet::Architecture model(kInputSize);
   model.AddFeedForwardLayer(kLayerSize);
   model.AddFeedForwardLayer(kOutputSize);
-  nnet::Nnet test_net(model);
+  nnet::Nnet test_net(model, nnet::Nnet::Xavier, nnet::Nnet::CrossEntropy);
 
   std::vector<std::tuple<Sample, bool>> examples;
 

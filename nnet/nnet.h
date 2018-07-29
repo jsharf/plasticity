@@ -284,7 +284,7 @@ class Nnet {
     // kernel to calculate weight updates. Then pass it to the input gradient
     // kernel to calculate the gradient for the next layer.
     for (int i = model_.layers.size() - 1; i >= 0; --i) {
-      auto layer = model_.layers[i];
+      auto& layer = model_.layers[i];
       const Matrix<Number>& layer_input =
           (i > 0) ? layer_outputs->at(i - 1) : in;
 
@@ -378,7 +378,7 @@ class Nnet {
     // kernel to calculate weight updates. Then pass it to the input gradient
     // kernel to calculate the gradient for the next layer.
     for (int i = model_.layers.size() - 1; i >= 0; --i) {
-      auto layer = model_.layers[i];
+      auto& layer = model_.layers[i];
       const Matrix<Number>& layer_input =
           (i > 0) ? layer_outputs->at(i - 1) : in;
 
@@ -430,6 +430,7 @@ class Nnet {
       Number new_weights[number_weights];
       queue.enqueueReadBuffer(gpu_new_weights, CL_TRUE, 0,
                               sizeof(Number) * number_weights, new_weights);
+
       for (size_t i = 0; i < number_weights; ++i) {
         layer.env()[layer.weights()[i]] =
             symbolic::NumericValue(new_weights[i]);

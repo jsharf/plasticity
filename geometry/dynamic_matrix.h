@@ -58,12 +58,18 @@ class Matrix {
   }
 
   Dimensions dimensions() const {
+    if (data_.size() == 0) {
+      // short-circuit to {0, 0}, avoid default implementation which
+      // dereferences data_[0] which cannot happen if data_.size() == 0.
+      return Dimensions{0, 0};
+    }
     return Dimensions{data_.size(), data_[0].size()};
   }
 
   // <rows, columns> or <height, width>
   std::tuple<size_t, size_t> size() const {
-    return std::make_tuple(data_.size(), data_[0].size());
+    Dimensions d = dimensions();
+    return std::make_tuple(d.rows, d.cols);
   }
 
   void resize(size_t rows, size_t cols) {
