@@ -43,7 +43,7 @@ struct Architecture {
     return AddActivationLayer(size, symbolic::Identity);
   }
 
-  Architecture& AddFeedForwardLayer(
+  Architecture& AddDenseLayer(
       size_t num_outputs, const ActivationFunctionType& activation_function) {
     Dimensions dimensions = {
         // Num inputs = num previous layer outputs.
@@ -52,12 +52,12 @@ struct Architecture {
         num_outputs,
     };
 
-    layers.push_back(Layer::MakeFeedForwardLayer(layers.size(), dimensions,
+    layers.push_back(Layer::MakeDenseLayer(layers.size(), dimensions,
                                                  activation_function));
     return *this;
   }
 
-  Architecture& AddFeedForwardLayer(size_t num_outputs) {
+  Architecture& AddDenseLayer(size_t num_outputs) {
     Dimensions dimensions = {
         // Num inputs = num previous layer outputs.
         layers[layers.size() - 1].GetDimensions().num_outputs,
@@ -65,7 +65,7 @@ struct Architecture {
         num_outputs,
     };
 
-    layers.push_back(Layer::MakeFeedForwardLayer(layers.size(), dimensions));
+    layers.push_back(Layer::MakeDenseLayer(layers.size(), dimensions));
     return *this;
   }
 

@@ -27,17 +27,17 @@ Layer& Layer::operator=(Layer&& rhs) {
   return *this;
 }
 
-// FeedForward layer static constructors.
-Layer Layer::MakeFeedForwardLayer(
+// Dense layer static constructors.
+Layer Layer::MakeDenseLayer(
     size_t layer_index, const Dimensions& dimensions,
     const ActivationFunctionType& activation_function) {
-  return Layer(std::make_unique<FeedForwardLayer>(
+  return Layer(std::make_unique<DenseLayer>(
       dimensions, activation_function, layer_index));
 }
 
-Layer Layer::MakeFeedForwardLayer(size_t layer_index,
+Layer Layer::MakeDenseLayer(size_t layer_index,
                                   const Dimensions& dimensions) {
-  return Layer(std::make_unique<FeedForwardLayer>(dimensions, layer_index));
+  return Layer(std::make_unique<DenseLayer>(dimensions, layer_index));
 }
 
 // Convolution layer static constructor.

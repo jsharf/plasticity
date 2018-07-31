@@ -29,15 +29,15 @@ TEST_CASE("Simple neural network output is validated", "[nnet]") {
   constexpr size_t kOutputSize = 3;
 
   Architecture model(kInputSize);
-  model.AddFeedForwardLayer(kLayerSize, symbolic::Relu);
-  model.AddFeedForwardLayer(kLayerSize, symbolic::Sigmoid);
+  model.AddDenseLayer(kLayerSize, symbolic::Relu);
+  model.AddDenseLayer(kLayerSize, symbolic::Sigmoid);
   // (No activation function, next layer is softmax).
-  model.AddFeedForwardLayer(kLayerSize, symbolic::Identity);
+  model.AddDenseLayer(kLayerSize, symbolic::Identity);
   model.AddSoftmaxLayer(kOutputSize);
 
   // All of the layers have identical dimensions (input = output = 3) so we can
   // use the same symbol generator for each.
-  FFSymbolGenerator s(Dimensions{3, 3});
+  DenseSymbolGenerator s(Dimensions{3, 3});
 
   // TODO(sharf): my weight convention (node, edge) is opposite from what the
   // rest of the ML world uses (edge, node).... I should fix this so that this
@@ -164,12 +164,12 @@ TEST_CASE("Simple neural network output and gradient descent is validated",
   constexpr size_t kOutputSize = 2;
 
   Architecture model(kInputSize);
-  model.AddFeedForwardLayer(kLayerSize, symbolic::Sigmoid);
-  model.AddFeedForwardLayer(kOutputSize, symbolic::Sigmoid);
+  model.AddDenseLayer(kLayerSize, symbolic::Sigmoid);
+  model.AddDenseLayer(kOutputSize, symbolic::Sigmoid);
 
   // All of the layers have identical dimensions (input = output = 2) so we
   // can use the same symbol generator for each.
-  FFSymbolGenerator s(Dimensions{2, 2});
+  DenseSymbolGenerator s(Dimensions{2, 2});
 
   // Layer 1.
   //

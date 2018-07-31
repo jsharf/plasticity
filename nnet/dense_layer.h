@@ -1,5 +1,5 @@
-#ifndef FEED_FORWARD_LAYER_H
-#define FEED_FORWARD_LAYER_H
+#ifndef DENSE_LAYER_H
+#define DENSE_LAYER_H
 #include "math/geometry/dynamic_matrix.h"
 #include "math/nnet/layer_dimensions.h"
 #include "math/nnet/layer_impl.h"
@@ -10,7 +10,7 @@
 
 namespace nnet {
 
-class FeedForwardLayer : public LayerImpl {
+class DenseLayer : public LayerImpl {
  public:
   // Reference objects in superclass with Super::
   using Super = LayerImpl;
@@ -18,11 +18,11 @@ class FeedForwardLayer : public LayerImpl {
 
   using ActivationFunctionType = LayerImpl::ActivationFunctionType;
 
-  FeedForwardLayer(const Dimensions& dimensions,
+  DenseLayer(const Dimensions& dimensions,
                    const ActivationFunctionType& activation_function,
                    size_t layer_index);
 
-  FeedForwardLayer(const Dimensions& dimensions, size_t layer_index)
+  DenseLayer(const Dimensions& dimensions, size_t layer_index)
       : Super(dimensions, layer_index),
         generator_(dimensions),
         activation_function_(symbolic::Sigmoid) {}
@@ -35,7 +35,7 @@ class FeedForwardLayer : public LayerImpl {
   std::unique_ptr<LayerImpl> Clone() const override;
 
  private:
-  FFSymbolGenerator generator_;
+  DenseSymbolGenerator generator_;
 
   // This function will be used to map the activation function to a matrix
   // of symbolic expressions.
@@ -45,4 +45,4 @@ class FeedForwardLayer : public LayerImpl {
 
 }  // namespace nnet
 
-#endif /* FEED_FORWARD_LAYER_H */
+#endif /* DENSE_LAYER_H */

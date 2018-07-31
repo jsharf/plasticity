@@ -38,7 +38,7 @@ cc_library(
     deps = [
         ":activation_layer",
         ":convolution_layer",
-        ":feed_forward_layer",
+        ":dense_layer",
         ":layer_impl",
         ":max_pool_layer",
         ":softmax_layer",
@@ -94,10 +94,10 @@ cc_library(
 )
 
 cc_library(
-    name = "feed_forward_layer",
+    name = "dense_layer",
     visibility = ["//math"],
-    hdrs = ["feed_forward_layer.h"],
-    srcs = ["feed_forward_layer.cc"],
+    hdrs = ["dense_layer.h"],
+    srcs = ["dense_layer.cc"],
     copts = [
       "--std=c++1z",
     ],

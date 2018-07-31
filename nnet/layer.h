@@ -3,7 +3,7 @@
 #include "math/geometry/dynamic_matrix.h"
 #include "math/nnet/activation_layer.h"
 #include "math/nnet/convolution_layer.h"
-#include "math/nnet/feed_forward_layer.h"
+#include "math/nnet/dense_layer.h"
 #include "math/nnet/layer_impl.h"
 #include "math/nnet/max_pool_layer.h"
 #include "math/nnet/softmax_layer.h"
@@ -47,12 +47,12 @@ class Layer {
   Layer& operator=(const Layer& rhs);
   Layer& operator=(Layer&& rhs);
 
-  // FeedForward Layer constructors.
-  static Layer MakeFeedForwardLayer(
+  // Dense Layer constructors.
+  static Layer MakeDenseLayer(
       size_t layer_index, const Dimensions& dimensions,
       const ActivationFunctionType& activation_function);
 
-  static Layer MakeFeedForwardLayer(size_t layer_index,
+  static Layer MakeDenseLayer(size_t layer_index,
                                     const Dimensions& dimensions);
 
   // Convolutional Layer constructors.

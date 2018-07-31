@@ -148,7 +148,7 @@ int main() {
       .AddActivationLayer(symbolic::Relu)
       .AddMaxPoolLayer(/* Input size */ {8, 8, 20},
                        /* output size */ {4, 4})
-      .AddFeedForwardLayer(10)
+      .AddDenseLayer(10)
       .AddSoftmaxLayer(10);
   std::cout << "Initializing network..." << std::endl;
   nnet::Nnet test_net(model);

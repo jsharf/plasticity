@@ -26,14 +26,14 @@ class SymbolGenerator {
   }
 };
 
-struct FFWeightAddress {
+struct DenseWeightAddress {
   // If is_bias, edge value is invalid.
   bool is_bias = false;
 
   size_t node = 0;
   size_t edge = 0;
 
-  bool operator==(const FFWeightAddress& rhs) const {
+  bool operator==(const DenseWeightAddress& rhs) const {
     if (is_bias) {
       return node == rhs.node;
     } else {
@@ -41,7 +41,7 @@ struct FFWeightAddress {
     }
   }
 
-  // This is used to make hashing FFWeightAddress simpler.
+  // This is used to make hashing DenseWeightAddress simpler.
   std::string to_string() const {
     if (is_bias) {
       return "{\n\tnode: " + std::to_string(node) + "\n}";
@@ -51,46 +51,46 @@ struct FFWeightAddress {
     }
   }
 
-  FFWeightAddress(size_t p_node) : is_bias(true), node(p_node) {}
-  FFWeightAddress(size_t p_node, size_t p_edge)
+  DenseWeightAddress(size_t p_node) : is_bias(true), node(p_node) {}
+  DenseWeightAddress(size_t p_node, size_t p_edge)
       : is_bias(false), node(p_node), edge(p_edge) {}
 };
 
-struct FFWeightAddressHash {
+struct DenseWeightAddressHash {
   std::hash<std::string> hasher;
-  size_t operator()(const FFWeightAddress& obj) const {
+  size_t operator()(const DenseWeightAddress& obj) const {
     return hasher(obj.to_string());
   }
 };
 
-class FFSymbolGenerator {
+class DenseSymbolGenerator {
   public:
-    explicit FFSymbolGenerator(Dimensions dimensions) {
+    explicit DenseSymbolGenerator(Dimensions dimensions) {
       size_t index = 0;
       for (size_t node = 0; node < dimensions.num_outputs; ++node) {
         for (size_t edge = 0; edge < dimensions.num_inputs; ++edge) {
-          FFWeightAddress addr(node, edge);
+          DenseWeightAddress addr(node, edge);
           weight_addr_to_index_[addr] = index;
           index++;
         }
         // Bias weight.
-        FFWeightAddress addr(node);
+        DenseWeightAddress addr(node);
         weight_addr_to_index_[addr] = index;
         index++;
       }
     }
     std::string W(size_t node, size_t edge) const {
-      return "W[" + std::to_string(weight_addr_to_index_.at(FFWeightAddress(node, edge))) + "]";
+      return "W[" + std::to_string(weight_addr_to_index_.at(DenseWeightAddress(node, edge))) + "]";
     }
     // Used for bias weight for a given output node.
     std::string W(size_t node) const {
-      return "W[" + std::to_string(weight_addr_to_index_.at(FFWeightAddress(node))) + "]";
+      return "W[" + std::to_string(weight_addr_to_index_.at(DenseWeightAddress(node))) + "]";
     }
     std::vector<std::string> weights() const {
       std::vector<std::string> weights(weight_addr_to_index_.size());
       for (const auto& pair : weight_addr_to_index_) {
         int index = pair.second;
-        FFWeightAddress addr = pair.first;
+        DenseWeightAddress addr = pair.first;
         if (addr.is_bias) {
           weights[index] = W(addr.node);
         } else {
@@ -101,7 +101,8 @@ class FFSymbolGenerator {
     }
 
    private:
-    std::unordered_map<FFWeightAddress, int, FFWeightAddressHash> weight_addr_to_index_;
+    std::unordered_map<DenseWeightAddress, int, DenseWeightAddressHash>
+        weight_addr_to_index_;
 };
 
 struct ConvWeightAddress {
@@ -201,7 +202,7 @@ class ConvSymbolGenerator {
 // indices into arrays.
 class FlatWeightSymbolGenerator {
  public:
-  // Feed-forward layer weights.
+  // Fully connected layer weights.
   virtual std::string W(size_t layer, size_t node, size_t edge) {
     auto tuple = std::make_tuple(layer, node, edge);
     if (ff_weight_index_.count(tuple) == 0) {

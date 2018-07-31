@@ -1,27 +1,27 @@
-#include "math/nnet/feed_forward_layer.h"
+#include "math/nnet/dense_layer.h"
 
 #include <cassert>
 
 namespace nnet {
 
-FeedForwardLayer::FeedForwardLayer(
+DenseLayer::DenseLayer(
     const Dimensions& dimensions,
     const ActivationFunctionType& activation_function, size_t layer_index)
     : Super(dimensions, layer_index),
       generator_(dimensions),
       activation_function_(activation_function) {}
 
-LayerImpl::WeightArray FeedForwardLayer::weights() const {
+LayerImpl::WeightArray DenseLayer::weights() const {
   return generator_.weights();
 }
 
-Matrix<symbolic::Expression> FeedForwardLayer::GenerateExpression(
+Matrix<symbolic::Expression> DenseLayer::GenerateExpression(
     const Matrix<symbolic::Expression>& input) {
   auto dim = input.size();
   size_t rows = std::get<0>(dim);
   size_t cols = std::get<1>(dim);
   if ((rows != dimensions_.num_inputs) || (cols != 1)) {
-    std::cerr << "Error: FeedForwardLayer::GenerateExpression called on input "
+    std::cerr << "Error: DenseLayer::GenerateExpression called on input "
                  "of incorrect size: "
               << "(" << rows << ", " << cols << ")" << std::endl;
     std::exit(1);
@@ -48,8 +48,8 @@ Matrix<symbolic::Expression> FeedForwardLayer::GenerateExpression(
   return (weight_matrix * biased_input).Map(activation_function_);
 }
 
-std::unique_ptr<LayerImpl> FeedForwardLayer::Clone() const {
-  return std::make_unique<FeedForwardLayer>(dimensions_, activation_function_,
+std::unique_ptr<LayerImpl> DenseLayer::Clone() const {
+  return std::make_unique<DenseLayer>(dimensions_, activation_function_,
                                             layer_index_);
 }
 

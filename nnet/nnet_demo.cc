@@ -45,9 +45,9 @@ int main() {
   constexpr int kInputSize = kSampleSize;
 
   nnet::Architecture model(kInputSize);
-  model.AddFeedForwardLayer(kLayerSize);
-  model.AddFeedForwardLayer(kLayerSize);
-  model.AddFeedForwardLayer(kOutputSize);
+  model.AddDenseLayer(kLayerSize);
+  model.AddDenseLayer(kLayerSize);
+  model.AddDenseLayer(kOutputSize);
   nnet::Nnet test_net(model);
 
   constexpr const char* dictionary_path = "/usr/share/dict/words";

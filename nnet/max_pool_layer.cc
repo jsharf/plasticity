@@ -58,7 +58,7 @@ Matrix<symbolic::Expression> MaxPoolLayer::GenerateExpression(
 
   // Converts 3D index (x, y, z) into 1D index into input.
   // This is something I'm not proud of. The conversion between the 1D neural
-  // network layers in a feed forward net and the 3D volumes in a convolution
+  // network layers in a feed-forward net and the 3D volumes in a convolution
   // layer should be better documented, but I'm settling on this for now.
   //
   // As an example of how this works, imagine an RGB image with a width W and
