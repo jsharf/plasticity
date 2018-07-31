@@ -22,8 +22,8 @@ class LayerImpl {
 
   virtual const std::vector<std::string>& weights() const {
     // Default implementation.
-    static const std::vector<std::string> *const empty = new std::vector<std::string>();
-    return *empty;
+    static const std::vector<std::string> empty = std::vector<std::string>();
+    return empty;
   }
 
   virtual Matrix<symbolic::Expression> GenerateExpression(
