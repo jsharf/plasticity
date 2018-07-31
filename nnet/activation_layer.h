@@ -12,7 +12,6 @@ namespace nnet {
 class ActivationLayer : public LayerImpl {
  public:
   using Super = LayerImpl;
-  using WeightArray = typename Super::WeightArray;
   using ActivationFunctionType = typename Super::ActivationFunctionType;
 
   ActivationLayer(size_t size,
@@ -20,8 +19,6 @@ class ActivationLayer : public LayerImpl {
                   size_t layer_index)
       : Super(Dimensions{size, size}, layer_index),
         activation_function_(activation_function) {}
-
-  WeightArray weights() const override { return {}; }
 
   Matrix<symbolic::Expression> GenerateExpression(
       const Matrix<symbolic::Expression>& input) override;

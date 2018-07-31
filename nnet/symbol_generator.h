@@ -78,6 +78,17 @@ class DenseSymbolGenerator {
         weight_addr_to_index_[addr] = index;
         index++;
       }
+
+      weights_.resize(weight_addr_to_index_.size());
+      for (const auto& pair : weight_addr_to_index_) {
+        int index = pair.second;
+        DenseWeightAddress addr = pair.first;
+        if (addr.is_bias) {
+          weights_[index] = W(addr.node);
+        } else {
+          weights_[index] = W(addr.node, addr.edge);
+        }
+      }
     }
     std::string W(size_t node, size_t edge) const {
       return "W[" + std::to_string(weight_addr_to_index_.at(DenseWeightAddress(node, edge))) + "]";
@@ -86,23 +97,14 @@ class DenseSymbolGenerator {
     std::string W(size_t node) const {
       return "W[" + std::to_string(weight_addr_to_index_.at(DenseWeightAddress(node))) + "]";
     }
-    std::vector<std::string> weights() const {
-      std::vector<std::string> weights(weight_addr_to_index_.size());
-      for (const auto& pair : weight_addr_to_index_) {
-        int index = pair.second;
-        DenseWeightAddress addr = pair.first;
-        if (addr.is_bias) {
-          weights[index] = W(addr.node);
-        } else {
-          weights[index] = W(addr.node, addr.edge);
-        }
-      }
-      return weights;
+    const std::vector<std::string>& weights() const {
+      return weights_;
     }
 
    private:
     std::unordered_map<DenseWeightAddress, int, DenseWeightAddressHash>
         weight_addr_to_index_;
+    std::vector<string> weights_;
 };
 
 struct ConvWeightAddress {
@@ -166,6 +168,17 @@ class ConvSymbolGenerator {
        weight_addr_to_index_[addr] = index;
        index++;
      }
+
+     weights_.resize(weight_addr_to_index_.size());
+     for (const auto& pair : weight_addr_to_index_) {
+       int index = pair.second;
+       ConvWeightAddress addr = pair.first;
+       if (addr.is_bias) {
+         weights_[index] = W(addr.filter);
+       } else {
+         weights_[index] = W(addr.filter, addr.x, addr.y, addr.z);
+       }
+     }
   }
 
   // Convolution layer weights.
@@ -180,21 +193,12 @@ class ConvSymbolGenerator {
     return "W["+std::to_string(weight_addr_to_index_.at(addr))+"]";
   }
 
-  std::vector<std::string> weights() const {
-    std::vector<std::string> weights(weight_addr_to_index_.size());
-    for (const auto& pair : weight_addr_to_index_) {
-      int index = pair.second;
-      ConvWeightAddress addr = pair.first;
-      if (addr.is_bias) {
-        weights[index] = W(addr.filter);
-      } else {
-        weights[index] = W(addr.filter, addr.x, addr.y, addr.z);
-      }
-    }
-    return weights;
+  const std::vector<std::string>& weights() const {
+    return weights_;
   }
   private:
     std::unordered_map<ConvWeightAddress, int, ConvWeightAddressHash> weight_addr_to_index_;
+    std::vector<std::string> weights_;
 };
 
 // This class generates symbol names for neural network values. Since these

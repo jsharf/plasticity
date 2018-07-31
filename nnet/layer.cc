@@ -65,7 +65,9 @@ Layer Layer::MakeSoftmaxLayer(size_t layer_index, size_t size
   return Layer(std::make_unique<SoftmaxLayer>(size, layer_index));
 }
 
-Layer::WeightArray Layer::weights() const { return impl_->weights(); }
+const std::vector<std::string>& Layer::weights() const {
+  return impl_->weights();
+}
 
 Matrix<symbolic::Expression> Layer::GenerateExpression() {
   Matrix<symbolic::Expression> input = InputExpression();

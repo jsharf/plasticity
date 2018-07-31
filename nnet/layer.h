@@ -25,7 +25,6 @@ namespace nnet {
 class Layer {
  public:
   // Public exported types
-  using WeightArray = LayerImpl::WeightArray;
   using ActivationFunctionType = LayerImpl::ActivationFunctionType;
 
   // Constructors.
@@ -70,7 +69,7 @@ class Layer {
                                 const VolumeDimensions& input,
                                 const AreaDimensions& output);
 
-  WeightArray weights() const;
+  const std::vector<std::string>& weights() const;
 
   symbolic::Environment& env() { return env_; }
   const symbolic::Environment& env() const { return env_; }

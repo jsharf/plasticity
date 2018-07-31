@@ -64,8 +64,9 @@ class Nnet {
         ClDevicesAreEqual(evaluate_kernels_.device, SelectDevice())) {
       return;
     }
-    std::cerr << "Generating and compiling OpenCl kernel. This takes a while"
-              << " the first time..." << std::endl;
+    std::cerr
+        << "Generating and compiling OpenCl Eval kernels. This takes a while"
+        << " the first time..." << std::endl;
     std::vector<std::string> eval_kernel_sources;
     // TODO const this.
     for (Layer& layer : model_.layers) {
@@ -315,8 +316,8 @@ class Nnet {
       return;
     }
 
-    std::cerr << "Generating and compiling OpenCl kernel. This takes a while"
-              << " the first time..." << std::endl;
+    std::cerr << "Generating and compiling OpenCl Training kernels. This takes a while"
+              << " the first time." << std::endl;
     std::vector<std::string> training_kernel_sources;
     // TODO(sharf): const?
     for (Layer& layer : model_.layers) {

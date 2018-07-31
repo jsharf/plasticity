@@ -88,7 +88,7 @@ std::tuple<size_t, size_t, size_t> ConvolutionLayer::GetOutputDimensions(
   return std::make_tuple(output_width, output_height, output_depth);
 }
 
-LayerImpl::WeightArray ConvolutionLayer::weights() const {
+const std::vector<std::string>& ConvolutionLayer::weights() const {
   return generator_.weights();
 }
 

@@ -19,7 +19,6 @@ class ConvolutionLayer : public LayerImpl {
  public:
   // Reference objects in superclass with Super::
   using Super = LayerImpl;
-  using WeightArray = typename Super::WeightArray;
   // (x, y, {r, g, b}) -> index.
   using IndexMap = std::function<size_t(size_t, size_t, size_t)>;
 
@@ -39,7 +38,7 @@ class ConvolutionLayer : public LayerImpl {
   ConvolutionLayer(const VolumeDimensions& dimensions,
                    const FilterParams& filters, size_t layer_index);
 
-  WeightArray weights() const override;
+  const std::vector<std::string>& weights() const override;
 
   Matrix<symbolic::Expression> GenerateExpression(
       const Matrix<symbolic::Expression>& input) override;

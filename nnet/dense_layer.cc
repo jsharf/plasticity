@@ -11,7 +11,7 @@ DenseLayer::DenseLayer(
       generator_(dimensions),
       activation_function_(activation_function) {}
 
-LayerImpl::WeightArray DenseLayer::weights() const {
+const std::vector<std::string>& DenseLayer::weights() const {
   return generator_.weights();
 }
 

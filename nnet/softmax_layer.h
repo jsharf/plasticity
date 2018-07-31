@@ -13,12 +13,9 @@ namespace nnet {
 class SoftmaxLayer : public LayerImpl {
  public:
   using Super = LayerImpl;
-  using WeightArray = typename Super::WeightArray;
 
   SoftmaxLayer(size_t size, size_t layer_index)
       : Super(Dimensions{size, size}, layer_index) {}
-
-  WeightArray weights() const override { return {}; }
 
   Matrix<symbolic::Expression> GenerateExpression(
       const Matrix<symbolic::Expression>& input) override;

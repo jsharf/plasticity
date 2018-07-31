@@ -13,7 +13,6 @@ namespace nnet {
 class MaxPoolLayer : public LayerImpl {
  public:
   using Super = LayerImpl;
-  using WeightArray = typename Super::WeightArray;
 
   static LinearDimensions GenLinearDimensions(const VolumeDimensions& dim,
                                               const AreaDimensions& output) {
@@ -31,8 +30,6 @@ class MaxPoolLayer : public LayerImpl {
 
   MaxPoolLayer(const VolumeDimensions& input, const AreaDimensions& output,
                size_t layer_index);
-
-  WeightArray weights() const override { return {}; }
 
   Matrix<symbolic::Expression> GenerateExpression(
       const Matrix<symbolic::Expression>& input) override;

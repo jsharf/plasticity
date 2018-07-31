@@ -17,12 +17,15 @@ class LayerImpl {
   // Dim(num_outputs * (num_inputs + 1))
   // TODO(sharf): use std::vector<std::string> instead and rename weights() to
   // weightnames();
-  using WeightArray = std::vector<std::string>;
-
   using ActivationFunctionType =
       std::function<symbolic::Expression(const symbolic::Expression&)>;
 
-  virtual WeightArray weights() const = 0;
+  virtual const std::vector<std::string>& weights() const {
+    // Default implementation.
+    static const std::vector<std::string> *const empty = new std::vector<std::string>();
+    return *empty;
+  }
+
   virtual Matrix<symbolic::Expression> GenerateExpression(
       const Matrix<symbolic::Expression>& input) = 0;
 

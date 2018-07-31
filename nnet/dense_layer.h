@@ -14,7 +14,6 @@ class DenseLayer : public LayerImpl {
  public:
   // Reference objects in superclass with Super::
   using Super = LayerImpl;
-  using WeightArray = typename Super::WeightArray;
 
   using ActivationFunctionType = LayerImpl::ActivationFunctionType;
 
@@ -27,7 +26,7 @@ class DenseLayer : public LayerImpl {
         generator_(dimensions),
         activation_function_(symbolic::Sigmoid) {}
 
-  WeightArray weights() const override;
+  const std::vector<std::string>& weights() const override;
 
   Matrix<symbolic::Expression> GenerateExpression(
       const Matrix<symbolic::Expression>& input) override;
