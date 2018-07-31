@@ -77,10 +77,10 @@ class Layer {
   std::string WeightsToString() const;
 
   Matrix<symbolic::Expression> BackpropGradients() const;
-  Matrix<symbolic::Expression> InputGradients();
-  Matrix<symbolic::Expression> WeightGradients();
+  Matrix<symbolic::Expression> InputGradients() const;
+  Matrix<symbolic::Expression> WeightGradients() const;
 
-  Matrix<symbolic::Expression> GenerateExpression();
+  Matrix<symbolic::Expression> GenerateExpression() const;
 
   stats::Normal XavierInitializer() const;
   void XavierInitializeWeights();
@@ -89,7 +89,7 @@ class Layer {
 
   // This function returns the source code of an OpenCL kernel which evaluates
   // the output of this layer, given the input.
-  std::string GenerateEvaluationKernel();
+  std::string GenerateEvaluationKernel() const;
 
   std::string EvaluateKernelName() const {
     return "evaluate_" + std::to_string(impl_->layer_index());
@@ -98,7 +98,7 @@ class Layer {
   // This function returns the source code of two OpenCL kernels which calculate
   // the weight update (via gradient descent) and the backpropagated weights for
   // the next layer backwards.
-  std::string GenerateTrainingKernels();
+  std::string GenerateTrainingKernels() const;
 
   std::string InputGradientKernelName() const {
     return "input_delta_"  + std::to_string(impl_->layer_index());

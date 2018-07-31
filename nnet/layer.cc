@@ -1,6 +1,8 @@
 #include "math/nnet/layer.h"
 
 #include <fstream>
+#include <thread>
+#include <future>
 
 namespace nnet {
 
@@ -69,7 +71,7 @@ const std::vector<std::string>& Layer::weights() const {
   return impl_->weights();
 }
 
-Matrix<symbolic::Expression> Layer::GenerateExpression() {
+Matrix<symbolic::Expression> Layer::GenerateExpression() const {
   Matrix<symbolic::Expression> input = InputExpression();
   return impl_->GenerateExpression(input);
 }
@@ -110,7 +112,7 @@ std::string FileToString(std::string filepath) {
 
 }  // namespace
 
-std::string Layer::GenerateEvaluationKernel() {
+std::string Layer::GenerateEvaluationKernel() const {
   std::string evaluate_source =
       FileToString("math/nnet/kernels/evaluate.kernel.cl");
 
@@ -180,7 +182,7 @@ Matrix<symbolic::Expression> Layer::BackpropGradients() const {
   return bp_gradients;
 }
 
-Matrix<symbolic::Expression> Layer::InputGradients() {
+Matrix<symbolic::Expression> Layer::InputGradients() const {
   Matrix<symbolic::Expression> input = InputExpression();
   Matrix<symbolic::Expression> output_expressions = GenerateExpression();
   Matrix<symbolic::Expression> bp_gradients = BackpropGradients();
@@ -209,7 +211,7 @@ Matrix<symbolic::Expression> Layer::InputGradients() {
   return input_gradient_expressions;
 }
 
-Matrix<symbolic::Expression> Layer::WeightGradients() {
+Matrix<symbolic::Expression> Layer::WeightGradients() const {
   Matrix<symbolic::Expression> input = InputExpression();
   Matrix<symbolic::Expression> output_expressions = GenerateExpression();
   Matrix<symbolic::Expression> bp_gradients = BackpropGradients();
@@ -234,12 +236,16 @@ Matrix<symbolic::Expression> Layer::WeightGradients() {
   return weight_gradient_expressions;
 }
 
-std::string Layer::GenerateTrainingKernels() {
+std::string Layer::GenerateTrainingKernels() const {
   std::string train_source =
       FileToString("math/nnet/kernels/back_prop.kernel.cl");
 
-  Matrix<symbolic::Expression> input_gradient_expressions = InputGradients();
+  // Start calculating the input and weight gradients in advanced...
+  auto future_input_gradient = std::async(std::launch::async, &Layer::InputGradients, this);
+  auto future_weight_gradient = std::async(std::launch::async, &Layer::WeightGradients, this);
 
+  // Wait for input gradients.
+  Matrix<symbolic::Expression> input_gradient_expressions = future_input_gradient.get();
   std::stringstream input_gradients;
   for (size_t i = 0; i < GetDimensions().num_inputs; ++i) {
     input_gradients << "case " << i << ":" << std::endl;
@@ -248,8 +254,8 @@ std::string Layer::GenerateTrainingKernels() {
                     << std::endl;
   }
 
-  Matrix<symbolic::Expression> weight_gradient_expressions = WeightGradients();
-
+  // Weight for weight gradients.
+  Matrix<symbolic::Expression> weight_gradient_expressions = future_weight_gradient.get();
   std::stringstream weight_gradients;
   for (size_t i = 0; i < weights().size(); ++i) {
     weight_gradients << "case " << i << ":" << std::endl;

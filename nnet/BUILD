@@ -15,6 +15,9 @@ cc_library(
     visibility = ["//math"],
     hdrs = ["nnet.h"],
     data = glob(["kernels/*"]),
+    linkopts = [
+        "-pthread",
+    ],
     deps = [
         ":architecture",
         ":layer",
@@ -34,6 +37,9 @@ cc_library(
     srcs = ["layer.cc"],
     copts = [
       "--std=c++1z",
+    ],
+    linkopts = [
+      "-pthread",
     ],
     deps = [
         ":activation_layer",

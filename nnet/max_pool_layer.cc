@@ -37,7 +37,7 @@ std::tuple<size_t, size_t, size_t> MaxPoolLayer::GetOutputDimensions(
 }
 
 Matrix<symbolic::Expression> MaxPoolLayer::GenerateExpression(
-    const Matrix<symbolic::Expression>& input) {
+    const Matrix<symbolic::Expression>& input) const {
   auto dim = input.size();
   size_t rows = std::get<0>(dim);
   size_t cols = std::get<1>(dim);

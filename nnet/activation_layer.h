@@ -21,7 +21,7 @@ class ActivationLayer : public LayerImpl {
         activation_function_(activation_function) {}
 
   Matrix<symbolic::Expression> GenerateExpression(
-      const Matrix<symbolic::Expression>& input) override;
+      const Matrix<symbolic::Expression>& input) const override;
 
   std::unique_ptr<LayerImpl> Clone() const override;
 

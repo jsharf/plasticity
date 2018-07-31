@@ -3,7 +3,8 @@
 
 namespace nnet {
 
-Matrix<symbolic::Expression> SoftmaxLayer::GenerateExpression(const Matrix<symbolic::Expression>& input) {
+Matrix<symbolic::Expression> SoftmaxLayer::GenerateExpression(
+    const Matrix<symbolic::Expression>& input) const {
   auto dim = input.size();
   size_t rows = std::get<0>(dim);
   size_t cols = std::get<1>(dim);

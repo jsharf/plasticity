@@ -14,6 +14,8 @@
 #include <map>
 #include <memory>
 #include <sstream>
+#include <future>
+
 
 namespace nnet {
 
@@ -67,11 +69,17 @@ class Nnet {
     std::cerr
         << "Generating and compiling OpenCl Eval kernels. This takes a while"
         << " the first time..." << std::endl;
-    std::vector<std::string> eval_kernel_sources;
-    // TODO const this.
-    for (Layer& layer : model_.layers) {
+    std::vector<std::future<std::string>> eval_kernel_futures;
+    for (const Layer& layer : model_.layers) {
       std::cerr << ".";
-      eval_kernel_sources.push_back(layer.GenerateEvaluationKernel());
+      eval_kernel_futures.push_back(std::async(
+          std::launch::async, &Layer::GenerateEvaluationKernel, &layer));
+    }
+
+    // Wait for eval kernels to be ready.
+    std::vector<std::string> eval_kernel_sources;
+    for (auto& kernel_future : eval_kernel_futures) {
+      eval_kernel_sources.push_back(kernel_future.get());
     }
     evaluate_kernels_ = CompileCl(eval_kernel_sources, device);
     std::cerr << "Done!" << std::endl;
@@ -318,12 +326,13 @@ class Nnet {
 
     std::cerr << "Generating and compiling OpenCl Training kernels. This takes a while"
               << " the first time." << std::endl;
+
     std::vector<std::string> training_kernel_sources;
-    // TODO(sharf): const?
-    for (Layer& layer : model_.layers) {
-      std::cerr << ".";
+    for (const Layer& layer : model_.layers) {
+      std::cerr << "?";
       training_kernel_sources.push_back(layer.GenerateTrainingKernels());
     }
+
     training_kernels_ = CompileCl(training_kernel_sources, device);
     std::cerr << "Done!" << std::endl;
   }

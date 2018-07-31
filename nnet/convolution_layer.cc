@@ -93,7 +93,7 @@ const std::vector<std::string>& ConvolutionLayer::weights() const {
 }
 
 Matrix<symbolic::Expression> ConvolutionLayer::GenerateExpression(
-    const Matrix<symbolic::Expression>& input) {
+    const Matrix<symbolic::Expression>& input) const {
   auto dim = input.size();
   size_t rows = std::get<0>(dim);
   size_t cols = std::get<1>(dim);

@@ -18,7 +18,7 @@ class SoftmaxLayer : public LayerImpl {
       : Super(Dimensions{size, size}, layer_index) {}
 
   Matrix<symbolic::Expression> GenerateExpression(
-      const Matrix<symbolic::Expression>& input) override;
+      const Matrix<symbolic::Expression>& input) const override;
 
   std::unique_ptr<LayerImpl> Clone() const override;
 };

@@ -29,7 +29,7 @@ class DenseLayer : public LayerImpl {
   const std::vector<std::string>& weights() const override;
 
   Matrix<symbolic::Expression> GenerateExpression(
-      const Matrix<symbolic::Expression>& input) override;
+      const Matrix<symbolic::Expression>& input) const override;
 
   std::unique_ptr<LayerImpl> Clone() const override;
 
