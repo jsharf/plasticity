@@ -1,4 +1,5 @@
 #include "math/symbolic/numeric_value.h"
+#include <sstream>
 
 namespace symbolic {
 
@@ -38,11 +39,12 @@ std::string NumericValue::to_string() const {
   if (!is_bound_) {
     return name_;
   }
-  std::string result = std::to_string(a_);
+  std::ostringstream result;
+  result << a_;
   if (b_ != 0) {
-    result += " + " + std::to_string(b_) + "i";
+    result << " + " << b_ << "i";
   }
-  return result;
+  return result.str();
 }
 
 std::shared_ptr<const ExpressionNode> NumericValue::Clone() const {
