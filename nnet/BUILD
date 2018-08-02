@@ -1,46 +1,46 @@
 cc_library(
     name = "architecture",
-    visibility = ["//math"],
     hdrs = ["architecture.h"],
+    visibility = ["//math"],
     deps = [
         ":layer",
         ":layer_dimensions",
-        "//math/symbolic:symbolic",
+        "//math/symbolic",
         "//math/symbolic:symbolic_util",
     ],
 )
-    
+
 cc_library(
     name = "nnet",
-    visibility = ["//math"],
     hdrs = ["nnet.h"],
     data = glob(["kernels/*"]),
     linkopts = [
         "-pthread",
     ],
+    visibility = ["//math"],
     deps = [
         ":architecture",
         ":layer",
         ":layer_dimensions",
-        "//math/geometry:dynamic_matrix",
-        "//math/symbolic:symbolic",
-        "//math/symbolic:symbolic_util",
-        "//math/stats:normal",
         "//clutil:util",
+        "//math/geometry:dynamic_matrix",
+        "//math/stats:normal",
+        "//math/symbolic",
+        "//math/symbolic:symbolic_util",
     ],
 )
 
 cc_library(
     name = "layer",
-    visibility = ["//math"],
-    hdrs = ["layer.h"],
     srcs = ["layer.cc"],
+    hdrs = ["layer.h"],
     copts = [
-      "--std=c++1z",
+        "--std=c++1z",
     ],
     linkopts = [
-      "-pthread",
+        "-pthread",
     ],
+    visibility = ["//math"],
     deps = [
         ":activation_layer",
         ":convolution_layer",
@@ -49,208 +49,208 @@ cc_library(
         ":max_pool_layer",
         ":softmax_layer",
         "//math/geometry:dynamic_matrix",
-        "//math/symbolic:symbolic",
-        "//math/symbolic:symbolic_util",
         "//math/stats:normal",
+        "//math/symbolic",
+        "//math/symbolic:symbolic_util",
     ],
 )
 
 cc_library(
     name = "layer_impl",
-    visibility = ["//math"],
-    hdrs = ["layer_impl.h"],
     srcs = ["layer_impl.cc"],
+    hdrs = ["layer_impl.h"],
     copts = [
-      "--std=c++1z",
+        "--std=c++1z",
     ],
+    visibility = ["//math"],
     deps = [
         ":layer_dimensions",
         "//math/geometry:dynamic_matrix",
-        "//math/symbolic:symbolic",
-        "//math/symbolic:symbolic_util",
         "//math/stats:normal",
+        "//math/symbolic",
+        "//math/symbolic:symbolic_util",
     ],
 )
 
 cc_library(
     name = "symbol_generator",
-    visibility = ["//math"],
     hdrs = ["symbol_generator.h"],
     copts = [
-      "--std=c++1z",
+        "--std=c++1z",
     ],
+    visibility = ["//math"],
     deps = [
-        ":layer_impl",
         ":layer_dimensions",
+        ":layer_impl",
         "//math/geometry:dynamic_matrix",
-        "//math/symbolic:symbolic",
         "//math/stats:normal",
+        "//math/symbolic",
     ],
 )
 
 cc_library(
     name = "layer_dimensions",
-    visibility = ["//math"],
     hdrs = ["layer_dimensions.h"],
     copts = [
-      "--std=c++1z",
+        "--std=c++1z",
     ],
+    visibility = ["//math"],
     deps = [
     ],
 )
 
 cc_library(
     name = "dense_layer",
-    visibility = ["//math"],
-    hdrs = ["dense_layer.h"],
     srcs = ["dense_layer.cc"],
+    hdrs = ["dense_layer.h"],
     copts = [
-      "--std=c++1z",
+        "--std=c++1z",
     ],
+    visibility = ["//math"],
     deps = [
+        ":layer_dimensions",
         ":layer_impl",
         ":symbol_generator",
-        ":layer_dimensions",
         "//math/geometry:dynamic_matrix",
-        "//math/symbolic:symbolic",
-        "//math/symbolic:symbolic_util",
         "//math/stats:normal",
+        "//math/symbolic",
+        "//math/symbolic:symbolic_util",
     ],
 )
 
 cc_library(
     name = "activation_layer",
-    visibility = ["//math"],
-    hdrs = ["activation_layer.h"],
     srcs = ["activation_layer.cc"],
+    hdrs = ["activation_layer.h"],
     copts = [
-      "--std=c++1z",
+        "--std=c++1z",
     ],
+    visibility = ["//math"],
     deps = [
-        ":layer_impl",
         ":layer_dimensions",
+        ":layer_impl",
         "//math/geometry:dynamic_matrix",
-        "//math/symbolic:symbolic",
         "//math/stats:normal",
+        "//math/symbolic",
     ],
 )
 
 cc_library(
     name = "softmax_layer",
-    visibility = ["//math"],
-    hdrs = ["softmax_layer.h"],
     srcs = ["softmax_layer.cc"],
+    hdrs = ["softmax_layer.h"],
     copts = [
-      "--std=c++1z",
+        "--std=c++1z",
     ],
+    visibility = ["//math"],
     deps = [
-        ":layer_impl",
         ":layer_dimensions",
+        ":layer_impl",
         "//math/geometry:dynamic_matrix",
         "//math/stats:normal",
-        "//math/symbolic:symbolic",
+        "//math/symbolic",
         "//math/symbolic:symbolic_util",
     ],
 )
 
 cc_library(
     name = "convolution_layer",
-    visibility = ["//math"],
-    hdrs = ["convolution_layer.h"],
     srcs = ["convolution_layer.cc"],
+    hdrs = ["convolution_layer.h"],
     copts = [
-      "--std=c++1z",
+        "--std=c++1z",
     ],
+    visibility = ["//math"],
     deps = [
+        ":layer_dimensions",
         ":layer_impl",
         ":symbol_generator",
-        ":layer_dimensions",
         "//math/geometry:dynamic_matrix",
-        "//math/symbolic:symbolic",
-        "//math/symbolic:symbolic_util",
         "//math/stats:normal",
+        "//math/symbolic",
+        "//math/symbolic:symbolic_util",
     ],
 )
 
 cc_library(
     name = "max_pool_layer",
-    visibility = ["//math"],
-    hdrs = ["max_pool_layer.h"],
     srcs = ["max_pool_layer.cc"],
+    hdrs = ["max_pool_layer.h"],
     copts = [
-      "--std=c++1z",
+        "--std=c++1z",
     ],
+    visibility = ["//math"],
     deps = [
         ":convolution_layer",
-        ":layer_impl",
         ":layer_dimensions",
+        ":layer_impl",
         "//math/geometry:dynamic_matrix",
-        "//math/symbolic:symbolic",
-        "//math/symbolic:symbolic_util",
         "//math/stats:normal",
+        "//math/symbolic",
+        "//math/symbolic:symbolic_util",
     ],
 )
 
 cc_binary(
     name = "nnet_demo",
-    visibility = ["//math"],
     srcs = ["nnet_demo.cc"],
     copts = [
-      "--std=c++1z",
+        "--std=c++1z",
     ],
     linkopts = select({
-        "//clutil:osx" : ["-framework OpenCL"],
-        "//clutil:linux" : ["-lOpenCL"],
-        "//conditions:default" : ["-lOpenCL"],
+        "//clutil:osx": ["-framework OpenCL"],
+        "//clutil:linux": ["-lOpenCL"],
+        "//conditions:default": ["-lOpenCL"],
     }),
+    visibility = ["//math"],
     deps = [
         ":nnet",
-        "//math/symbolic:symbolic",
         "//math/geometry:dynamic_matrix",
+        "//math/symbolic",
     ],
 )
 
 cc_binary(
     name = "circle_test",
-    visibility = ["//math"],
     srcs = ["circle_test.cc"],
     copts = [
-      "--std=c++1z",
+        "--std=c++1z",
     ],
     linkopts = select({
-        "//clutil:osx" : ["-framework OpenCL"],
-        "//clutil:linux" : ["-lOpenCL"],
-        "//conditions:default" : ["-lOpenCL"],
+        "//clutil:osx": ["-framework OpenCL"],
+        "//clutil:linux": ["-lOpenCL"],
+        "//conditions:default": ["-lOpenCL"],
     }),
+    visibility = ["//math"],
     deps = [
-        ":nnet",
         ":layer",
-        "//math/symbolic:symbolic",
+        ":nnet",
         "//math/geometry:dynamic_matrix",
+        "//math/symbolic",
     ],
 )
 
 cc_binary(
     name = "cifar_test",
-    visibility = ["//math"],
     srcs = ["cifar_test.cc"],
     copts = [
-      "--std=c++1z",
-    ],
-    linkopts = select({
-        "//clutil:osx" : ["-framework OpenCL"],
-        "//clutil:linux" : ["-lOpenCL"],
-        "//conditions:default" : ["-lOpenCL"],
-    }),
-    deps = [
-        ":nnet",
-        ":layer",
-        ":convolution_layer",
-        "//math/symbolic:symbolic",
-        "//math/geometry:dynamic_matrix",
+        "--std=c++1z",
     ],
     data = [
-        "//math/nnet/data:cifar-10"
+        "//math/nnet/data:cifar-10",
+    ],
+    linkopts = select({
+        "//clutil:osx": ["-framework OpenCL"],
+        "//clutil:linux": ["-lOpenCL"],
+        "//conditions:default": ["-lOpenCL"],
+    }),
+    visibility = ["//math"],
+    deps = [
+        ":convolution_layer",
+        ":layer",
+        ":nnet",
+        "//math/geometry:dynamic_matrix",
+        "//math/symbolic",
     ],
 )
 
@@ -261,17 +261,17 @@ cc_test(
         "--std=c++1z",
     ],
     linkopts = select({
-        "//clutil:osx" : ["-framework OpenCL"],
-        "//clutil:linux" : ["-lOpenCL"],
-        "//conditions:default" : ["-lOpenCL"],
+        "//clutil:osx": ["-framework OpenCL"],
+        "//clutil:linux": ["-lOpenCL"],
+        "//conditions:default": ["-lOpenCL"],
     }),
     deps = [
-        ":nnet",
         ":layer",
+        ":nnet",
         ":symbol_generator",
-        "//math/symbolic:symbolic",
-        "//math/symbolic:symbolic_util",
         "//math/geometry:dynamic_matrix",
+        "//math/symbolic",
+        "//math/symbolic:symbolic_util",
         "//math/third_party:catch2",
     ],
 )

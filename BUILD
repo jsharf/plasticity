@@ -1,15 +1,15 @@
 package_group(
     name = "math",
-    packages = [
-        "//math/...",
-    ],
     includes = [
         ":math_users",
+    ],
+    packages = [
+        "//math/...",
     ],
 )
 
 package_group(
     name = "math_users",
-    packages = ["//graphics/..."],
     includes = [],
+    packages = ["//graphics/..."],
 )

@@ -1,30 +1,30 @@
 cc_library(
     name = "symbolic",
-    visibility = ["//math"],
+    srcs = [
+        "expression.cc",
+        "numeric_value.cc",
+    ],
     hdrs = [
         "expression.h",
         "expression_node.h",
         "numeric_value.h",
     ],
-    srcs = [
-        "expression.cc",
-        "numeric_value.cc",
-    ],
     copts = [
         "-std=c++1z",
     ],
+    visibility = ["//math"],
 )
 
 cc_library(
     name = "symbolic_util",
-    visibility = ["//math"],
+    srcs = ["symbolic_util.cc"],
     hdrs = [
         "symbolic_util.h",
     ],
-    srcs = ["symbolic_util.cc"],
     copts = [
         "-std=c++1z",
     ],
+    visibility = ["//math"],
     deps = [
         ":symbolic",
         "//math/geometry:dynamic_matrix",
