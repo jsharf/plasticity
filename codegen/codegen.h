@@ -26,12 +26,20 @@ class Generator {
     virtual void PushScope() = 0;
     virtual void PopScope() = 0;
     
-    // Used to append generic code.
+    // Used to append generic code with a new line at the end.
     // Whitespace-sensitive languages (python) will need to override this to add
     // appropriate indenting (based on current indent level set by PushScope()
     // and PopScope()).
     virtual void AppendLineOfCode(const std::string& code) {
       code_ << code << "\n";
+    }
+
+    // Used to append generic code with a new line at the end.
+    // Whitespace-sensitive languages (python) will need to override this to add
+    // appropriate indenting (based on current indent level set by PushScope()
+    // and PopScope()).
+    virtual void AppendCode(const std::string& code) {
+      code_ << code;
     }
 
     // The following functions are all const and do not modify the state of the
