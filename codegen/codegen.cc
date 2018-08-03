@@ -46,6 +46,13 @@ std::string CudaGenerator::if_expr(const std::string& term) const {
   return "if(" + term + ")";
 }
 
+// (condition) ? a : b
+std::string CudaGenerator::ternary(const std::string& condition,
+                                   const std::string& a,
+                                   const std::string& b) const {
+  return "((" + condition + ") ? " + a + ":" + b + ")";
+}
+
 // lhs && rhs; "and" is a reserved keyword so this was named op_and.
 std::string CudaGenerator::op_and(const std::string& lhs,
                                   const std::string& rhs) const {
@@ -62,6 +69,30 @@ std::string CudaGenerator::op_or(const std::string& lhs,
 std::string CudaGenerator::equals(const std::string& lhs,
                                   const std::string& rhs) const {
   return lhs + "==" + rhs;
+}
+
+// lhs < rhs;
+std::string CudaGenerator::lt(const std::string& lhs,
+                              const std::string& rhs) const {
+  return lhs + "<" + rhs;
+}
+
+// lhs > rhs;
+std::string CudaGenerator::gt(const std::string& lhs,
+                              const std::string& rhs) const {
+  return lhs + ">" + rhs;
+}
+
+// lhs <= rhs;
+std::string CudaGenerator::lte(const std::string& lhs,
+                               const std::string& rhs) const {
+  return lhs + "<=" + rhs;
+}
+
+// lhs >= rhs;
+std::string CudaGenerator::gte(const std::string& lhs,
+                               const std::string& rhs) const {
+  return lhs + ">=" + rhs;
 }
 
 // lhs + rhs;

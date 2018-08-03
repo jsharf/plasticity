@@ -10,6 +10,18 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "codegen_util",
+    hdrs = ["codegen_util.h"],
+    copts = [
+        "--std=c++1z",
+    ],
+    visibility = ["//math"],
+    deps = [
+        ":codegen"
+    ],
+)
+
 cc_test(
     name = "codegen_test",
     srcs = ["codegen_test.cc"],

@@ -52,6 +52,10 @@ class Generator {
                                         const std::string& index2) const = 0;
     // if(term)
     virtual std::string if_expr(const std::string& term) const = 0;
+    // (condition) ? a : b
+    virtual std::string ternary(const std::string& condition,
+                                const std::string& a,
+                                const std::string& b) const = 0;
     // lhs && rhs; "and" is a reserved keyword so this was named op_and.
     virtual std::string op_and(const std::string& lhs,
                                const std::string& rhs) const = 0;
@@ -61,6 +65,18 @@ class Generator {
     // lhs == rhs;
     virtual std::string equals(const std::string& lhs,
                                const std::string& rhs) const = 0;
+    // lhs < rhs;
+    virtual std::string lt(const std::string& lhs,
+                   const std::string& rhs) const = 0;
+    // lhs > rhs;
+    virtual std::string gt(const std::string& lhs,
+                           const std::string& rhs) const = 0;
+    // lhs <= rhs;
+    virtual std::string lte(const std::string& lhs,
+                            const std::string& rhs) const = 0;
+    // lhs >= rhs;
+    virtual std::string gte(const std::string& lhs,
+                            const std::string& rhs) const = 0;
     // lhs + rhs;
     virtual std::string add(const std::string& lhs,
                             const std::string& rhs) const = 0;
@@ -108,6 +124,9 @@ class CudaGenerator : public Generator {
                                         const std::string& index2) const override;
     // if(term)
     std::string if_expr(const std::string& term) const override;
+    // (condition) ? a : b
+    std::string ternary(const std::string& condition, const std::string& a,
+                        const std::string& b) const override;
     // lhs && rhs; "and" is a reserved keyword so this was named op_and.
     std::string op_and(const std::string& lhs,
                        const std::string& rhs) const override;
@@ -117,6 +136,18 @@ class CudaGenerator : public Generator {
     // lhs == rhs;
     std::string equals(const std::string& lhs,
                        const std::string& rhs) const override;
+    // lhs < rhs;
+    std::string lt(const std::string& lhs,
+                   const std::string& rhs) const override;
+    // lhs > rhs;
+    std::string gt(const std::string& lhs,
+                   const std::string& rhs) const override;
+    // lhs <= rhs;
+    std::string lte(const std::string& lhs,
+                   const std::string& rhs) const override;
+    // lhs >= rhs;
+    std::string gte(const std::string& lhs,
+                   const std::string& rhs) const override;
     // lhs + rhs;
     std::string add(const std::string& lhs,
                     const std::string& rhs) const override;
