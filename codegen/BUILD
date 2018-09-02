@@ -18,7 +18,7 @@ cc_library(
     ],
     visibility = ["//math"],
     deps = [
-        ":codegen"
+        ":codegen",
     ],
 )
 

@@ -29,15 +29,15 @@ std::string CudaGenerator::add_assign(const std::string& lhs,
 }
 
 // value[index];
-std::string CudaGenerator::array_access(
-    const std::string& value, const std::string& index) const {
+std::string CudaGenerator::array_access(const std::string& value,
+                                        const std::string& index) const {
   return value + "[" + index + "]";
 }
 
 // value[index1][index2];
-std::string CudaGenerator::array_access_2d(
-    const std::string& value, const std::string& index1,
-    const std::string& index2) const {
+std::string CudaGenerator::array_access_2d(const std::string& value,
+                                           const std::string& index1,
+                                           const std::string& index2) const {
   return value + "[" + index1 + "][" + index2 + "]";
 }
 
@@ -107,12 +107,19 @@ std::string CudaGenerator::mul(const std::string& lhs,
   return lhs + "*" + rhs;
 }
 
-std::string CudaGenerator::else_expr() const {
-  return "else";
+// lhs / rhs;
+std::string CudaGenerator::mul(const std::string& lhs,
+                               const std::string& rhs) const {
+  return lhs + "/" + rhs;
 }
 
-std::string CudaGenerator::linesep() const {
-  return ";";
+std::string CudaGenerator::mod(const std::string& lhs,
+                               const std::string& rhs) const {
+  return lhs + "%" + rhs;
 }
+
+std::string CudaGenerator::else_expr() const { return "else"; }
+
+std::string CudaGenerator::linesep() const { return ";"; }
 
 }  // namespace codegen
