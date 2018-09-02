@@ -108,7 +108,7 @@ std::string CudaGenerator::mul(const std::string& lhs,
 }
 
 // lhs / rhs;
-std::string CudaGenerator::mul(const std::string& lhs,
+std::string CudaGenerator::div(const std::string& lhs,
                                const std::string& rhs) const {
   return lhs + "/" + rhs;
 }
