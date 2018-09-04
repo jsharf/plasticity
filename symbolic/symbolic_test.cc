@@ -3,12 +3,12 @@
 
 #include <cstdlib>
 
-#include <experimental/optional>
 #include <iostream>
 #include <memory>
 #include <set>
 
 #include "math/symbolic/expression.h"
+#include "math/symbolic/integer.h"
 #include "math/symbolic/numeric_value.h"
 #include "math/symbolic/symbolic_util.h"
 
@@ -30,7 +30,7 @@ TEST_CASE("Simple expression output is validated", "[symbolic]") {
   std::cout << "x" << std::endl;
   equation = equation.Bind("x", NumericValue(1));
 
-  std::experimental::optional<NumericValue> result = equation.Evaluate();
+  std::unique_ptr<NumericValue> result = equation.Evaluate();
   REQUIRE(result);
   REQUIRE(result->real() == 2);
   REQUIRE(result->imag() == Approx(0.5));
@@ -63,4 +63,23 @@ TEST_CASE("Test max expression", "[symbolic]") {
        symbolic::CreateExpression("1"), symbolic::CreateExpression("5")});
 
   REQUIRE(max_test.Evaluate()->real() == 5);
+}
+
+TEST_CASE("integer arithmetic validation", "[symbolic]") {
+  size_t a = 10;
+  size_t b = 7;
+  size_t c = 4;
+
+  SECTION("VERIFY SIMPLE DIVISION A") {
+    Expression expr = symbolic::Integer(a);
+    Expression quotient = expr / b;
+    std::unique_ptr<NumericValue> result = quotient.Evaluate();
+    REQUIRE(result);
+    REQUIRE(result->real() == 1);
+
+    quotient = expr / c;
+    result = quotient.Evaluate();
+    REQUIRE(result);
+    REQUIRE(result->real() == 2);
+  }
 }

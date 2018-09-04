@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <experimental/optional>
 #include <iostream>
 #include <utility>
 
@@ -55,6 +54,9 @@ Expression CreateExpression(std::string expression) {
 
 // Expression Implementation.
 
+Expression::Expression(std::unique_ptr<const ExpressionNode>&& root)
+    : expression_root_(std::shared_ptr<const ExpressionNode>(root.release())) {}
+
 Expression::Expression(std::shared_ptr<const ExpressionNode> root)
     : expression_root_(root) {}
 
@@ -67,8 +69,17 @@ Expression::Expression(Expression&& rhs)
 Expression::Expression(const NumericValue& rhs)
     : expression_root_(std::make_shared<NumericValue>(rhs)) {}
 
-Expression::Expression(Number a)
+Expression::Expression(const Integer& rhs)
+    : expression_root_(std::make_shared<Integer>(rhs)) {}
+
+Expression::Expression(double a)
     : expression_root_(std::make_shared<NumericValue>(a)) {}
+
+Expression::Expression(int a)
+    : expression_root_(std::make_shared<Integer>(a)) {}
+
+Expression::Expression(unsigned long a)
+    : expression_root_(std::make_shared<Integer>(a)) {}
 
 Expression Expression::operator+(const Expression& rhs) const {
   return Expression(std::make_shared<AdditionExpression>(expression_root_,
@@ -96,7 +107,8 @@ Expression Expression::operator/(const Expression& rhs) const {
 }
 
 Expression& Expression::operator=(const Expression& rhs) {
-  expression_root_ = rhs.expression_root_->Clone();
+  expression_root_ = std::shared_ptr<const ExpressionNode>(
+      rhs.expression_root_->Clone().release());
   return *this;
 }
 
@@ -133,7 +145,7 @@ Expression Expression::Derive(const std::string& x) const {
   return Expression(expression_root_->Derive(x));
 }
 
-std::experimental::optional<NumericValue> Expression::Evaluate() const {
+std::unique_ptr<NumericValue> Expression::Evaluate() const {
   return expression_root_->TryEvaluate();
 }
 
@@ -165,18 +177,17 @@ std::shared_ptr<const ExpressionNode> IfExpression::Bind(
                                         b_.Bind(env));
 }
 
-std::experimental::optional<NumericValue> IfExpression::TryEvaluate() const {
-  std::experimental::optional<NumericValue> conditional_result =
-      conditional_.Evaluate();
+std::unique_ptr<NumericValue> IfExpression::TryEvaluate() const {
+  std::unique_ptr<NumericValue> conditional_result = conditional_.Evaluate();
 
   // Evaluate this as a truthy or falsey value. But since it's a floating point
   // number, do comparison accounting for floating point error.
   if (!conditional_result) {
-    return std::experimental::nullopt;
+    return nullptr;
   }
 
   bool truthy =
-      abs(conditional_result->real()) > std::numeric_limits<Number>::epsilon();
+      abs(conditional_result->real()) > std::numeric_limits<double>::epsilon();
 
   if (truthy) {
     return a_.Evaluate();
@@ -209,13 +220,13 @@ std::set<std::string> CompoundExpression::variables() const {
   return variables;
 }
 
-std::experimental::optional<NumericValue> CompoundExpression::TryEvaluate()
-    const {
+std::unique_ptr<NumericValue> CompoundExpression::TryEvaluate() const {
   auto head_or_fail = head_.Evaluate();
   auto tail_or_fail = tail_.Evaluate();
   if (!head_or_fail || !tail_or_fail) {
-    return std::experimental::nullopt;
+    return nullptr;
   }
+  // head is cloned to preserve type information.
   return reduce(*head_or_fail, *tail_or_fail);
 }
 
@@ -234,9 +245,12 @@ std::string CompoundExpression::to_string() const {
 
 // AdditionExpression Implementation.
 
-NumericValue AdditionExpression::reduce(const NumericValue& a,
-                                        const NumericValue& b) const {
-  NumericValue result(a.real() + b.real(), a.imag() + b.imag());
+std::unique_ptr<NumericValue> AdditionExpression::reduce(
+    const NumericValue& a, const NumericValue& b) const {
+  // This preserves the type (integer vs double).
+  std::unique_ptr<NumericValue> result = a.CloneValue();
+  result->real() = a.real() + b.real();
+  result->imag() = a.imag() + b.imag();
   return result;
 }
 
@@ -254,10 +268,12 @@ std::shared_ptr<const ExpressionNode> AdditionExpression::Derive(
 
 // MultiplicationExpression Implementation.
 
-NumericValue MultiplicationExpression::reduce(const NumericValue& a,
-                                              const NumericValue& b) const {
-  NumericValue result(a.real() * b.real() - a.imag() * b.imag(),
-                      a.real() * b.imag() + b.real() * a.imag());
+std::unique_ptr<NumericValue> MultiplicationExpression::reduce(
+    const NumericValue& a, const NumericValue& b) const {
+  // This preserves the type (integer vs double).
+  std::unique_ptr<NumericValue> result = a.CloneValue();
+  result->real() = a.real() * b.real() - a.imag() * b.imag();
+  result->imag() = a.real() * b.imag() + b.real() * a.imag();
   return result;
 }
 
@@ -285,10 +301,10 @@ std::shared_ptr<const ExpressionNode> MultiplicationExpression::Derive(
 
 // And Implementation.
 
-NumericValue AndExpression::reduce(const NumericValue& a,
-                                   const NumericValue& b) const {
-  NumericValue result(ToNumber(ToBool(a.real()) && ToBool(b.real())), 0);
-  return result;
+std::unique_ptr<NumericValue> AndExpression::reduce(
+    const NumericValue& a, const NumericValue& b) const {
+  return std::make_unique<NumericValue>(
+      ToNumber(ToBool(a.real()) && ToBool(b.real())), 0);
 }
 
 std::shared_ptr<const ExpressionNode> AndExpression::Bind(
@@ -318,19 +334,19 @@ std::shared_ptr<const ExpressionNode> GteExpression::Bind(
   return std::make_shared<GteExpression>(a_.Bind(env), b_.Bind(env));
 }
 
-std::experimental::optional<NumericValue> GteExpression::TryEvaluate() const {
-  std::experimental::optional<NumericValue> a_result = a_.Evaluate();
+std::unique_ptr<NumericValue> GteExpression::TryEvaluate() const {
+  std::unique_ptr<NumericValue> a_result = a_.Evaluate();
 
-  std::experimental::optional<NumericValue> b_result = b_.Evaluate();
+  std::unique_ptr<NumericValue> b_result = b_.Evaluate();
 
   if (!(a_result && b_result)) {
-    return std::experimental::nullopt;
+    return nullptr;
   }
 
   NumericValue a = *a_result;
   NumericValue b = *b_result;
 
-  return NumericValue((a.real() >= b.real()) ? 1.0 : 0.0);
+  return std::make_unique<Integer>((a.real() >= b.real()) ? 1.0 : 0.0);
 }
 
 // Not defined for >=.
@@ -366,16 +382,13 @@ std::shared_ptr<const ExpressionNode> DivisionExpression::Bind(
                                               denominator_.Bind(env));
 }
 
-std::experimental::optional<NumericValue> DivisionExpression::TryEvaluate()
-    const {
-  std::experimental::optional<NumericValue> numerator_result =
-      numerator_.Evaluate();
+std::unique_ptr<NumericValue> DivisionExpression::TryEvaluate() const {
+  std::unique_ptr<NumericValue> numerator_result = numerator_.Evaluate();
 
-  std::experimental::optional<NumericValue> denominator_result =
-      denominator_.Evaluate();
+  std::unique_ptr<NumericValue> denominator_result = denominator_.Evaluate();
 
   if (!(denominator_result && numerator_result)) {
-    return std::experimental::nullopt;
+    return nullptr;
   }
 
   NumericValue a = *numerator_result;
@@ -383,14 +396,18 @@ std::experimental::optional<NumericValue> DivisionExpression::TryEvaluate()
 
   // Fail if denominator is zero.
   if (pow(b.real(), 2) + pow(b.imag(), 2) == 0) {
-    return std::experimental::nullopt;
+    return nullptr;
   }
 
-  Number real = (a.real() * b.real() + a.imag() * b.imag()) /
+  double real = (a.real() * b.real() + a.imag() * b.imag()) /
                 (pow(b.real(), 2) + pow(b.imag(), 2));
-  Number imag = (a.imag() * b.real() - a.real() * b.imag()) /
+  double imag = (a.imag() * b.real() - a.real() * b.imag()) /
                 (pow(b.real(), 2) + pow(b.imag(), 2));
-  return NumericValue(real, imag);
+  // This is done so that the type of the operands is preserved. This allows
+  // ints to stay as ints.
+  numerator_result->real() = real;
+  numerator_result->imag() = imag;
+  return numerator_result;
 }
 
 // Returns the symbolic partial derivative of this expression.
@@ -431,33 +448,36 @@ std::shared_ptr<const ExpressionNode> ExponentExpression::Bind(
   return std::make_shared<ExponentExpression>(b_, child_.Bind(env));
 }
 
-std::experimental::optional<NumericValue> ExponentExpression::TryEvaluate()
-    const {
-  std::experimental::optional<NumericValue> child_result = child_.Evaluate();
+std::unique_ptr<NumericValue> ExponentExpression::TryEvaluate() const {
+  std::unique_ptr<NumericValue> child_result = child_.Evaluate();
   if (!child_result) {
-    return std::experimental::nullopt;
+    return nullptr;
   }
 
   // Variable names reflect the formula here:
   // http://mathworld.wolfram.com/ComplexExponentiation.html
-  Number a = b_.real();
-  Number b = b_.imag();
+  double a = b_.real();
+  double b = b_.imag();
 
-  Number c = child_result->real();
-  Number d = child_result->imag();
+  double c = child_result->real();
+  double d = child_result->imag();
 
-  Number phase = atan(b / a);
-  Number common = pow(a * a + b * b, c / 2) * exp(-d * phase);
-  Number real = common * cos(c * phase + 0.5 * d * log(a * a + b * b));
-  Number imag = common * sin(c * phase + 0.5 * d * log(a * a + b * b));
+  double phase = atan(b / a);
+  double common = pow(a * a + b * b, c / 2) * exp(-d * phase);
+  double real = common * cos(c * phase + 0.5 * d * log(a * a + b * b));
+  double imag = common * sin(c * phase + 0.5 * d * log(a * a + b * b));
 
-  return NumericValue(real, imag);
+  // child_result is cloned to preserve type.
+  std::unique_ptr<NumericValue> result = std::move(child_result);
+  result->real() = real;
+  result->imag() = imag;
+  return result;
 }
 
 std::shared_ptr<const ExpressionNode> ExponentExpression::Derive(
     const std::string& x) const {
-  Number norm = sqrt(b_.real() * b_.real() + b_.imag() * b_.imag());
-  Number phase = atan(b_.imag() / b_.real());
+  double norm = sqrt(b_.real() * b_.real() + b_.imag() * b_.imag());
+  double phase = atan(b_.imag() / b_.real());
 
   Expression multiplier(NumericValue(log(norm), phase));
 
@@ -472,8 +492,8 @@ std::string ExponentExpression::to_string() const {
   return "pow(" + b_.to_string() + ", " + child_.to_string() + ")";
 }
 
-std::shared_ptr<const ExpressionNode> ExponentExpression::Clone() const {
-  return std::make_shared<const ExponentExpression>(b_, child_);
+std::unique_ptr<const ExpressionNode> ExponentExpression::Clone() const {
+  return std::make_unique<const ExponentExpression>(b_, child_);
 }
 
 // LogExpression Impl.
@@ -483,10 +503,10 @@ std::shared_ptr<const ExpressionNode> LogExpression::Bind(
   return std::make_shared<LogExpression>(b_, child_.Bind(env));
 }
 
-std::experimental::optional<NumericValue> LogExpression::TryEvaluate() const {
-  std::experimental::optional<NumericValue> child_result = child_.Evaluate();
+std::unique_ptr<NumericValue> LogExpression::TryEvaluate() const {
+  std::unique_ptr<NumericValue> child_result = child_.Evaluate();
   if (!child_result) {
-    return std::experimental::nullopt;
+    return nullptr;
   }
 
   if ((child_result->imag() != 0) || (b_.imag() != 0)) {
@@ -494,14 +514,17 @@ std::experimental::optional<NumericValue> LogExpression::TryEvaluate() const {
                  "expression. LogExpression is only implemented for real "
                  "numbers."
               << std::endl;
-    return std::experimental::nullopt;
+    return nullptr;
   }
 
   // https://oregonstate.edu/instruct/mth251/cq/Stage6/Lesson/logDeriv.html
-  Number base = b_.real();
-  Number exp = child_result->real();
+  double base = b_.real();
+  double exp = child_result->real();
 
-  return NumericValue(log(exp) / log(base));
+  // child_result is cloned to preserve type.
+  child_result->real() = log(exp) / log(base);
+  child_result->imag() = 0;
+  return child_result;
 }
 
 std::shared_ptr<const ExpressionNode> LogExpression::Derive(
@@ -520,8 +543,8 @@ std::string LogExpression::to_string() const {
   return "log(" + child_.to_string() + ") / log(" + b_.to_string() + ")";
 }
 
-std::shared_ptr<const ExpressionNode> LogExpression::Clone() const {
-  return std::make_shared<const LogExpression>(b_, child_);
+std::unique_ptr<const ExpressionNode> LogExpression::Clone() const {
+  return std::make_unique<const LogExpression>(b_, child_);
 }
 
 }  // namespace symbolic

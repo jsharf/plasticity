@@ -2,11 +2,13 @@ cc_library(
     name = "symbolic",
     srcs = [
         "expression.cc",
+        "integer.cc",
         "numeric_value.cc",
     ],
     hdrs = [
         "expression.h",
         "expression_node.h",
+        "integer.h",
         "numeric_value.h",
     ],
     copts = [

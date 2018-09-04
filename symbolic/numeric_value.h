@@ -11,45 +11,48 @@
 
 namespace symbolic {
 
-using Number = double;
-
 class NumericValue : public ExpressionNode {
  public:
-  NumericValue(Number a) : is_bound_(true), a_(a), b_(0) {}
-  NumericValue(Number a, Number b) : is_bound_(true), a_(a), b_(b) {}
+  NumericValue(double a) : is_bound_(true), a_(a), b_(0) {}
+  NumericValue(double a, double b) : is_bound_(true), a_(a), b_(b) {}
   NumericValue(std::string name) : is_bound_(false), name_(name) {}
   NumericValue() : is_bound_(true), a_(0), b_(0) {}
-  Number& real() { return a_; }
-  Number& imag() { return b_; }
-  Number real() const { return a_; }
-  Number imag() const { return b_; }
+  NumericValue(const NumericValue& rhs)
+      : is_bound_(rhs.is_bound_), name_(rhs.name_), a_(rhs.a_), b_(rhs.b_) {}
+  virtual double& real() { return a_; }
+  virtual double& imag() { return b_; }
+  virtual double real() const { return a_; }
+  virtual double imag() const { return b_; }
 
   std::shared_ptr<const ExpressionNode> Bind(
       const std::unordered_map<std::string, NumericValue>& env) const override;
 
   std::set<std::string> variables() const override;
 
-  std::experimental::optional<NumericValue> TryEvaluate() const override;
+  std::unique_ptr<NumericValue> TryEvaluate() const override;
 
   // Returns the symbolic partial derivative of this expression.
-  std::shared_ptr<const ExpressionNode> Derive(const std::string& x) const override;
+  std::shared_ptr<const ExpressionNode> Derive(
+      const std::string& x) const override;
 
   std::string to_string() const override;
 
-  std::shared_ptr<const ExpressionNode> Clone() const override;
+  virtual std::unique_ptr<NumericValue> CloneValue() const;
+
+  std::unique_ptr<const ExpressionNode> Clone() const override;
 
   static const NumericValue pi;
   static const NumericValue e;
 
- private:
+ protected:
   bool is_bound_;
 
   // For unbound variables.
   std::string name_;
 
   // For bound variables with actual values.
-  Number a_;
-  Number b_;
+  double a_;
+  double b_;
 };
 
 }  // namespace symbolic

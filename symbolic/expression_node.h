@@ -22,7 +22,7 @@ class ExpressionNode {
       const std::unordered_map<std::string, NumericValue>&) const = 0;
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
-  virtual std::experimental::optional<NumericValue> TryEvaluate() const = 0;
+  virtual std::unique_ptr<NumericValue> TryEvaluate() const = 0;
 
   // Returns the symbolic partial derivative of this expression.
   virtual std::shared_ptr<const ExpressionNode> Derive(
@@ -30,7 +30,7 @@ class ExpressionNode {
 
   virtual std::string to_string() const = 0;
 
-  virtual std::shared_ptr<const ExpressionNode> Clone() const = 0;
+  virtual std::unique_ptr<const ExpressionNode> Clone() const = 0;
 
   virtual ~ExpressionNode() {}
 };

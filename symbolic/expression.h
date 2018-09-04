@@ -2,9 +2,9 @@
 #define EXPRESSION_H
 
 #include "math/symbolic/expression_node.h"
+#include "math/symbolic/integer.h"
 #include "math/symbolic/numeric_value.h"
 
-#include <experimental/optional>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -33,6 +33,7 @@ class Expression {
  public:
   Expression() : Expression(0) {}
 
+  Expression(std::unique_ptr<const ExpressionNode>&& root);
   Expression(std::shared_ptr<const ExpressionNode> root);
 
   Expression(const Expression& other);
@@ -40,8 +41,11 @@ class Expression {
   Expression(Expression&& rhs);
 
   Expression(const NumericValue& value);
+  Expression(const Integer& value);
 
-  Expression(Number a);
+  Expression(double a);
+  Expression(int a);
+  Expression(unsigned long a);
 
   Expression operator+(const Expression& rhs) const;
   Expression operator-(const Expression& rhs) const;
@@ -69,7 +73,7 @@ class Expression {
 
   Expression Derive(const std::string& x) const;
 
-  std::experimental::optional<NumericValue> Evaluate() const;
+  std::unique_ptr<NumericValue> Evaluate() const;
 
   // TODO(sharf): make this immutable, remove this.
   void Reset(std::shared_ptr<const ExpressionNode> root);
@@ -100,7 +104,7 @@ class IfExpression : public ExpressionNode {
 
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
-  std::experimental::optional<NumericValue> TryEvaluate() const override;
+  std::unique_ptr<NumericValue> TryEvaluate() const override;
 
   // Returns the symbolic partial derivative of this expression.
   // Note: This does not do any bounds analysis and simply returns
@@ -112,10 +116,8 @@ class IfExpression : public ExpressionNode {
   // (( conditional ) ? ( a ) : ( b ))
   std::string to_string() const override;
 
-  std::shared_ptr<const ExpressionNode> Clone() const override {
-    std::shared_ptr<IfExpression> clone =
-        std::make_shared<IfExpression>(conditional_, a_, b_);
-    return clone;
+  std::unique_ptr<const ExpressionNode> Clone() const override {
+    return std::make_unique<IfExpression>(conditional_, a_, b_);
   }
 
  private:
@@ -131,16 +133,16 @@ class CompoundExpression : public ExpressionNode {
   virtual std::shared_ptr<const ExpressionNode> Bind(
       const Environment& env) const override = 0;
 
-  std::experimental::optional<NumericValue> TryEvaluate() const override;
+  std::unique_ptr<NumericValue> TryEvaluate() const override;
 
   std::string to_string() const override;
 
-  virtual NumericValue reduce(const NumericValue& a,
-                              const NumericValue& b) const = 0;
+  virtual std::unique_ptr<NumericValue> reduce(const NumericValue& a,
+                                               const NumericValue& b) const = 0;
 
   virtual std::string operator_to_string() const = 0;
 
-  virtual std::shared_ptr<const ExpressionNode> Clone() const override = 0;
+  virtual std::unique_ptr<const ExpressionNode> Clone() const override = 0;
 
  protected:
   CompoundExpression(const Expression& a, const Expression& b)
@@ -156,17 +158,15 @@ class AdditionExpression : public CompoundExpression {
   AdditionExpression(const Expression& a, const Expression& b)
       : CompoundExpression(a, b) {}
   AdditionExpression(const Expression& a) : CompoundExpression(a) {}
-  NumericValue reduce(const NumericValue& a,
-                      const NumericValue& b) const override;
+  std::unique_ptr<NumericValue> reduce(const NumericValue& a,
+                                       const NumericValue& b) const override;
   std::string operator_to_string() const override { return "+"; }
 
-  std::shared_ptr<const ExpressionNode> Clone() const override {
+  std::unique_ptr<const ExpressionNode> Clone() const override {
     if (is_end_) {
-      return std::static_pointer_cast<const ExpressionNode>(
-          std::make_shared<AdditionExpression>(head_));
+      return std::make_unique<AdditionExpression>(head_);
     }
-    return std::static_pointer_cast<const ExpressionNode>(
-        std::make_shared<AdditionExpression>(head_, tail_));
+    return std::make_unique<AdditionExpression>(head_, tail_);
   }
 
   std::shared_ptr<const ExpressionNode> Bind(
@@ -184,18 +184,16 @@ class MultiplicationExpression : public CompoundExpression {
 
   MultiplicationExpression(const Expression& a) : CompoundExpression(a) {}
 
-  NumericValue reduce(const NumericValue& a,
-                      const NumericValue& b) const override;
+  std::unique_ptr<NumericValue> reduce(const NumericValue& a,
+                                       const NumericValue& b) const override;
 
   std::string operator_to_string() const override { return "*"; }
 
-  std::shared_ptr<const ExpressionNode> Clone() const override {
+  std::unique_ptr<const ExpressionNode> Clone() const override {
     if (is_end_) {
-      return std::static_pointer_cast<const ExpressionNode>(
-          std::make_shared<MultiplicationExpression>(head_));
+      return std::make_unique<MultiplicationExpression>(head_);
     }
-    return std::static_pointer_cast<const ExpressionNode>(
-        std::make_shared<MultiplicationExpression>(head_, tail_));
+      return std::make_unique<MultiplicationExpression>(head_, tail_);
   }
 
   std::shared_ptr<const ExpressionNode> Bind(
@@ -214,25 +212,23 @@ class AndExpression : public CompoundExpression {
 
   AndExpression(const Expression& a) : CompoundExpression(a) {}
 
-  NumericValue reduce(const NumericValue& a,
-                      const NumericValue& b) const override;
+  std::unique_ptr<NumericValue> reduce(const NumericValue& a,
+                                       const NumericValue& b) const override;
 
   std::string operator_to_string() const override { return "&&"; }
 
-  std::shared_ptr<const ExpressionNode> Clone() const override {
+  std::unique_ptr<const ExpressionNode> Clone() const override {
     if (is_end_) {
-      return std::static_pointer_cast<const ExpressionNode>(
-          std::make_shared<AndExpression>(head_));
+      return std::make_unique<AndExpression>(head_);
     }
-    return std::static_pointer_cast<const ExpressionNode>(
-        std::make_shared<AndExpression>(head_, tail_));
+    return std::make_unique<AndExpression>(head_, tail_);
   }
 
-  static bool ToBool(Number x) {
-    return abs(x) > std::numeric_limits<Number>::epsilon();
+  static bool ToBool(double x) {
+    return abs(x) > std::numeric_limits<double>::epsilon();
   }
 
-  static Number ToNumber(bool b) { return b ? 1.0 : 0.0; }
+  static double ToNumber(bool b) { return b ? 1.0 : 0.0; }
 
   std::shared_ptr<const ExpressionNode> Bind(
       const Environment& env) const override;
@@ -257,7 +253,7 @@ class GteExpression : public ExpressionNode {
 
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
-  std::experimental::optional<NumericValue> TryEvaluate() const override;
+  std::unique_ptr<NumericValue> TryEvaluate() const override;
 
   // Not defined for GteExpression. Returns nullptr.
   std::shared_ptr<const ExpressionNode> Derive(
@@ -265,9 +261,9 @@ class GteExpression : public ExpressionNode {
 
   std::string to_string() const override;
 
-  std::shared_ptr<const ExpressionNode> Clone() const override {
-    std::shared_ptr<GteExpression> clone =
-        std::make_shared<GteExpression>(a_, b_);
+  std::unique_ptr<const ExpressionNode> Clone() const override {
+    std::unique_ptr<GteExpression> clone =
+        std::make_unique<GteExpression>(a_, b_);
     return clone;
   }
 
@@ -292,7 +288,7 @@ class DivisionExpression : public ExpressionNode {
 
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
-  std::experimental::optional<NumericValue> TryEvaluate() const override;
+  std::unique_ptr<NumericValue> TryEvaluate() const override;
 
   // Returns the symbolic partial derivative of this expression.
   std::shared_ptr<const ExpressionNode> Derive(
@@ -300,9 +296,9 @@ class DivisionExpression : public ExpressionNode {
 
   std::string to_string() const override;
 
-  std::shared_ptr<const ExpressionNode> Clone() const override {
-    std::shared_ptr<DivisionExpression> clone =
-        std::make_shared<DivisionExpression>(numerator_, denominator_);
+  std::unique_ptr<const ExpressionNode> Clone() const override {
+    std::unique_ptr<DivisionExpression> clone =
+        std::make_unique<DivisionExpression>(numerator_, denominator_);
     return std::move(clone);
   }
 
@@ -328,7 +324,7 @@ class ExponentExpression : public ExpressionNode {
 
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
-  std::experimental::optional<NumericValue> TryEvaluate() const override;
+  std::unique_ptr<NumericValue> TryEvaluate() const override;
 
   // Returns the symbolic partial derivative of this expression.
   std::shared_ptr<const ExpressionNode> Derive(
@@ -336,7 +332,7 @@ class ExponentExpression : public ExpressionNode {
 
   std::string to_string() const override;
 
-  std::shared_ptr<const ExpressionNode> Clone() const override;
+  std::unique_ptr<const ExpressionNode> Clone() const override;
 
  private:
   NumericValue b_;
@@ -362,7 +358,7 @@ class LogExpression : public ExpressionNode {
 
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
-  std::experimental::optional<NumericValue> TryEvaluate() const override;
+  std::unique_ptr<NumericValue> TryEvaluate() const override;
 
   // Returns the symbolic partial derivative of this expression.
   std::shared_ptr<const ExpressionNode> Derive(
@@ -370,7 +366,7 @@ class LogExpression : public ExpressionNode {
 
   std::string to_string() const override;
 
-  std::shared_ptr<const ExpressionNode> Clone() const override;
+  std::unique_ptr<const ExpressionNode> Clone() const override;
 
  private:
   NumericValue b_;

@@ -29,8 +29,14 @@ Expression Softmax(const Matrix<Expression>& column_vector, int index);
 
 Expression Max(const std::vector<Expression>& exprs);
 
-Matrix<Number> MapBindAndEvaluate(Matrix<symbolic::Expression> symbols,
+Matrix<double> MapBindAndEvaluate(Matrix<symbolic::Expression> symbols,
                                   symbolic::Environment env);
+
+symbolic::Expression Unflatten3dRow(size_t width, size_t height, size_t depth,
+                                    const symbolic::Expression& i) {
+  symbolic::Expression z_plane_size(symbolic::Integer(width * height));
+  symbolic::Expression z_plane = i / z_plane_size;
+}
 
 }  // namespace symbolic
 

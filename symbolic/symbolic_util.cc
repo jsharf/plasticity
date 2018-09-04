@@ -95,11 +95,11 @@ Expression Max(const std::vector<Expression>& exprs) {
 
 // Evaluates a matrix of symbolics given an execution environment and returns
 // a matrix of real values.
-Matrix<Number> MapBindAndEvaluate(Matrix<symbolic::Expression> symbols,
+Matrix<double> MapBindAndEvaluate(Matrix<symbolic::Expression> symbols,
                                   symbolic::Environment env) {
   // Turns symbolic expressions into real numbers.
-  std::function<Number(const symbolic::Expression& e)> real_evaluator =
-      [&env, &symbols](const symbolic::Expression& e) -> Number {
+  std::function<double(const symbolic::Expression& e)> real_evaluator =
+      [&env, &symbols](const symbolic::Expression& e) -> double {
     auto maybe_value = e.Bind(env).Evaluate();
     if (!maybe_value) {
       // Shit.
