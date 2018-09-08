@@ -70,9 +70,12 @@ class Expression {
   // Variables which need to be resolved in order to evaluate the expression.
   std::set<std::string> variables() const;
 
-  Expression Bind(const std::string& name, NumericValue value) const;
+  Expression Bind(const std::string& name, const NumericValue& value) const;
 
   Expression Bind(const Environment& env) const;
+  Expression Bind(
+      const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+      const;
 
   Expression Derive(const std::string& x) const;
 
@@ -103,7 +106,8 @@ class IfExpression : public ExpressionNode {
 
   // Bind variables to values to create an expression which can be evaluated.
   std::shared_ptr<const ExpressionNode> Bind(
-      const Environment& env) const override;
+      const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+      const override;
 
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
@@ -134,7 +138,8 @@ class CompoundExpression : public ExpressionNode {
   std::set<std::string> variables() const override;
 
   virtual std::shared_ptr<const ExpressionNode> Bind(
-      const Environment& env) const override = 0;
+      const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+      const override = 0;
 
   std::unique_ptr<NumericValue> TryEvaluate() const override;
 
@@ -173,7 +178,8 @@ class AdditionExpression : public CompoundExpression {
   }
 
   std::shared_ptr<const ExpressionNode> Bind(
-      const Environment& env) const override;
+      const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+      const override;
 
   // Returns the symbolic partial derivative of this expression.
   std::shared_ptr<const ExpressionNode> Derive(
@@ -200,7 +206,8 @@ class MultiplicationExpression : public CompoundExpression {
   }
 
   std::shared_ptr<const ExpressionNode> Bind(
-      const Environment& env) const override;
+      const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+      const override;
 
   // Returns the symbolic partial derivative of this expression.
   std::shared_ptr<const ExpressionNode> Derive(
@@ -234,7 +241,8 @@ class AndExpression : public CompoundExpression {
   static double ToNumber(bool b) { return b ? 1.0 : 0.0; }
 
   std::shared_ptr<const ExpressionNode> Bind(
-      const Environment& env) const override;
+      const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+      const override;
 
   // Returns the symbolic partial derivative of this expression.
   std::shared_ptr<const ExpressionNode> Derive(
@@ -252,7 +260,8 @@ class GteExpression : public ExpressionNode {
 
   // Bind variables to values to create an expression which can be evaluated.
   std::shared_ptr<const ExpressionNode> Bind(
-      const Environment& env) const override;
+      const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+      const override;
 
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
@@ -287,7 +296,8 @@ class DivisionExpression : public ExpressionNode {
 
   // Bind variables to values to create an expression which can be evaluated.
   std::shared_ptr<const ExpressionNode> Bind(
-      const Environment& env) const override;
+      const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+      const override;
 
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
@@ -312,15 +322,15 @@ class DivisionExpression : public ExpressionNode {
 
 class ModulusExpression : public ExpressionNode {
  public:
-  ModulusExpression(const Expression& a, const Expression& b)
-      : a_(a), b_(b) {}
+  ModulusExpression(const Expression& a, const Expression& b) : a_(a), b_(b) {}
 
   // Variables which need to be resolved in order to evaluate the expression.
   std::set<std::string> variables() const override;
 
   // Bind variables to values to create an expression which can be evaluated.
   std::shared_ptr<const ExpressionNode> Bind(
-      const Environment& env) const override;
+      const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+      const override;
 
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
@@ -360,7 +370,8 @@ class ExponentExpression : public ExpressionNode {
 
   // Bind variables to values to create an expression which can be evaluated.
   std::shared_ptr<const ExpressionNode> Bind(
-      const Environment& env) const override;
+      const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+      const override;
 
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.
@@ -394,7 +405,8 @@ class LogExpression : public ExpressionNode {
 
   // Bind variables to values to create an expression which can be evaluated.
   std::shared_ptr<const ExpressionNode> Bind(
-      const Environment& env) const override;
+      const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+      const override;
 
   // If all variables in the expression have been bound, this produces a
   // numerical evaluation of the expression.

@@ -134,11 +134,25 @@ std::set<std::string> Expression::variables() const {
   return expression_root_->variables();
 }
 
-Expression Expression::Bind(const std::string& name, NumericValue value) const {
-  return Expression(expression_root_->Bind({{name, value}}));
+Expression Expression::Bind(const std::string& name,
+                            const NumericValue& value) const {
+  std::unordered_map<std::string, std::unique_ptr<NumericValue>> env_pointers;
+  env_pointers.emplace(name, value.CloneValue());
+  return Expression(expression_root_->Bind(env_pointers));
 }
 
 Expression Expression::Bind(const Environment& env) const {
+  std::unordered_map<std::string, std::unique_ptr<NumericValue>> env_pointers;
+  for (auto env_entry : env) {
+    env_pointers.emplace(env_entry.first,
+                         std::make_unique<NumericValue>(env_entry.second));
+  }
+  return Expression(expression_root_->Bind(env_pointers));
+}
+
+Expression Expression::Bind(
+    const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+    const {
   return Expression(expression_root_->Bind(env));
 }
 
@@ -180,7 +194,8 @@ std::set<std::string> IfExpression::variables() const {
 }
 
 std::shared_ptr<const ExpressionNode> IfExpression::Bind(
-    const Environment& env) const {
+    const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+    const {
   return std::make_shared<IfExpression>(conditional_.Bind(env), a_.Bind(env),
                                         b_.Bind(env));
 }
@@ -263,7 +278,8 @@ std::unique_ptr<NumericValue> AdditionExpression::reduce(
 }
 
 std::shared_ptr<const ExpressionNode> AdditionExpression::Bind(
-    const Environment& env) const {
+    const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+    const {
   return std::static_pointer_cast<ExpressionNode>(
       std::make_shared<AdditionExpression>(head_.Bind(env), tail_.Bind(env)));
 }
@@ -286,7 +302,8 @@ std::unique_ptr<NumericValue> MultiplicationExpression::reduce(
 }
 
 std::shared_ptr<const ExpressionNode> MultiplicationExpression::Bind(
-    const Environment& env) const {
+    const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+    const {
   return std::static_pointer_cast<ExpressionNode>(
       std::make_shared<MultiplicationExpression>(head_.Bind(env),
                                                  tail_.Bind(env)));
@@ -316,7 +333,8 @@ std::unique_ptr<NumericValue> AndExpression::reduce(
 }
 
 std::shared_ptr<const ExpressionNode> AndExpression::Bind(
-    const Environment& env) const {
+    const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+    const {
   return std::make_shared<AndExpression>(head_.Bind(env), tail_.Bind(env));
 }
 
@@ -338,7 +356,8 @@ std::set<std::string> GteExpression::variables() const {
 }
 
 std::shared_ptr<const ExpressionNode> GteExpression::Bind(
-    const Environment& env) const {
+    const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+    const {
   return std::make_shared<GteExpression>(a_.Bind(env), b_.Bind(env));
 }
 
@@ -385,7 +404,8 @@ std::set<std::string> DivisionExpression::variables() const {
 }
 
 std::shared_ptr<const ExpressionNode> DivisionExpression::Bind(
-    const Environment& env) const {
+    const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+    const {
   return std::make_shared<DivisionExpression>(numerator_.Bind(env),
                                               denominator_.Bind(env));
 }
@@ -462,7 +482,8 @@ std::set<std::string> ModulusExpression::variables() const {
 }
 
 std::shared_ptr<const ExpressionNode> ModulusExpression::Bind(
-    const Environment& env) const {
+    const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+    const {
   return std::make_shared<ModulusExpression>(a_.Bind(env), b_.Bind(env));
 }
 
@@ -479,7 +500,7 @@ std::unique_ptr<NumericValue> ModulusExpression::TryEvaluate() const {
   NumericValue b = *b_result;
 
   // Fail if either value has an imaginary component.
-  if (!(a.imag() == b.imag() == 0)) {
+  if ((a.imag() != 0) || (b.imag() != 0)) {
     return nullptr;
   }
 
@@ -507,7 +528,8 @@ std::string ModulusExpression::to_string() const {
 // ExponentExpression Impl.
 
 std::shared_ptr<const ExpressionNode> ExponentExpression::Bind(
-    const Environment& env) const {
+    const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+    const {
   return std::make_shared<ExponentExpression>(b_, child_.Bind(env));
 }
 
@@ -562,7 +584,8 @@ std::unique_ptr<const ExpressionNode> ExponentExpression::Clone() const {
 // LogExpression Impl.
 
 std::shared_ptr<const ExpressionNode> LogExpression::Bind(
-    const Environment& env) const {
+    const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+    const {
   return std::make_shared<LogExpression>(b_, child_.Bind(env));
 }
 

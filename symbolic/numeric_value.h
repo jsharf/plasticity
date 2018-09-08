@@ -25,7 +25,8 @@ class NumericValue : public ExpressionNode {
   virtual double imag() const { return b_; }
 
   std::shared_ptr<const ExpressionNode> Bind(
-      const std::unordered_map<std::string, NumericValue>& env) const override;
+      const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+      const override;
 
   std::set<std::string> variables() const override;
 

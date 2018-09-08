@@ -4,12 +4,12 @@
 namespace symbolic {
 
 std::shared_ptr<const ExpressionNode> NumericValue::Bind(
-    const std::unordered_map<std::string, NumericValue>& env) const {
+    const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+    const {
   if (!is_bound_) {
     if (env.count(name_) == 1) {
-      double a = env.at(name_).real();
-      double b = env.at(name_).imag();
-      return std::make_shared<NumericValue>(a, b);
+      std::unique_ptr<NumericValue> value = env.at(name_)->CloneValue();
+      return std::shared_ptr<NumericValue>(value.release());
     }
   }
   return std::shared_ptr<const ExpressionNode>(Clone().release());

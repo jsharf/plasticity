@@ -70,14 +70,13 @@ TEST_CASE("integer arithmetic validation", "[symbolic]") {
   size_t b = 7;
   size_t c = 4;
 
-  SECTION("VERIFY SIMPLE DIVISION A") {
+  SECTION("VERIFY SIMPLE DIVISION") {
     Expression expr = symbolic::Integer(a);
     Expression quotient = expr / b;
     std::unique_ptr<NumericValue> result = quotient.Evaluate();
     REQUIRE(result);
     REQUIRE(result->real() == 1);
-
-    quotient = expr / c;
+quotient = expr / c;
     result = quotient.Evaluate();
     REQUIRE(result);
     REQUIRE(result->real() == 2);
@@ -98,5 +97,29 @@ TEST_CASE("3D Array index flatten & unflatten", "[symbolic]") {
     auto result = flattened_index.Evaluate();
     REQUIRE(result);
     REQUIRE(result->real() == 123);
+  }
+
+  SECTION("VERIFY UNFLATTEN") {
+    symbolic::Integer flattened_index_value(120);
+
+    symbolic::Expression flattened_index = symbolic::Expression("index");
+
+    symbolic::Expression row = symbolic::Unflatten3dRow(width, height, depth, flattened_index);
+    row = row.Bind("index", flattened_index_value);
+    auto row_result = row.Evaluate();
+    REQUIRE(row_result);
+    REQUIRE(row_result->real() == 2);
+
+    symbolic::Expression col = symbolic::Unflatten3dCol(width, height, depth, flattened_index);
+    col = col.Bind("index", flattened_index_value);
+    auto col_result = col.Evaluate();
+    REQUIRE(col_result);
+    REQUIRE(col_result->real() == 0);
+
+    symbolic::Expression plane = symbolic::Unflatten3dPlane(width, height, depth, flattened_index);
+    plane = plane.Bind("index", flattened_index_value);
+    auto plane_result = plane.Evaluate();
+    REQUIRE(plane_result);
+    REQUIRE(plane_result->real() == 2);
   }
 }
