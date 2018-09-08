@@ -47,10 +47,13 @@ class Expression {
   Expression(int a);
   Expression(unsigned long a);
 
+  Expression(const std::string& name);
+
   Expression operator+(const Expression& rhs) const;
   Expression operator-(const Expression& rhs) const;
   Expression operator*(const Expression& rhs) const;
   Expression operator/(const Expression& rhs) const;
+  Expression operator%(const Expression& rhs) const;
 
   // TODO(sharf): make this immutable, remove these.
   Expression& operator=(const Expression& rhs);
@@ -193,7 +196,7 @@ class MultiplicationExpression : public CompoundExpression {
     if (is_end_) {
       return std::make_unique<MultiplicationExpression>(head_);
     }
-      return std::make_unique<MultiplicationExpression>(head_, tail_);
+    return std::make_unique<MultiplicationExpression>(head_, tail_);
   }
 
   std::shared_ptr<const ExpressionNode> Bind(
@@ -305,6 +308,43 @@ class DivisionExpression : public ExpressionNode {
  private:
   Expression numerator_;
   Expression denominator_;
+};
+
+class ModulusExpression : public ExpressionNode {
+ public:
+  ModulusExpression(const Expression& a, const Expression& b)
+      : a_(a), b_(b) {}
+
+  // Variables which need to be resolved in order to evaluate the expression.
+  std::set<std::string> variables() const override;
+
+  // Bind variables to values to create an expression which can be evaluated.
+  std::shared_ptr<const ExpressionNode> Bind(
+      const Environment& env) const override;
+
+  // If all variables in the expression have been bound, this produces a
+  // numerical evaluation of the expression.
+  std::unique_ptr<NumericValue> TryEvaluate() const override;
+
+  // Returns the symbolic partial derivative of this expression.
+  // Note: No derivative is defined for modulus. This expression returns
+  // nullptr.
+  std::shared_ptr<const ExpressionNode> Derive(
+      const std::string& x) const override {
+    return nullptr;
+  }
+
+  std::string to_string() const override;
+
+  std::unique_ptr<const ExpressionNode> Clone() const override {
+    std::unique_ptr<ModulusExpression> clone =
+        std::make_unique<ModulusExpression>(a_, b_);
+    return std::move(clone);
+  }
+
+ private:
+  Expression a_;
+  Expression b_;
 };
 
 // b^x.

@@ -83,3 +83,20 @@ TEST_CASE("integer arithmetic validation", "[symbolic]") {
     REQUIRE(result->real() == 2);
   }
 }
+
+TEST_CASE("3D Array index flatten & unflatten", "[symbolic]") {
+  size_t width = 10;
+  size_t height = 5;
+  size_t depth = 3;
+
+  SECTION("VERIFY FLATTEN") {
+    symbolic::Expression flattened_index = symbolic::Flatten3d(
+        width, height, depth, symbolic::Expression("row"),
+        symbolic::Expression("col"), symbolic::Expression("plane"));
+    flattened_index =
+        flattened_index.Bind({{"row", 2}, {"col", 3}, {"plane", 2}});
+    auto result = flattened_index.Evaluate();
+    REQUIRE(result);
+    REQUIRE(result->real() == 123);
+  }
+}

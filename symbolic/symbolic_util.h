@@ -57,6 +57,11 @@ symbolic::Expression Unflatten3dPlane(size_t width, size_t height, size_t depth,
   return z_plane;
 }
 
+symbolic::Expression Flatten3d(size_t width, size_t height, size_t depth, const symbolic::Expression& row, const symbolic::Expression& col, const symbolic::Expression& plane) {
+  symbolic::Expression z_plane_size(symbolic::Integer(width * height));
+  return z_plane_size * plane + row * width + col;
+}
+
 }  // namespace symbolic
 
 #endif /* SYMBOLIC_UTIL_H */

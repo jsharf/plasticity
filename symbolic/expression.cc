@@ -81,6 +81,9 @@ Expression::Expression(int a)
 Expression::Expression(unsigned long a)
     : expression_root_(std::make_shared<Integer>(a)) {}
 
+Expression::Expression(const std::string& name)
+    : expression_root_(std::make_shared<NumericValue>(name)) {}
+
 Expression Expression::operator+(const Expression& rhs) const {
   return Expression(std::make_shared<AdditionExpression>(expression_root_,
                                                          rhs.expression_root_));
@@ -104,6 +107,11 @@ Expression Expression::operator*(const Expression& rhs) const {
 Expression Expression::operator/(const Expression& rhs) const {
   return Expression(std::make_shared<DivisionExpression>(expression_root_,
                                                          rhs.expression_root_));
+}
+
+Expression Expression::operator%(const Expression& rhs) const {
+  return Expression(std::make_shared<ModulusExpression>(expression_root_,
+                                                        rhs.expression_root_));
 }
 
 Expression& Expression::operator=(const Expression& rhs) {
@@ -437,6 +445,61 @@ std::string DivisionExpression::to_string() const {
   result += numerator_.to_string();
   result += ") / (";
   result += denominator_.to_string();
+  result += ")";
+  return result;
+}
+
+// ModulusExpression Implementation.
+
+std::set<std::string> ModulusExpression::variables() const {
+  std::set<std::string> variables;
+  std::set<std::string> a_variables = a_.variables();
+  std::set<std::string> b_variables = b_.variables();
+
+  variables.insert(a_variables.begin(), a_variables.end());
+  variables.insert(b_variables.begin(), b_variables.end());
+  return variables;
+}
+
+std::shared_ptr<const ExpressionNode> ModulusExpression::Bind(
+    const Environment& env) const {
+  return std::make_shared<ModulusExpression>(a_.Bind(env), b_.Bind(env));
+}
+
+std::unique_ptr<NumericValue> ModulusExpression::TryEvaluate() const {
+  std::unique_ptr<NumericValue> a_result = a_.Evaluate();
+
+  std::unique_ptr<NumericValue> b_result = b_.Evaluate();
+
+  if (!(b_result && a_result)) {
+    return nullptr;
+  }
+
+  NumericValue a = *a_result;
+  NumericValue b = *b_result;
+
+  // Fail if either value has an imaginary component.
+  if (!(a.imag() == b.imag() == 0)) {
+    return nullptr;
+  }
+
+  // Fail if b is zero.
+  if (b.real() == 0) {
+    return nullptr;
+  }
+
+  // This is done so that the type of the operands is preserved. This allows
+  // ints to stay as ints.
+  a_result->real() = static_cast<int>(a.real()) % static_cast<int>(b.real());
+  a_result->imag() = 0;
+  return a_result;
+}
+
+std::string ModulusExpression::to_string() const {
+  std::string result = "(";
+  result += a_.to_string();
+  result += ") % (";
+  result += b_.to_string();
   result += ")";
   return result;
 }
