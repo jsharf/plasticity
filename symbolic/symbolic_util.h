@@ -36,6 +36,25 @@ symbolic::Expression Unflatten3dRow(size_t width, size_t height, size_t depth,
                                     const symbolic::Expression& i) {
   symbolic::Expression z_plane_size(symbolic::Integer(width * height));
   symbolic::Expression z_plane = i / z_plane_size;
+  symbolic::Expression plane_index = i - z_plane;
+  symbolic::Expression row = plane_index / width;
+  return row;
+}
+
+symbolic::Expression Unflatten3dCol(size_t width, size_t height, size_t depth,
+                                    const symbolic::Expression& i) {
+  symbolic::Expression z_plane_size(symbolic::Integer(width * height));
+  symbolic::Expression z_plane = i / z_plane_size;
+  symbolic::Expression plane_index = i - z_plane;
+  symbolic::Expression col = plane_index % width;
+  return col;
+}
+
+symbolic::Expression Unflatten3dPlane(size_t width, size_t height, size_t depth,
+                                      const symbolic::Expression& i) {
+  symbolic::Expression z_plane_size(symbolic::Integer(width * height));
+  symbolic::Expression z_plane = i / z_plane_size;
+  return z_plane;
 }
 
 }  // namespace symbolic
