@@ -396,6 +396,35 @@ std::string GteExpression::to_string() const {
   return result;
 }
 
+// Not Expression
+
+std::set<std::string> NotExpression::variables() const {
+  return child_.variables();
+}
+
+std::shared_ptr<const ExpressionNode> NotExpression::Bind(
+    const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+    const {
+  return std::make_shared<NotExpression>(child_.Bind(env));
+}
+
+std::unique_ptr<NumericValue> NotExpression::TryEvaluate() const {
+  std::unique_ptr<NumericValue> child_result = child_.Evaluate();
+
+  if (!child_result) {
+    return nullptr;
+  }
+
+  bool truthy =
+      abs(child_result->real()) > std::numeric_limits<double>::epsilon();
+
+  return std::make_unique<Integer>((truthy) ? 0 : 1);
+}
+
+std::string NotExpression::to_string() const {
+  return "!(" + child_.to_string() + ")";
+}
+
 // DivisionExpression Implementation.
 
 std::set<std::string> DivisionExpression::variables() const {

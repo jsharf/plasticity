@@ -285,6 +285,40 @@ class GteExpression : public ExpressionNode {
   Expression b_;
 };
 
+class NotExpression : public ExpressionNode {
+ public:
+  NotExpression(const Expression& child) : child_(child) {}
+
+  // Variables which need to be resolved in order to evaluate the expression.
+  std::set<std::string> variables() const override;
+
+  // Bind variables to values to create an expression which can be evaluated.
+  std::shared_ptr<const ExpressionNode> Bind(
+      const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+      const override;
+
+  // If all variables in the expression have been bound, this produces a
+  // numerical evaluation of the expression.
+  std::unique_ptr<NumericValue> TryEvaluate() const override;
+
+  // Not defined for NotExpression. Returns nullptr.
+  std::shared_ptr<const ExpressionNode> Derive(
+      const std::string& x) const override {
+    return nullptr;
+  }
+
+  std::string to_string() const override;
+
+  std::unique_ptr<const ExpressionNode> Clone() const override {
+    std::unique_ptr<NotExpression> clone =
+        std::make_unique<NotExpression>(child_);
+    return clone;
+  }
+
+ private:
+  Expression child_;
+};
+
 class DivisionExpression : public ExpressionNode {
  public:
   DivisionExpression(const Expression& numerator, const Expression& denominator)

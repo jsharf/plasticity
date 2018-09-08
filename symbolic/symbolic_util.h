@@ -78,7 +78,10 @@ symbolic::Expression Unflatten2dCol(size_t width, size_t height, const symbolic:
   return i % symbolic::Integer(width);
 }
 
-
+// LT expression
+symbolic::Expression LtExpression(const symbolic::Expression& a, const symbolic::Expression& b) {
+  return Expression(std::make_shared<const NotExpression>(symbolic::Expression(std::make_shared<GteExpression>(a, b))));
+}
 
 }  // namespace symbolic
 
