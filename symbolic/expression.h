@@ -47,7 +47,8 @@ class Expression {
   Expression(int a);
   Expression(unsigned long a);
 
-  Expression(const std::string& name);
+  static Expression CreateInteger(const std::string& name);
+  static Expression CreateNumericValue(const std::string& name);
 
   Expression operator+(const Expression& rhs) const;
   Expression operator-(const Expression& rhs) const;

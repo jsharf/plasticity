@@ -81,8 +81,13 @@ Expression::Expression(int a)
 Expression::Expression(unsigned long a)
     : expression_root_(std::make_shared<Integer>(a)) {}
 
-Expression::Expression(const std::string& name)
-    : expression_root_(std::make_shared<NumericValue>(name)) {}
+Expression Expression::CreateInteger(const std::string& name) {
+  return Expression(std::make_shared<Integer>(name));
+}
+
+Expression Expression::CreateNumericValue(const std::string& name) {
+  return Expression(std::make_shared<NumericValue>(name));
+}
 
 Expression Expression::operator+(const Expression& rhs) const {
   return Expression(std::make_shared<AdditionExpression>(expression_root_,

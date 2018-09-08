@@ -90,8 +90,8 @@ TEST_CASE("3D Array index flatten & unflatten", "[symbolic]") {
 
   SECTION("VERIFY FLATTEN") {
     symbolic::Expression flattened_index = symbolic::Flatten3d(
-        width, height, depth, symbolic::Expression("row"),
-        symbolic::Expression("col"), symbolic::Expression("plane"));
+        width, height, depth, symbolic::Expression::CreateInteger("row"),
+        symbolic::Expression::CreateInteger("col"), symbolic::Expression::CreateInteger("plane"));
     flattened_index =
         flattened_index.Bind({{"row", 2}, {"col", 3}, {"plane", 2}});
     auto result = flattened_index.Evaluate();
@@ -102,7 +102,7 @@ TEST_CASE("3D Array index flatten & unflatten", "[symbolic]") {
   SECTION("VERIFY UNFLATTEN") {
     symbolic::Integer flattened_index_value(120);
 
-    symbolic::Expression flattened_index = symbolic::Expression("index");
+    symbolic::Expression flattened_index = symbolic::Expression::CreateInteger("index");
 
     symbolic::Expression row =
         symbolic::Unflatten3dRow(width, height, depth, flattened_index);
@@ -133,10 +133,9 @@ TEST_CASE("2D Array index flatten & unflatten", "[symbolic]") {
 
   SECTION("VERIFY FLATTEN") {
     symbolic::Expression flattened_index =
-        symbolic::Flatten2d(width, height, symbolic::Expression("row"),
-                            symbolic::Expression("col"));
-    flattened_index =
-        flattened_index.Bind({{"row", 2}, {"col", 3}});
+        symbolic::Flatten2d(width, height, symbolic::Expression::CreateInteger("row"),
+                            symbolic::Expression::CreateInteger("col"));
+    flattened_index = flattened_index.Bind({{"row", 2}, {"col", 3}});
     auto result = flattened_index.Evaluate();
     REQUIRE(result);
     REQUIRE(result->real() == 23);
@@ -145,7 +144,7 @@ TEST_CASE("2D Array index flatten & unflatten", "[symbolic]") {
   SECTION("VERIFY UNFLATTEN") {
     symbolic::Integer flattened_index_value(34);
 
-    symbolic::Expression flattened_index = symbolic::Expression("index");
+    symbolic::Expression flattened_index = symbolic::Expression::CreateInteger("index");
 
     symbolic::Expression row =
         symbolic::Unflatten2dRow(width, height, flattened_index);
