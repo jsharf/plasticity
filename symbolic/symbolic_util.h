@@ -32,6 +32,13 @@ Expression Max(const std::vector<Expression>& exprs);
 Matrix<double> MapBindAndEvaluate(Matrix<symbolic::Expression> symbols,
                                   symbolic::Environment env);
 
+// 3D array flattening & unflattening.
+
+symbolic::Expression Flatten3d(size_t width, size_t height, size_t depth, const symbolic::Expression& row, const symbolic::Expression& col, const symbolic::Expression& plane) {
+  symbolic::Expression z_plane_size(symbolic::Integer(width * height));
+  return z_plane_size * plane + row * width + col;
+}
+
 symbolic::Expression Unflatten3dRow(size_t width, size_t height, size_t depth,
                                     const symbolic::Expression& i) {
   symbolic::Expression z_plane_size(symbolic::Integer(width * height));
@@ -57,10 +64,21 @@ symbolic::Expression Unflatten3dPlane(size_t width, size_t height, size_t depth,
   return z_plane;
 }
 
-symbolic::Expression Flatten3d(size_t width, size_t height, size_t depth, const symbolic::Expression& row, const symbolic::Expression& col, const symbolic::Expression& plane) {
-  symbolic::Expression z_plane_size(symbolic::Integer(width * height));
-  return z_plane_size * plane + row * width + col;
+// 2D array flattening & unflattening.
+
+symbolic::Expression Flatten2d(size_t width, size_t height, const symbolic::Expression& row, const symbolic::Expression& col) {
+  return symbolic::Expression(width) * row + col;
 }
+
+symbolic::Expression Unflatten2dRow(size_t width, size_t height, const symbolic::Expression& i) {
+  return i / symbolic::Integer(width);
+}
+
+symbolic::Expression Unflatten2dCol(size_t width, size_t height, const symbolic::Expression& i) {
+  return i % symbolic::Integer(width);
+}
+
+
 
 }  // namespace symbolic
 

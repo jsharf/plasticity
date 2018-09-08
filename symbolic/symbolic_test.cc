@@ -76,7 +76,7 @@ TEST_CASE("integer arithmetic validation", "[symbolic]") {
     std::unique_ptr<NumericValue> result = quotient.Evaluate();
     REQUIRE(result);
     REQUIRE(result->real() == 1);
-quotient = expr / c;
+    quotient = expr / c;
     result = quotient.Evaluate();
     REQUIRE(result);
     REQUIRE(result->real() == 2);
@@ -104,22 +104,61 @@ TEST_CASE("3D Array index flatten & unflatten", "[symbolic]") {
 
     symbolic::Expression flattened_index = symbolic::Expression("index");
 
-    symbolic::Expression row = symbolic::Unflatten3dRow(width, height, depth, flattened_index);
+    symbolic::Expression row =
+        symbolic::Unflatten3dRow(width, height, depth, flattened_index);
     row = row.Bind("index", flattened_index_value);
     auto row_result = row.Evaluate();
     REQUIRE(row_result);
     REQUIRE(row_result->real() == 2);
 
-    symbolic::Expression col = symbolic::Unflatten3dCol(width, height, depth, flattened_index);
+    symbolic::Expression col =
+        symbolic::Unflatten3dCol(width, height, depth, flattened_index);
     col = col.Bind("index", flattened_index_value);
     auto col_result = col.Evaluate();
     REQUIRE(col_result);
     REQUIRE(col_result->real() == 0);
 
-    symbolic::Expression plane = symbolic::Unflatten3dPlane(width, height, depth, flattened_index);
+    symbolic::Expression plane =
+        symbolic::Unflatten3dPlane(width, height, depth, flattened_index);
     plane = plane.Bind("index", flattened_index_value);
     auto plane_result = plane.Evaluate();
     REQUIRE(plane_result);
     REQUIRE(plane_result->real() == 2);
+  }
+}
+
+TEST_CASE("2D Array index flatten & unflatten", "[symbolic]") {
+  size_t width = 10;
+  size_t height = 5;
+
+  SECTION("VERIFY FLATTEN") {
+    symbolic::Expression flattened_index =
+        symbolic::Flatten2d(width, height, symbolic::Expression("row"),
+                            symbolic::Expression("col"));
+    flattened_index =
+        flattened_index.Bind({{"row", 2}, {"col", 3}});
+    auto result = flattened_index.Evaluate();
+    REQUIRE(result);
+    REQUIRE(result->real() == 23);
+  }
+
+  SECTION("VERIFY UNFLATTEN") {
+    symbolic::Integer flattened_index_value(34);
+
+    symbolic::Expression flattened_index = symbolic::Expression("index");
+
+    symbolic::Expression row =
+        symbolic::Unflatten2dRow(width, height, flattened_index);
+    row = row.Bind("index", flattened_index_value);
+    auto row_result = row.Evaluate();
+    REQUIRE(row_result);
+    REQUIRE(row_result->real() == 3);
+
+    symbolic::Expression col =
+        symbolic::Unflatten2dCol(width, height, flattened_index);
+    col = col.Bind("index", flattened_index_value);
+    auto col_result = col.Evaluate();
+    REQUIRE(col_result);
+    REQUIRE(col_result->real() == 4);
   }
 }
