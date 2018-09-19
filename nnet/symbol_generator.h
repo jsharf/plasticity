@@ -1,23 +1,34 @@
 #ifndef SYMBOL_GENERATOR_H
 #define SYMBOL_GENERATOR_H
 
+#include "math/codegen/codegen_util.h"
 #include "math/nnet/layer_dimensions.h"
 #include "math/nnet/layer_impl.h"
 #include "math/symbolic/expression.h"
+#include "math/symbolic/symbolic_util.h"
 
 #include <map>
 #include <unordered_map>
 #include <utility>
 
+using symbolic::Expression;
+using symbolic::IfInRange;
+
 namespace nnet {
 
 class SymbolGenerator {
  public:
-  std::string I(size_t i) const {
-    return "I[" + std::to_string(i) + "]";
+  std::string I(size_t i) const { return "I[" + std::to_string(i) + "]"; }
+  std::string I(std::string i) const { return "I[" + i + "]"; }
+  std::string O(size_t i) const { return "O[" + std::to_string(i) + "]"; }
+  std::string O(std::string i) const { return "O[" + i + "]"; }
+
+  Expression InputSymbolic(const Expression& index) const {
+    return Expression(I(index.to_string()));
   }
-  std::string O(size_t i) const {
-    return "O[" + std::to_string(i) + "]";
+
+  Expression OutputSymbolic(const Expression& index) const {
+    return Expression(I(index.to_string()));
   }
 
   // Residual gradients for back propagation.
@@ -26,179 +37,235 @@ class SymbolGenerator {
   }
 };
 
-struct DenseWeightAddress {
-  // If is_bias, edge value is invalid.
-  bool is_bias = false;
+namespace internal {
 
-  size_t node = 0;
-  size_t edge = 0;
+// Rewrite as FlattenDense, and then handle the bias weights inside here to
+// simplify DenseSymbolGenerator -- Actually this might not work. Think before
+// doing. (and this makes it consistent with FlattenConv, which needs to handle
+// bias weights inside of handling). Take nnet::Dimensions instead of width,
+// height.
+size_t Flatten2d(size_t width, size_t height, size_t row, size_t col) {
+  return row * width + col;
+}
 
-  bool operator==(const DenseWeightAddress& rhs) const {
-    if (is_bias) {
-      return node == rhs.node;
-    } else {
-      return (node == rhs.node) && (edge == rhs.edge);
-    }
-  }
+size_t Unflatten2dRow(size_t width, size_t height, size_t i) {
+  return i / width;
+}
 
-  // This is used to make hashing DenseWeightAddress simpler.
-  std::string to_string() const {
-    if (is_bias) {
-      return "{\n\tnode: " + std::to_string(node) + "\n}";
-    } else {
-      return "{\n\tnode: " + std::to_string(node) + "\n\tedge: " +
-             std::to_string(node) + "\n}";
-    }
-  }
+size_t Unflatten2dCol(size_t width, size_t height, size_t i) {
+  return i % width;
+}
 
-  DenseWeightAddress(size_t p_node) : is_bias(true), node(p_node) {}
-  DenseWeightAddress(size_t p_node, size_t p_edge)
-      : is_bias(false), node(p_node), edge(p_edge) {}
-};
-
-struct DenseWeightAddressHash {
-  std::hash<std::string> hasher;
-  size_t operator()(const DenseWeightAddress& obj) const {
-    return hasher(obj.to_string());
-  }
-};
+}  // namespace internal
 
 class DenseSymbolGenerator {
-  public:
-    explicit DenseSymbolGenerator(Dimensions dimensions) {
-      size_t index = 0;
-      for (size_t node = 0; node < dimensions.num_outputs; ++node) {
-        for (size_t edge = 0; edge < dimensions.num_inputs; ++edge) {
-          DenseWeightAddress addr(node, edge);
-          weight_addr_to_index_[addr] = index;
-          index++;
-        }
-        // Bias weight.
-        DenseWeightAddress addr(node);
-        weight_addr_to_index_[addr] = index;
-        index++;
-      }
+ public:
+  explicit DenseSymbolGenerator(Dimensions dimensions)
+      : dimensions_(dimensions) {
+    size_t width = (dimensions_.num_inputs + 1);
+    size_t height = dimensions_.num_outputs;
+    weights_.resize(width * height);
 
-      weights_.resize(weight_addr_to_index_.size());
-      for (const auto& pair : weight_addr_to_index_) {
-        int index = pair.second;
-        DenseWeightAddress addr = pair.first;
-        if (addr.is_bias) {
-          weights_[index] = W(addr.node);
-        } else {
-          weights_[index] = W(addr.node, addr.edge);
+    // Enumerate weights.
+    // Normal weights.
+    for (size_t col = 0; i < width - 1; ++i) {
+      for (size_t row = 0; j < height; ++j) {
+        size_t index = internal::Flatten2d(width, height, row, col);
+        weights_[index] = W(row, col);
+        if (weights_[index] != "") {
+          std::cerr << "Error found in enumerating weights..." << std::endl;
+          std::cerr << "Collision at row,col: " << row << "," << col
+                    << std::endl;
+          std::exit(1);
         }
       }
     }
-    std::string W(size_t node, size_t edge) const {
-      return "W[" + std::to_string(weight_addr_to_index_.at(DenseWeightAddress(node, edge))) + "]";
-    }
-    // Used for bias weight for a given output node.
-    std::string W(size_t node) const {
-      return "W[" + std::to_string(weight_addr_to_index_.at(DenseWeightAddress(node))) + "]";
-    }
-    const std::vector<std::string>& weights() const {
-      return weights_;
-    }
 
-   private:
-    std::unordered_map<DenseWeightAddress, int, DenseWeightAddressHash>
-        weight_addr_to_index_;
-    std::vector<string> weights_;
-};
-
-struct ConvWeightAddress {
-  // If is_bias, x, y, and z are invalid.
-  bool is_bias = false;
-
-  // Which filter this is a weight in.
-  size_t filter = 0;
-
-  // Weight's location within the filter.
-  size_t x = 0;
-  size_t y = 0;
-  size_t z = 0;
-
-  bool operator==(const ConvWeightAddress& rhs) const {
-    if (is_bias) {
-      return filter == rhs.filter;
-    } else {
-      return (filter == rhs.filter) && (x == rhs.x) && (y == rhs.y) && (z == rhs.z);
+    // Bias weights.
+    for (size_t row = 0; row < height; ++row) {
+      size_t index = internal::Flatten2d(width, height, row, width - 1);
+      if (weights_[index] != "") {
+        std::cerr << "Error found in enumerating bias weights..." << std::endl;
+        std::cerr << "Collision at row: " << row << std::endl;
+        std::exit(1);
+      }
+      weights_[index] = W(row);
     }
   }
 
-  std::string to_string() const {
-    if (is_bias) {
-      return "{\n\tfilter: " + std::to_string(filter) + "\n}";
-    } else {
-      return "{\n\tfilter: " + std::to_string(filter) + "\n\tx: " +
-             std::to_string(x) + "\n\ty: " + std::to_string(y) + "\n\tz: " +
-             std::to_string(z) + "\n}";
-    }
+  std::string W(const Expression& node_idx, const Expression& edge_idx) const {
+    Expression weight_symbol = Expression::CreateNumericValue(
+        "W[" +
+        symbolic::Flatten2d(dimensions_.num_inputs + 1, dimensions_.num_outputs,
+                            Expression::CreateInteger(node_idx),
+                            Expression::CreateInteger(edge_idx))
+            .to_string() +
+        "]");
+    const Expression zero(0);
+    Expression otherwise = zero;
+    Expression node_in_range = IfInRange(
+        node_idx, zero, dimensions_.num_outputs, weight_symbol, otherwise);
+    Expression node_and_edge_in_range = IfInRange(
+        edge_idx, zero, dimensions_.num_inputs + 1, node_in_range, otherwise);
+    return node_and_edge_in_range.to_string();
   }
 
-  ConvWeightAddress(size_t p_filter)
-      : is_bias(true), filter(p_filter) {}
-  ConvWeightAddress(size_t p_filter, size_t p_x, size_t p_y, size_t p_z) : is_bias(false), filter(p_filter), x(p_x), y(p_y), z(p_z) {}
+  std::string W(std::string node_idx) const {
+    Expression weight_symbol = Expression::CreateNumericValue(
+        "W[" +
+        symbolic::Flatten2d(dimensions_.num_inputs + 1, dimensions_.num_outputs,
+                            Expression::CreateInteger(node_idx),
+                            Expression(dimensions_.num_inputs))
+            .to_string() +
+        "]");
+    const Expression zero(0);
+    Expression otherwise = zero;
+    Expression node_in_range = IfInRange(
+        node_idx, zero, dimensions_.num_outputs, weight_symbol, otherwise);
+    return node_in_range;
+  }
+
+  std::string W(size_t node_idx, size_t edge_idx) const {
+    size_t index = internal::Flatten2d(
+        dimensions.num_inputs + 1, dimensions.num_outputs, node_idx, edge_idx);
+    return "W[" + std::to_string(index) + "]";
+  }
+
+  // Used for bias weight for a given output node.
+  std::string W(size_t node) const {
+    size_t index =
+        internal::Flatten2d(dimensions.num_inputs + 1, dimensions.num_outputs,
+                            node, dimensions.num_inputs);
+    return "W[" + std::to_string(index) + "]";
+  }
+
+  const std::vector<std::string>& weights() const { return weights_; }
+
+ private:
+  // The dimensions given are for the layer itself. This class adds an extra
+  // column for bias inputs.
+  Dimensions dimensions_;
+  std::vector<string> weights_;
 };
 
-struct ConvWeightAddressHash {
-  std::hash<std::string> hasher;
-  size_t operator()(const ConvWeightAddress& obj) const {
-    return hasher(obj.to_string());
-  }
-};
+namespace internal {
+
+// Assumes each filter gets serialized into row-order flattened index. Then
+// filters from 0 to num_filters are appended.
+// Take nnet::Dimensions instead of width, height. Handle bias inside of flatten
+// functions.
+size_t Flatten3d(size_t width, size_t height, size_t depth, size_t row,
+                 size_t col, size_t z) {
+  size_t z_plane_size = width * height;
+  return z_plane_size * z + row * width + col;
+}
+
+size_t Unflatten3dRow(size_t width, size_t height, size_t depth, size_t i) {
+  size_t z_plane_size = width * height;
+  size_t z_plane = i / z_plane_size;
+  size_t 2d_index = i - z_plane * z_plane_size;
+  return 2d_index / width;
+}
+
+size_t Unflatten3dCol(size_t width, size_t height, size_t depth, size_t i) {
+  size_t z_plane_size = width * height;
+  size_t z_plane = i / z_plane_size;
+  size_t 2d_index = i - z_plane * z_plane_size;
+  return 2d_index % width;
+}
+
+size_t Unflatten3dZ(size_t width, size_t height, size_t depth, size_t i) {
+  size_t z_plane_size = width * height;
+  return i / z_plane_size;
+}
+
+}  // namespace internal
 
 class ConvSymbolGenerator {
-  public:
-   explicit ConvSymbolGenerator(FilterParams filters) {
-     size_t index = 0;
-     for (size_t filter_no = 0; filter_no < filters.num_filters; ++filter_no) {
-       for (size_t x = 0; x < filters.width; ++x) {
-         for (size_t y = 0; y < filters.height; ++y) {
-           for (size_t z = 0; z < filters.depth; ++z) {
-             ConvWeightAddress addr(filter_no, x, y, z);
-             weight_addr_to_index_[addr] = index;
-             index++;
-           }
-         }
-       }
-       // Bias.
-       ConvWeightAddress addr(filter_no);
-       weight_addr_to_index_[addr] = index;
-       index++;
-     }
+ public:
+  explicit ConvSymbolGenerator(FilterParams params) : params_(params) {
+    size_t filter_size = params.width * params.height * params.depth + 1;
+    for (size_t filter_no = 0; filter_no < params.num_filters; ++filter_no) {
+      for (size_t x = 0; x < params.width; ++x) {
+        for (size_t y = 0; y < params.height; ++y) {
+          for (size_t z = 0; z < params.depth; ++z) {
+            size_t filter_offset = filter_no * filter_size;
+            size_t index =
+                filter_offset + internal::Flatten3d(params.width, params.height,
+                                                    params.depth, x, y, z);
+            weight_addr_to_index_[index] = W(filter_no, x, y, z);
+          }
+        }
+      }
+      // Bias.
+      size_t filter_offset = filter_no * filter_size;
+      size_t index = filter_offset + (filter_size - 1);
+      weight_addr_to_index_[index] = W(filter_no);
+    }
 
-     weights_.resize(weight_addr_to_index_.size());
-     for (const auto& pair : weight_addr_to_index_) {
-       int index = pair.second;
-       ConvWeightAddress addr = pair.first;
-       if (addr.is_bias) {
-         weights_[index] = W(addr.filter);
-       } else {
-         weights_[index] = W(addr.filter, addr.x, addr.y, addr.z);
-       }
-     }
+    weights_.resize(weight_addr_to_index_.size());
+    for (const auto& pair : weight_addr_to_index_) {
+      int index = pair.second;
+      ConvWeightAddress addr = pair.first;
+      if (addr.is_bias) {
+        weights_[index] = W(addr.filter);
+      } else {
+        weights_[index] = W(addr.filter, addr.x, addr.y, addr.z);
+      }
+    }
+  }
+
+  std::string W(const Expression& filter, const Expression& row,
+                const Expression& col, const Expression& z) const {
+    Expression zero(0);
+    Expression filter_size = params.width * params.height * params.depth + 1;
+    Expression filter_base = filter * filter_size;
+    Expression weight_symbol = Expression::CreateNumericValue(
+        "W[" +
+        (filter_base + symbolic::Flatten3d(filter, row, col, z)).to_string() +
+        "]");
+    // Bounds checking.
+    Expression weight_row_in_range =
+        IfInRange(row, 0, params.height, weight_symbol, zero);
+    Expression weight_col_and_row_in_range =
+        IfInRange(col, 0, params.width, weight_row_in_range, zero);
+    Expression weight_all_in_range =
+        IfInRange(z, 0, params.depth, weight_col_and_row_in_range, zero);
+    return weight_all_in_range.to_string();
+  }
+
+  std::string W(const Expression& filter) const {
+    Expression filter_size = params.width * params.height * params.depth + 1;
+    Expression filter_base = filter * filter_size;
+    return (filter_base + (filter_size - 1)).to_string();
   }
 
   // Convolution layer weights.
-  std::string W(size_t filter, size_t x, size_t y, size_t z) const {
-    ConvWeightAddress addr(filter, x, y, z);
-    return "W["+std::to_string(weight_addr_to_index_.at(addr))+"]";
+  std::string W(size_t filter, size_t row, size_t col, size_t z) const {
+    size_t filter_size =
+        params_.width * params_.height * params_.depth + 1;  // +1 for bias.
+    size_t filter_offset = filter * filter_size;
+    size_t index =
+        filter_offset + internal::Flatten3d(params_.width, params_.height,
+                                            params_.depth, row, col, z);
+    return "W[" + std::to_string(index) + "]";
   }
 
   // Convolution layer bias weights.
   std::string W(size_t filter) const {
-    ConvWeightAddress addr(filter);
-    return "W["+std::to_string(weight_addr_to_index_.at(addr))+"]";
+    size_t filter_size =
+        params_.width * params_.height * params_.depth + 1;  // +1 for bias.
+    size_t filter_offset = filter * filter_size;
+    // Bias weight is stored in the final slot of the filter weights.
+    size_t index = filter_offset + (filter_size - 1);
+    return "W[" + std::to_string(index) + "]";
   }
 
-  const std::vector<std::string>& weights() const {
-    return weights_;
-  }
-  private:
-    std::unordered_map<ConvWeightAddress, int, ConvWeightAddressHash> weight_addr_to_index_;
-    std::vector<std::string> weights_;
+  const std::vector<std::string>& weights() const { return weights_; }
+
+ private:
+  FilterParams params_;
+  std::vector<std::string> weights_;
 };
 
 // This class generates symbol names for neural network values. Since these
