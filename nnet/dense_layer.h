@@ -18,8 +18,8 @@ class DenseLayer : public LayerImpl {
   using ActivationFunctionType = LayerImpl::ActivationFunctionType;
 
   DenseLayer(const Dimensions& dimensions,
-                   const ActivationFunctionType& activation_function,
-                   size_t layer_index);
+             const ActivationFunctionType& activation_function,
+             size_t layer_index);
 
   DenseLayer(const Dimensions& dimensions, size_t layer_index)
       : Super(dimensions, layer_index),
@@ -28,8 +28,8 @@ class DenseLayer : public LayerImpl {
 
   const std::vector<std::string>& weights() const override;
 
-  Matrix<symbolic::Expression> GenerateExpression(
-      const Matrix<symbolic::Expression>& input) const override;
+  symbolic::Expression GenerateOutputCode(
+      const symbolic::Expression& index) const override;
 
   std::unique_ptr<LayerImpl> Clone() const override;
 

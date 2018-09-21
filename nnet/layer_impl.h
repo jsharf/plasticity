@@ -26,8 +26,8 @@ class LayerImpl {
     return empty;
   }
 
-  virtual Matrix<symbolic::Expression> GenerateExpression(
-      const Matrix<symbolic::Expression>& input) const = 0;
+  virtual symbolic::Expression GenerateOutputCode(
+      const symbolic::Expression& index) const = 0;
 
   virtual std::unique_ptr<LayerImpl> Clone() const = 0;
 

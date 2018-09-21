@@ -20,13 +20,14 @@ class ActivationLayer : public LayerImpl {
       : Super(Dimensions{size, size}, layer_index),
         activation_function_(activation_function) {}
 
-  Matrix<symbolic::Expression> GenerateExpression(
-      const Matrix<symbolic::Expression>& input) const override;
+  symbolic::Expression GenerateOutputCode(
+      const symbolic::Expression& index) const override;
 
   std::unique_ptr<LayerImpl> Clone() const override;
 
  private:
   ActivationFunctionType activation_function_;
+  SymbolGenerator generator_;
 };
 
 }  // namespace nnet

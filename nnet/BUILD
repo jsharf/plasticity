@@ -85,6 +85,7 @@ cc_library(
         "//math/geometry:dynamic_matrix",
         "//math/stats:normal",
         "//math/symbolic",
+        "//math/symbolic:symbolic_util",
     ],
 )
 

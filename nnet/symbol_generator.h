@@ -93,7 +93,15 @@ class DenseSymbolGenerator {
     }
   }
 
-  std::string W(const Expression& node_idx, const Expression& edge_idx) const {
+  Expression I(size_t index) const {
+    return Expression::CreateNumericValue("I[" + std::to_string(index) + "]");
+  }
+
+  Expression I(const Expression& index) const {
+    return Expression::CreateNumericValue("I[" + index.to_string() + "]");
+  }
+
+  Expression W(const Expression& node_idx, const Expression& edge_idx) const {
     Expression weight_symbol = Expression::CreateNumericValue(
         "W[" +
         symbolic::Flatten2d(dimensions_.num_inputs + 1, dimensions_.num_outputs,
@@ -107,10 +115,10 @@ class DenseSymbolGenerator {
         node_idx, zero, dimensions_.num_outputs, weight_symbol, otherwise);
     Expression node_and_edge_in_range = IfInRange(
         edge_idx, zero, dimensions_.num_inputs + 1, node_in_range, otherwise);
-    return node_and_edge_in_range.to_string();
+    return node_and_edge_in_range;
   }
 
-  std::string W(std::string node_idx) const {
+  Expression W(std::string node_idx) const {
     Expression weight_symbol = Expression::CreateNumericValue(
         "W[" +
         symbolic::Flatten2d(dimensions_.num_inputs + 1, dimensions_.num_outputs,
@@ -125,18 +133,18 @@ class DenseSymbolGenerator {
     return node_in_range;
   }
 
-  std::string W(size_t node_idx, size_t edge_idx) const {
+  Expression W(size_t node_idx, size_t edge_idx) const {
     size_t index = internal::Flatten2d(
         dimensions.num_inputs + 1, dimensions.num_outputs, node_idx, edge_idx);
-    return "W[" + std::to_string(index) + "]";
+    return Expression::CreateNumericValue("W[" + std::to_string(index) + "]");
   }
 
   // Used for bias weight for a given output node.
-  std::string W(size_t node) const {
+  Expression W(size_t node) const {
     size_t index =
         internal::Flatten2d(dimensions.num_inputs + 1, dimensions.num_outputs,
                             node, dimensions.num_inputs);
-    return "W[" + std::to_string(index) + "]";
+    return Expression::CreateNumericValue("W[" + std::to_string(index) + "]");
   }
 
   const std::vector<std::string>& weights() const { return weights_; }
@@ -215,8 +223,8 @@ class ConvSymbolGenerator {
     }
   }
 
-  std::string W(const Expression& filter, const Expression& row,
-                const Expression& col, const Expression& z) const {
+  Expression W(const Expression& filter, const Expression& row,
+               const Expression& col, const Expression& z) const {
     Expression zero(0);
     Expression filter_size = params.width * params.height * params.depth + 1;
     Expression filter_base = filter * filter_size;
@@ -231,34 +239,34 @@ class ConvSymbolGenerator {
         IfInRange(col, 0, params.width, weight_row_in_range, zero);
     Expression weight_all_in_range =
         IfInRange(z, 0, params.depth, weight_col_and_row_in_range, zero);
-    return weight_all_in_range.to_string();
+    return weight_all_in_range;
   }
 
-  std::string W(const Expression& filter) const {
+  Expression W(const Expression& filter) const {
     Expression filter_size = params.width * params.height * params.depth + 1;
     Expression filter_base = filter * filter_size;
-    return (filter_base + (filter_size - 1)).to_string();
+    return (filter_base + (filter_size - 1));
   }
 
   // Convolution layer weights.
-  std::string W(size_t filter, size_t row, size_t col, size_t z) const {
+  Expression W(size_t filter, size_t row, size_t col, size_t z) const {
     size_t filter_size =
         params_.width * params_.height * params_.depth + 1;  // +1 for bias.
     size_t filter_offset = filter * filter_size;
     size_t index =
         filter_offset + internal::Flatten3d(params_.width, params_.height,
                                             params_.depth, row, col, z);
-    return "W[" + std::to_string(index) + "]";
+    return Expression::CreateNumericValue("W[" + std::to_string(index) + "]");
   }
 
   // Convolution layer bias weights.
-  std::string W(size_t filter) const {
+  Expression W(size_t filter) const {
     size_t filter_size =
         params_.width * params_.height * params_.depth + 1;  // +1 for bias.
     size_t filter_offset = filter * filter_size;
     // Bias weight is stored in the final slot of the filter weights.
     size_t index = filter_offset + (filter_size - 1);
-    return "W[" + std::to_string(index) + "]";
+    return Expression::CreateNumericValue("W[" + std::to_string(index) + "]");
   }
 
   const std::vector<std::string>& weights() const { return weights_; }
