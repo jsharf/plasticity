@@ -6,6 +6,7 @@ namespace nnet {
 MaxPoolLayer::MaxPoolLayer(const VolumeDimensions& input,
                            const AreaDimensions& output, size_t layer_index)
     : Super(MaxPoolLayer::GenLinearDimensions(input, output), layer_index),
+      generator_(input),
       input_(input),
       target_(output) {
   if (dimensions_.num_outputs > dimensions_.num_inputs) {
@@ -36,18 +37,8 @@ std::tuple<size_t, size_t, size_t> MaxPoolLayer::GetOutputDimensions(
   return std::make_tuple(output.width, output.height, dim.depth);
 }
 
-Matrix<symbolic::Expression> MaxPoolLayer::GenerateExpression(
-    const Matrix<symbolic::Expression>& input) const {
-  auto dim = input.size();
-  size_t rows = std::get<0>(dim);
-  size_t cols = std::get<1>(dim);
-  if ((rows != dimensions_.num_inputs) || (cols != 1)) {
-    std::cerr << "Error: MaxPoolLayer::GenerateExpression called on input "
-                 "of incorrect size: "
-              << "(" << rows << ", " << cols << ")" << std::endl;
-    std::exit(1);
-  }
-
+symbolic::Expression MaxPoolLayer::GenerateOutputCode(
+    const symbolic::Expression& index) const {
   // Get 3D output dimensions. (output will be a 1D serialized form of this,
   // using mapping output_flat_index).
   std::tuple<size_t, size_t, size_t> output_dims =
@@ -56,62 +47,29 @@ Matrix<symbolic::Expression> MaxPoolLayer::GenerateExpression(
   size_t output_height = std::get<1>(output_dims);
   size_t output_depth = std::get<2>(output_dims);
 
-  // Converts 3D index (x, y, z) into 1D index into input.
-  // This is something I'm not proud of. The conversion between the 1D neural
-  // network layers in a feed-forward net and the 3D volumes in a convolution
-  // layer should be better documented, but I'm settling on this for now.
-  //
-  // As an example of how this works, imagine an RGB image with a width W and
-  // height H. One row would be serialized as W r,g,b values, as such:
-  // row = [r1, g1, b1, r2, g2, b2, r3, g3, b3 .... rW, gW, bW]
-  //
-  // And the entire image would just be a concatenated list of H serialized
-  // rows
-  std::function<size_t(size_t, size_t, size_t)> input_flat_index =
-      [this](size_t x, size_t y, size_t z) -> size_t {
-    size_t row_index = y * (input_.width * input_.depth);
-    size_t col_index = x * input_.depth;
-    size_t depth_index = z;
-    return row_index + col_index + depth_index;
-  };
-
-  std::function<size_t(size_t, size_t, size_t)> output_flat_index =
-      [output_width, output_height, output_depth](size_t x, size_t y,
-                                                  size_t z) -> size_t {
-    size_t row_index = y * (output_width * output_depth);
-    size_t col_index = x * output_depth;
-    size_t depth_index = z;
-    return row_index + col_index + depth_index;
-  };
-
-  Matrix<symbolic::Expression> output(
-      output_width * output_height * output_depth, 1);
-
   size_t group_width = input_.width / output_width;
   size_t group_height = input_.height / output_height;
 
-  for (size_t out_r = 0; out_r < output_height; ++out_r) {
-    for (size_t out_c = 0; out_c < output_width; ++out_c) {
-      for (size_t out_d = 0; out_d < output_depth; ++out_d) {
-        std::vector<symbolic::Expression> group;
-        size_t group_r_start = out_r * group_height;
-        size_t group_r_end = (out_r + 1) * group_height;
-        size_t group_c_start = out_c * group_width;
-        size_t group_c_end = (out_c + 1) * group_width;
-        for (size_t group_r = group_r_start; group_r < group_r_end; ++group_r) {
-          for (size_t group_c = group_c_start; group_c < group_c_end;
-               ++group_c) {
-            group.push_back(
-                input.at(input_flat_index(group_r, group_c, out_d), 0));
-          }
-        }
-        symbolic::Expression group_max = symbolic::Max(group);
-        output.at(output_flat_index(out_r, out_c, out_d), 0) = group_max;
-      }
+  symbolic::Expression output_row = symbolic::Unflatten3dRow(
+      output_width, output_height, output_depth, index);
+
+  symbolic::Expression output_col = symbolic::Unflatten3dCol(
+      output_width, output_height, output_depth, index);
+
+  symbolic::Expression output_z = symbolic::Unflatten3dPlane(
+      output_width, output_height, output_depth, index);
+
+  std::vector<symbolic::Expression> group;
+  symbolic::Expression group_r_start = output_row * group_height;
+  symbolic::Expression group_c_start = output_col * group_width;
+  for (size_t group_r = 0; group_r < group_height; ++group_r) {
+    for (size_t group_c = 0; group_c < group_width; ++group_c) {
+      group.push_back(
+          generator_.I(group_r + group_r_start, group_c_start, output_z));
     }
   }
-
-  return output;
+  symbolic::Expression group_max = symbolic::Max(group);
+  return group_max;
 }
 
 std::unique_ptr<LayerImpl> MaxPoolLayer::Clone() const {

@@ -3,25 +3,14 @@
 
 namespace nnet {
 
-Matrix<symbolic::Expression> SoftmaxLayer::GenerateExpression(
-    const Matrix<symbolic::Expression>& input) const {
-  auto dim = input.size();
-  size_t rows = std::get<0>(dim);
-  size_t cols = std::get<1>(dim);
-  if ((rows != dimensions_.num_inputs) || (cols != 1)) {
-    std::cerr << "Error: ActivationLayer::GenerateExpression called on input "
-                 "of incorrect size: "
-              << "(" << rows << ", " << cols << ")" << std::endl;
-    std::exit(1);
+symbolic::Expression SoftmaxLayer::GenerateOutputCode(const symbolic::Expression& index) const {
+  symbolic::Expression expsum = symbolic::NumericValue(0.0); 
+
+  for (size_t i = 0; i < dimensions_.num_inputs; ++i) {
+    expsum = expsum + Exp(generator_.I(i));
   }
 
-  Matrix<symbolic::Expression> output(rows, cols);
-
-  for (size_t r = 0; r < rows; ++r) {
-    output.at(r, 0) = symbolic::Softmax(input, r);
-  }
-
-  return output;
+  return Exp(symbolic::Expression::CreateNumericValue("I[" + index + "]"))/expsum;
 }
 
 std::unique_ptr<LayerImpl> SoftmaxLayer::Clone() const {

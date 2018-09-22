@@ -19,8 +19,6 @@ class ConvolutionLayer : public LayerImpl {
  public:
   // Reference objects in superclass with Super::
   using Super = LayerImpl;
-  // (x, y, {r, g, b}) -> index.
-  using IndexMap = std::function<size_t(size_t, size_t, size_t)>;
 
   static LinearDimensions GenLinearDimensions(const VolumeDimensions& dim,
                                               const FilterParams& filters);
@@ -28,12 +26,6 @@ class ConvolutionLayer : public LayerImpl {
   // Returns output volume dim (width, height, depth).
   static std::tuple<size_t, size_t, size_t> GetOutputDimensions(
       const VolumeDimensions& dim, const FilterParams& filters);
-
-  // TODO(sharf): Specifying IndexMaps really sucks. Figure out a better
-  // interface for specifying the format of the image.
-  ConvolutionLayer(const VolumeDimensions& dimensions,
-                   const FilterParams& filters, IndexMap input_map,
-                   IndexMap output_map, size_t layer_index);
 
   ConvolutionLayer(const VolumeDimensions& dimensions,
                    const FilterParams& filters, size_t layer_index);
@@ -49,8 +41,6 @@ class ConvolutionLayer : public LayerImpl {
   ConvSymbolGenerator generator_;
   FilterParams filters_;
   VolumeDimensions imdim_;
-  IndexMap input_map_;
-  IndexMap output_map_;
 };
 
 }  // namespace nnet

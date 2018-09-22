@@ -17,10 +17,11 @@ class SoftmaxLayer : public LayerImpl {
   SoftmaxLayer(size_t size, size_t layer_index)
       : Super(Dimensions{size, size}, layer_index) {}
 
-  Matrix<symbolic::Expression> GenerateExpression(
-      const Matrix<symbolic::Expression>& input) const override;
+  symbolic::Expression GenerateOutputCode(const symbolic::Expression& index) const;
 
   std::unique_ptr<LayerImpl> Clone() const override;
+ private:
+  SymbolGenerator generator_;
 };
 
 }  // namespace nnet

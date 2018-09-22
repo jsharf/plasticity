@@ -109,7 +109,7 @@ class DenseSymbolGenerator {
                             Expression::CreateInteger(edge_idx))
             .to_string() +
         "]");
-    const Expression zero(0);
+    const Expression zero(0.0);
     Expression otherwise = zero;
     Expression node_in_range = IfInRange(
         node_idx, zero, dimensions_.num_outputs, weight_symbol, otherwise);
@@ -126,7 +126,7 @@ class DenseSymbolGenerator {
                             Expression(dimensions_.num_inputs))
             .to_string() +
         "]");
-    const Expression zero(0);
+    const Expression zero(0.0);
     Expression otherwise = zero;
     Expression node_in_range = IfInRange(
         node_idx, zero, dimensions_.num_outputs, weight_symbol, otherwise);
@@ -189,11 +189,45 @@ size_t Unflatten3dZ(size_t width, size_t height, size_t depth, size_t i) {
 
 }  // namespace internal
 
+class InputVolumeSymbolGenerator {
+ public:
+  explicit InputVolumeSymbolGenerator(const VolumeDimensions& dimensions)
+      : dimensions_(dimensions) {}
+
+  Expression I(const Expression& row, const Expression& col,
+               const Expression& z) const {
+    symbolic::Expression index = symbolic::Flatten3d(
+        dimensions_.width, dimensions_.height, dimensions.depth, row, col, z);
+    symbolic::Expression input_symbol =
+        symbolic::Expression::CreateNumericValue("I[" + index.to_string() +
+                                                 "]");
+    // Bounds checking.
+    Expression zero(0.0);
+    Expression input_row_in_range =
+        IfInRange(row, 0, dimensions_.height, input_symbol, zero);
+    Expression input_col_and_row_in_range =
+        IfInRange(col, 0, dimensions_.width, input_row_in_range, zero);
+    Expression input_all_in_range =
+        IfInRange(z, 0, dimensions_.depth, input_col_and_row_in_range, zero);
+    return input_all_in_range;
+  }
+
+  Expression I(size_t row, size_t col, size_t z) const {
+    symbolic Expression index = internal::Flatten3d(
+        dimensions_.width, dimensions_.height, dimensions.depth, row, col, z);
+    return symbolic::Expression::CreateNumericValue("I[" + index.to_string() +
+                                                    "]");
+  }
+
+ private:
+  VolumeDimensions dimensions_;
+};
+
 class ConvSymbolGenerator {
  public:
   explicit ConvSymbolGenerator(const VolumeDimensions& dimensions,
                                const FilterParams& params)
-      : dimensions_(dimensions), params_(params) {
+      : input_generator_(dimensions), params_(params) {
     size_t filter_size = params.width * params.height * params.depth + 1;
     for (size_t filter_no = 0; filter_no < params.num_filters; ++filter_no) {
       for (size_t x = 0; x < params.width; ++x) {
@@ -227,32 +261,16 @@ class ConvSymbolGenerator {
 
   Expression I(const Expression& row, const Expression& col,
                const Expression& z) const {
-    symbolic::Expression index = symbolic::Flatten3d(
-        dimensions_.width, dimensions_.height, dimensions.depth, row, col, z);
-    symbolic::Expression input_symbol =
-        symbolic::Expression::CreateNumericValue("I[" + index.to_string() +
-                                                 "]");
-    // Bounds checking.
-    Expression zero(0);
-    Expression input_row_in_range =
-        IfInRange(row, 0, dimensions_.height, input_symbol, zero);
-    Expression input_col_and_row_in_range =
-        IfInRange(col, 0, dimensions_.width, input_row_in_range, zero);
-    Expression input_all_in_range =
-        IfInRange(z, 0, dimensions_.depth, input_col_and_row_in_range, zero);
-    return input_all_in_range;
+    return input_generator_.I(row, col, z);
   }
 
   Expression I(size_t row, size_t col, size_t z) const {
-    symbolic Expression index = internal::Flatten3d(
-        dimensions_.width, dimensions_.height, dimensions.depth, row, col, z);
-    return symbolic::Expression::CreateNumericValue("I[" + index.to_string() +
-                                                    "]");
+    return input_generator_.I(row, col, z);
   }
 
   Expression W(const Expression& filter, const Expression& row,
                const Expression& col, const Expression& z) const {
-    Expression zero(0);
+    Expression zero(0.0);
     Expression filter_size = params_.width * params_.height * params_.depth + 1;
     Expression filter_base = filter * filter_size;
     Expression weight_symbol = Expression::CreateNumericValue(
@@ -300,7 +318,7 @@ class ConvSymbolGenerator {
 
  private:
   FilterParams params_;
-  VolumeDimensions dimension_;
+  InputVolumeSymbolGenerator input_generator_;
   std::vector<std::string> weights_;
 };
 

@@ -4,6 +4,7 @@
 #include "math/nnet/convolution_layer.h"
 #include "math/nnet/layer_dimensions.h"
 #include "math/nnet/layer_impl.h"
+#include "math/nnet/symbol_generator.h"
 #include "math/stats/normal.h"
 #include "math/symbolic/expression.h"
 #include "math/symbolic/symbolic_util.h"
@@ -31,12 +32,13 @@ class MaxPoolLayer : public LayerImpl {
   MaxPoolLayer(const VolumeDimensions& input, const AreaDimensions& output,
                size_t layer_index);
 
-  Matrix<symbolic::Expression> GenerateExpression(
-      const Matrix<symbolic::Expression>& input) const override;
+  symbolic::Expression GenerateOutputCode(
+      const symbolic::Expression& index) const override;
 
   std::unique_ptr<LayerImpl> Clone() const override;
 
  private:
+  InputVolumeSymbolGenerator generator_;
   VolumeDimensions input_;
   AreaDimensions target_;
 };

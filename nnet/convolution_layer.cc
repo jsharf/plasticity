@@ -6,23 +6,6 @@ namespace nnet {
 
 ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
                                    const FilterParams& filters,
-                                   IndexMap input_map, IndexMap output_map,
-                                   size_t layer_index)
-    : Super(GenLinearDimensions(dimensions, filters), layer_index),
-      generator_(dimensions, filters),
-      filters_(filters),
-      imdim_(dimensions),
-      input_map_(input_map),
-      output_map_(output_map) {
-  if (filters_.depth != imdim_.depth) {
-    std::cerr << "Convolution layer input depth != filter depth. Error!"
-              << std::endl;
-    std::exit(1);
-  }
-}
-
-ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
-                                   const FilterParams& filters,
                                    size_t layer_index)
     : Super(GenLinearDimensions(dimensions, filters), layer_index),
       generator_(dimensions, filters),
@@ -33,35 +16,6 @@ ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
               << std::endl;
     std::exit(1);
   }
-  // If you don't specify the input and output map, you get these silly
-  // defaults. Your fault for not caring. I should probably delete this
-  // constructor to make people care. Oh well... TODO(sharf): document this
-  // better.
-  //
-  // The defaults line up with the format of data in the CIFAR database,
-  // described here:
-  // https://www.cs.toronto.edu/~kriz/cifar.html
-  //
-  input_map_ = [this](size_t x, size_t y, size_t z) -> size_t {
-    size_t row_index = y * (imdim_.width);
-    size_t col_index = x;
-    size_t depth_index = z * (imdim_.width * imdim_.height);
-    return row_index + col_index + depth_index;
-  };
-
-  std::tuple<size_t, size_t, size_t> output_dims =
-      GetOutputDimensions(imdim_, filters_);
-  size_t output_width = std::get<0>(output_dims);
-  size_t output_height = std::get<1>(output_dims);
-  size_t output_depth = std::get<2>(output_dims);
-
-  output_map_ = [output_width, output_height, output_depth](
-                    size_t x, size_t y, size_t z) -> size_t {
-    size_t row_index = y * (output_width);
-    size_t col_index = x;
-    size_t depth_index = z * (output_width * output_height);
-    return row_index + col_index + depth_index;
-  };
 }
 
 LinearDimensions ConvolutionLayer::GenLinearDimensions(
