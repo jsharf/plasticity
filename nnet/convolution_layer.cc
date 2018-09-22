@@ -9,7 +9,7 @@ ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
                                    IndexMap input_map, IndexMap output_map,
                                    size_t layer_index)
     : Super(GenLinearDimensions(dimensions, filters), layer_index),
-      generator_(filters),
+      generator_(dimensions, filters),
       filters_(filters),
       imdim_(dimensions),
       input_map_(input_map),
@@ -22,9 +22,10 @@ ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
 }
 
 ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
-                                   const FilterParams& filters, size_t layer_index)
+                                   const FilterParams& filters,
+                                   size_t layer_index)
     : Super(GenLinearDimensions(dimensions, filters), layer_index),
-      generator_(filters),
+      generator_(dimensions, filters),
       filters_(filters),
       imdim_(dimensions) {
   if (filters_.depth != imdim_.depth) {
@@ -92,61 +93,40 @@ const std::vector<std::string>& ConvolutionLayer::weights() const {
   return generator_.weights();
 }
 
-Matrix<symbolic::Expression> ConvolutionLayer::GenerateExpression(
-    const Matrix<symbolic::Expression>& input) const {
-  auto dim = input.size();
-  size_t rows = std::get<0>(dim);
-  size_t cols = std::get<1>(dim);
-
-  // Validate input dimensions.
-  if ((rows != dimensions_.num_inputs) || (cols != 1)) {
-    std::cerr << "Error: ConvolutionLayer::GenerateExpression called on input "
-                 "of incorrect size: "
-              << "(" << rows << ", " << cols << ")" << std::endl;
-    std::exit(1);
-  }
-
-  // Get 3D output dimensions. (output will be a 1D serialized form of this,
-  // using mapping output_map_).
+symbolic::Expression ConvolutionLayer::GenerateOutputCode(
+    const symbolic::Expression& index) const {
   std::tuple<size_t, size_t, size_t> output_dims =
       GetOutputDimensions(imdim_, filters_);
   size_t output_width = std::get<0>(output_dims);
   size_t output_height = std::get<1>(output_dims);
   size_t output_depth = std::get<2>(output_dims);
 
-  Matrix<symbolic::Expression> output(
-      output_width * output_height * output_depth, 1);
+  symbolic::Expression output_row = symbolic::Unflatten3dRow(
+      output_width, output_height, output_depth, index);
 
-  for (size_t filter_no = 0; filter_no < filters_.num_filters; ++filter_no) {
-    int start_x = -filters_.padding;
-    int start_y = -filters_.padding;
-    for (size_t out_x = 0; out_x < output_width; ++out_x) {
-      for (size_t out_y = 0; out_y < output_height; ++out_y) {
-        symbolic::Expression convolution =
-            symbolic::CreateExpression(generator_.W(filter_no));  // bias term.
-        for (size_t f_x = 0; f_x < filters_.width; ++f_x) {
-          for (size_t f_y = 0; f_y < filters_.height; ++f_y) {
-            for (size_t f_z = 0; f_z < filters_.depth; ++f_z) {
-              int input_x = start_x + (out_x * filters_.stride) + f_x;
-              int input_y = start_y + (out_y * filters_.stride) + f_y;
-              int input_z = f_z;
-              // Make sure that we aren't indexing out-of-bounds for
-              // zero-padding case.
-              if ((input_x >= 0) &&
-                  (input_x < static_cast<int>(imdim_.width)) &&
-                  (input_y >= 0) &&
-                  (input_y < static_cast<int>(imdim_.height)) &&
-                  (input_z >= 0) &&
-                  (input_z < static_cast<int>(imdim_.depth))) {
-                convolution +=
-                    input.at(input_map_(input_x, input_y, input_z), 0) *
-                    symbolic::CreateExpression(
-                        generator_.W(filter_no, f_x, f_y, f_z));
-              }
-            }
-          }
-        }
-        output.at(output_map_(out_x, out_y, filter_no), 0) = convolution;
+  symbolic::Expression output_col = symbolic::Unflatten3dCol(
+      output_width, output_height, output_depth, index);
+
+  symbolic::Expression output_filter = symbolic::Unflatten3dPlane(
+      output_width, output_height, output_depth, index);
+
+  // Add bias to the output.
+  symbolic::Expression output = generator_.W(output_filter);
+
+  symbolic::Expression conv_start_row =
+      (output_row * filters_.stride) - filters_.padding;
+  symbolic::Expression conv_start_col =
+      (output_col * filters_.stride) - filters_.padding;
+
+  // Sum up the convolution, adding it to the output.
+  for (size_t f_x = 0; f_x < filters_.width; ++f_x) {
+    for (size_t f_y = 0; f_y < filters_.height; ++f_y) {
+      for (size_t f_z = 0; f_z < filters_.depth; ++f_z) {
+        symbolic::Expression input_x = conv_start_row + f_x;
+        symbolic::Expression input_y = conv_start_col + f_y;
+        symbolic::Expression input_z = f_z;
+        output += generator_.W(output_filter, input_x, input_y, input_z) *
+                  generator_.I(input_x, input_y, input_z);
       }
     }
   }
@@ -155,7 +135,8 @@ Matrix<symbolic::Expression> ConvolutionLayer::GenerateExpression(
 }
 
 std::unique_ptr<LayerImpl> ConvolutionLayer::Clone() const {
-  return std::make_unique<ConvolutionLayer>(imdim_, filters_, Super::layer_index_);
+  return std::make_unique<ConvolutionLayer>(imdim_, filters_,
+                                            Super::layer_index_);
 }
 
 }  // namespace nnet
