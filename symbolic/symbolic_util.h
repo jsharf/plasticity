@@ -99,7 +99,7 @@ symbolic::Expression IfInRange(const symbolic::Expression& index,
                                const symbolic::Expression& ifnot) {
   const symbolic::Expression gtea(
       std::make_shared<symbolic::GteExpression>(index, a));
-  const symbolic::Expression ltb = LTExpression(b, index);
+  const symbolic::Expression ltb = LtExpression(b, index);
   const symbolic::Expression gtea_and_ltb(
       std::make_shared<symbolic::AndExpression>(gtea, ltb));
   return symbolic::Expression(
