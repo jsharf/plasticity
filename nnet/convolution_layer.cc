@@ -65,7 +65,7 @@ symbolic::Expression ConvolutionLayer::GenerateOutputCode(
       output_width, output_height, output_depth, index);
 
   // Add bias to the output.
-  symbolic::Expression output = generator_.W(output_filter);
+  symbolic::Expression output = generator_.BoundsCheckedW(output_filter);
 
   symbolic::Expression conv_start_row =
       (output_row * filters_.stride) - filters_.padding;
@@ -79,14 +79,64 @@ symbolic::Expression ConvolutionLayer::GenerateOutputCode(
         symbolic::Expression input_x = conv_start_row + f_x;
         symbolic::Expression input_y = conv_start_col + f_y;
         symbolic::Expression input_z = f_z;
-        output += generator_.W(output_filter, input_x, input_y, input_z) *
-                  generator_.I(input_x, input_y, input_z);
+        output += generator_.BoundsCheckedW(output_filter, input_x, input_y,
+                                            input_z) *
+                  generator_.BoundsCheckedI(input_x, input_y, input_z);
       }
     }
   }
 
   return output;
 }
+
+Matrix<std::vector<symbolic::Expression>>
+ConvolutionLayer::InputGradientsForOutput(
+    const symbolic::Expression& index) const {
+  symbolic::Expression output = GenerateOutputCode(index);
+  Matrix<std::vector<symbolic::Expression>> gradients(filters_.width,
+                                                      filters_.height);
+
+  std::tuple<size_t, size_t, size_t> output_dims =
+      GetOutputDimensions(imdim_, filters_);
+  size_t output_width = std::get<0>(output_dims);
+  size_t output_height = std::get<1>(output_dims);
+  size_t output_depth = std::get<2>(output_dims);
+
+  symbolic::Expression output_row = symbolic::Unflatten3dRow(
+      output_width, output_height, output_depth, index);
+
+  symbolic::Expression output_col = symbolic::Unflatten3dCol(
+      output_width, output_height, output_depth, index);
+
+  symbolic::Expression output_filter = symbolic::Unflatten3dPlane(
+      output_width, output_height, output_depth, index);
+
+  symbolic::Expression conv_start_row =
+      (output_row * filters_.stride) - filters_.padding;
+  symbolic::Expression conv_start_col =
+      (output_col * filters_.stride) - filters_.padding;
+
+  for (size_t f_x = 0; f_x < filters_.width; ++f_x) {
+    for (size_t f_y = 0; f_y < filters_.height; ++f_y) {
+      gradients.at(f_x, f_y).resize(filters_.depth);
+      for (size_t f_z = 0; f_z < filters_.depth; ++f_z) {
+        gradients.at(f_x, f_y)[f_z] =
+            output.Derive(generator_.I(input_x, input_y, input_z).to_string());
+      }
+    }
+  }
+
+  return gradients;
+}
+
+symbolic::Expression ConvolutionLayer::InputGradientCode(
+    const symbolic::Expression& index) const {
+  // note: index is index of input this time... but InputGradientsForOutput
+  // takes the index of an output...
+}
+
+Matrix<symbolic::Expression> WeightGradientsForOutput(
+    const symbolic::Expression& index) const;
 
 std::unique_ptr<LayerImpl> ConvolutionLayer::Clone() const {
   return std::make_unique<ConvolutionLayer>(imdim_, filters_,

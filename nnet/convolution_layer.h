@@ -35,6 +35,12 @@ class ConvolutionLayer : public LayerImpl {
   symbolic::Expression GenerateOutputCode(
       const symbolic::Expression& index) const override;
 
+  symbolic::Expression GenerateGradientCode(const symbolic::Expression& index) const;
+
+  Matrix<symbolic::Expression> InputGradientsForOutput(const symbolic::Expression& index) const;
+
+  Matrix<symbolic::Expression> WeightGradientsForOutput(const symbolic::Expression& index) const;
+
   std::unique_ptr<LayerImpl> Clone() const override;
 
  private:

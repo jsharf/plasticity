@@ -102,13 +102,17 @@ class DenseSymbolGenerator {
   }
 
   Expression W(const Expression& node_idx, const Expression& edge_idx) const {
-    Expression weight_symbol = Expression::CreateNumericValue(
+    return Expression::CreateNumericValue(
         "W[" +
         symbolic::Flatten2d(dimensions_.num_inputs + 1, dimensions_.num_outputs,
-                            Expression::CreateInteger(node_idx),
-                            Expression::CreateInteger(edge_idx))
+                            node_idx, edge_idx)
             .to_string() +
         "]");
+  }
+
+  Expression BoundsCheckedW(const Expression& node_idx,
+                            const Expression& edge_idx) const {
+    Expression weight_symbol = W(node_idx, edge_idx);
     const Expression zero(0.0);
     Expression otherwise = zero;
     Expression node_in_range = IfInRange(
@@ -118,14 +122,17 @@ class DenseSymbolGenerator {
     return node_and_edge_in_range;
   }
 
-  Expression W(std::string node_idx) const {
-    Expression weight_symbol = Expression::CreateNumericValue(
+  Expression W(const Expression& node_idx) const {
+    return Expression::CreateNumericValue(
         "W[" +
         symbolic::Flatten2d(dimensions_.num_inputs + 1, dimensions_.num_outputs,
-                            Expression::CreateInteger(node_idx),
-                            Expression(dimensions_.num_inputs))
+                            node_idx, Expression(dimensions_.num_inputs))
             .to_string() +
         "]");
+  }
+
+  Expression BoundsCheckedW(const Expression& node_idx) const {
+    Expression weight_symbol = W(node_idx);
     const Expression zero(0.0);
     Expression otherwise = zero;
     Expression node_in_range = IfInRange(
@@ -198,9 +205,13 @@ class InputVolumeSymbolGenerator {
                const Expression& z) const {
     symbolic::Expression index = symbolic::Flatten3d(
         dimensions_.width, dimensions_.height, dimensions.depth, row, col, z);
-    symbolic::Expression input_symbol =
-        symbolic::Expression::CreateNumericValue("I[" + index.to_string() +
-                                                 "]");
+    return symbolic::Expression::CreateNumericValue("I[" + index.to_string() +
+                                                    "]");
+  }
+
+  Expression BoundsCheckedI(const Expression& row, const Expression& col,
+                            const Expression& z) const {
+    Expression input_symbol = I(row, col, z);
     // Bounds checking.
     Expression zero(0.0);
     Expression input_row_in_range =
@@ -264,8 +275,9 @@ class ConvSymbolGenerator {
     return input_generator_.I(row, col, z);
   }
 
-  Expression I(size_t row, size_t col, size_t z) const {
-    return input_generator_.I(row, col, z);
+  Expression BoundsCheckedI(const Expression& row, const Expression& col,
+                            const Expression& z) const {
+    return input_generator_.BoundsCheckedI(row, col, z);
   }
 
   Expression W(const Expression& filter, const Expression& row,
@@ -273,13 +285,20 @@ class ConvSymbolGenerator {
     Expression zero(0.0);
     Expression filter_size = params_.width * params_.height * params_.depth + 1;
     Expression filter_base = filter * filter_size;
-    Expression weight_symbol = Expression::CreateNumericValue(
+    return Expression::CreateNumericValue(
         "W[" +
         (filter_base + symbolic::Flatten3d(filter, row, col, z)).to_string() +
         "]");
+  }
+
+  Expression BoundsCheckedW(const Expression& filter, const Expression& row,
+                            const Expression& col, const Expression& z) const {
+    Expression weight_symbol = W(filter, row, col, z);
     // Bounds checking.
+    Expression weight_filter_in_range =
+        IfInRange(filter, 0, params_.num_filters, weight_symbol, zero);
     Expression weight_row_in_range =
-        IfInRange(row, 0, params_.height, weight_symbol, zero);
+        IfInRange(row, 0, params_.height, weight_filter_in_range, zero);
     Expression weight_col_and_row_in_range =
         IfInRange(col, 0, params_.width, weight_row_in_range, zero);
     Expression weight_all_in_range =
@@ -290,7 +309,7 @@ class ConvSymbolGenerator {
   Expression W(const Expression& filter) const {
     Expression filter_size = params_.width * params_.height * params_.depth + 1;
     Expression filter_base = filter * filter_size;
-    return (filter_base + (filter_size - 1));
+    return Expression::CreateNumericValue("W[" + (filter_base + (filter_size - 1)).to_string() + "]");
   }
 
   // Convolution layer weights.

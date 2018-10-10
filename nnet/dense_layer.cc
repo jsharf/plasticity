@@ -19,13 +19,13 @@ symbolic::Expression DenseLayer::GenerateOutputCode(
     const symbolic::Expression& output_index) const {
   symbolic::Expression sum = 0;
   for (size_t i = 0; i < dimensions_.num_inputs; ++i) {
-    sum += generator_.W(output_index, Expression(i)) * generator_.I(i);
+    sum += generator_.BoundsCheckedW(output_index, Expression(i)) * generator_.I(i);
   }
 
   // Bias input.
   sum += generator_.W(output_index) * 1;
 
-  return sum;
+  return activation_function_(sum);
 }
 
 std::unique_ptr<LayerImpl> DenseLayer::Clone() const {
