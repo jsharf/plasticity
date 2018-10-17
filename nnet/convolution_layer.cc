@@ -68,9 +68,9 @@ symbolic::Expression ConvolutionLayer::GenerateOutputCode(
   symbolic::Expression output = generator_.BoundsCheckedW(output_filter);
 
   symbolic::Expression conv_start_row =
-      (output_row * filters_.stride) - filters_.padding;
+      (output_row * filters_.stride) - filters_.padding + filters_.width / 2;
   symbolic::Expression conv_start_col =
-      (output_col * filters_.stride) - filters_.padding;
+      (output_col * filters_.stride) - filters_.padding + filters_.height / 2;
 
   // Sum up the convolution, adding it to the output.
   for (size_t f_x = 0; f_x < filters_.width; ++f_x) {
@@ -79,8 +79,7 @@ symbolic::Expression ConvolutionLayer::GenerateOutputCode(
         symbolic::Expression input_x = conv_start_row + f_x;
         symbolic::Expression input_y = conv_start_col + f_y;
         symbolic::Expression input_z = f_z;
-        output += generator_.BoundsCheckedW(output_filter, input_x, input_y,
-                                            input_z) *
+        output += generator_.BoundsCheckedW(output_filter, f_x, f_y, f_z) *
                   generator_.BoundsCheckedI(input_x, input_y, input_z);
       }
     }
@@ -112,9 +111,9 @@ ConvolutionLayer::InputGradientsForOutput(
       output_width, output_height, output_depth, index);
 
   symbolic::Expression conv_start_row =
-      (output_row * filters_.stride) - filters_.padding;
+      (output_row * filters_.stride) - filters_.padding + filters_.width / 2;
   symbolic::Expression conv_start_col =
-      (output_col * filters_.stride) - filters_.padding;
+      (output_col * filters_.stride) - filters_.padding + filters_.height / 2;
 
   for (size_t f_x = 0; f_x < filters_.width; ++f_x) {
     for (size_t f_y = 0; f_y < filters_.height; ++f_y) {
@@ -125,14 +124,38 @@ ConvolutionLayer::InputGradientsForOutput(
       }
     }
   }
-
   return gradients;
 }
 
 symbolic::Expression ConvolutionLayer::InputGradientCode(
     const symbolic::Expression& index) const {
-  // note: index is index of input this time... but InputGradientsForOutput
-  // takes the index of an output...
+  size_t input_width = imdim_.width;
+  size_t input_height = imdim_.height;
+  size_t input_depth = imdim_.depth;
+
+  symbolic::Expression input_row =
+      symbolic::Unflatten3dRow(input_width, input_height, input_depth, index);
+
+  symbolic::Expression input_col =
+      symbolic::Unflatten3dCol(input_width, input_height, input_depth, index);
+
+  symbolic::Expression input_plane =
+      symbolic::Unflatten3dPlane(input_width, input_height, input_depth, index);
+
+  symbolic::Expression output_row =
+      (input_row + filters_.padding - filters_.width / 2) / filters_.stride;
+  symbolic::Expression output_col =
+      (input_col + filters_.padding - filters.width / 2) / filters_.stride;
+
+  size_t output_net_width = filters_.width/(filters_.stride);
+  size_t output_net_height = filters_.height/(filters_.stride);
+  for (int d = -output_net_width/2; d <= output_net_width/2; d++) {
+    for (size_t k = -output_net_height/2; k <= output_net_height/2; k++) {
+      symbolic::Expression neighbor_output_flat_index = symbolic::Flatten3d(output_row , output_col, 
+          // Need to think about this one. I think I need to iterate over
+          // filter.num_filters since each is a diff output and then accumulate
+          // all these gradients into an expression and then return it.
+    }
 }
 
 Matrix<symbolic::Expression> WeightGradientsForOutput(
