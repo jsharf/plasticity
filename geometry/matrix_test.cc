@@ -9,7 +9,8 @@
 using std::string;
 using symbolic::Expression;
 using symbolic::NumericValue;
-using symbolic::Number;
+
+using Number=double;
 
 int main() {
   using Mat3 = Matrix<3, 3, double>;
