@@ -82,6 +82,8 @@ cc_library(
     deps = [
         ":layer_dimensions",
         ":layer_impl",
+        "//math/codegen:codegen",
+        "//math/codegen:codegen_util",
         "//math/geometry:dynamic_matrix",
         "//math/stats:normal",
         "//math/symbolic",
