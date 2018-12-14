@@ -42,7 +42,6 @@ cc_binary(
     srcs = ["simple_imu_test.cc"],
     copts = [
         "-std=c++1z",
-        "-I/Library/Frameworks/SDL2.framework/Headers",
     ],
     deps = [
         ":kalman_filter",
@@ -56,5 +55,6 @@ cc_binary(
         "//math/geometry:matrix4",
         "//math/geometry:vector",
         "//math/symbolic",
+        "@linux_sdl//:sdl2_headers",
     ],
 )

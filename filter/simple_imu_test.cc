@@ -15,7 +15,7 @@
 #include "math/geometry/matrix4.h"
 #include "math/geometry/vector.h"
 
-#include <SDL.h>
+#include <SDL2/SDL.h>
 
 using symbolic::CreateExpression;
 
