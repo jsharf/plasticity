@@ -65,7 +65,7 @@ symbolic::Expression ConvolutionLayer::GenerateOutputCode(
       output_width, output_height, output_depth, index);
 
   // Add bias to the output.
-  symbolic::Expression output = generator_.BoundsCheckedW(output_filter);
+  symbolic::Expression output = generator_.W(output_filter);
 
   symbolic::Expression conv_start_row =
       (output_row * filters_.stride) - filters_.padding + filters_.width / 2;
@@ -127,39 +127,42 @@ ConvolutionLayer::InputGradientsForOutput(
   return gradients;
 }
 
-symbolic::Expression ConvolutionLayer::InputGradientCode(
+// symbolic::Expression ConvolutionLayer::InputGradientCode(
+//     const symbolic::Expression& index) const {
+//   size_t input_width = imdim_.width;
+//   size_t input_height = imdim_.height;
+//   size_t input_depth = imdim_.depth;
+// 
+//   symbolic::Expression input_row =
+//       symbolic::Unflatten3dRow(input_width, input_height, input_depth, index);
+// 
+//   symbolic::Expression input_col =
+//       symbolic::Unflatten3dCol(input_width, input_height, input_depth, index);
+// 
+//   symbolic::Expression input_plane =
+//       symbolic::Unflatten3dPlane(input_width, input_height, input_depth, index);
+// 
+//   symbolic::Expression output_row =
+//       (input_row + filters_.padding - filters_.width / 2) / filters_.stride;
+//   symbolic::Expression output_col =
+//       (input_col + filters_.padding - filters.width / 2) / filters_.stride;
+// 
+//   size_t output_net_width = filters_.width/(filters_.stride);
+//   size_t output_net_height = filters_.height/(filters_.stride);
+//   for (int d = -output_net_width/2; d <= output_net_width/2; d++) {
+//     for (size_t k = -output_net_height/2; k <= output_net_height/2; k++) {
+//       symbolic::Expression neighbor_output_flat_index = symbolic::Flatten3d(output_row , output_col, 
+//           // Need to think about this one. I think I need to iterate over
+//           // filter.num_filters since each is a diff output and then accumulate
+//           // all these gradients into an expression and then return it.
+//     }
+//   }
+// }
+
+Matrix<symbolic::Expression> ConvolutionLayer::WeightGradientsForOutput(
     const symbolic::Expression& index) const {
-  size_t input_width = imdim_.width;
-  size_t input_height = imdim_.height;
-  size_t input_depth = imdim_.depth;
-
-  symbolic::Expression input_row =
-      symbolic::Unflatten3dRow(input_width, input_height, input_depth, index);
-
-  symbolic::Expression input_col =
-      symbolic::Unflatten3dCol(input_width, input_height, input_depth, index);
-
-  symbolic::Expression input_plane =
-      symbolic::Unflatten3dPlane(input_width, input_height, input_depth, index);
-
-  symbolic::Expression output_row =
-      (input_row + filters_.padding - filters_.width / 2) / filters_.stride;
-  symbolic::Expression output_col =
-      (input_col + filters_.padding - filters.width / 2) / filters_.stride;
-
-  size_t output_net_width = filters_.width/(filters_.stride);
-  size_t output_net_height = filters_.height/(filters_.stride);
-  for (int d = -output_net_width/2; d <= output_net_width/2; d++) {
-    for (size_t k = -output_net_height/2; k <= output_net_height/2; k++) {
-      symbolic::Expression neighbor_output_flat_index = symbolic::Flatten3d(output_row , output_col, 
-          // Need to think about this one. I think I need to iterate over
-          // filter.num_filters since each is a diff output and then accumulate
-          // all these gradients into an expression and then return it.
-    }
+      return Matrix<symbolic::Expression>();
 }
-
-Matrix<symbolic::Expression> WeightGradientsForOutput(
-    const symbolic::Expression& index) const;
 
 std::unique_ptr<LayerImpl> ConvolutionLayer::Clone() const {
   return std::make_unique<ConvolutionLayer>(imdim_, filters_,

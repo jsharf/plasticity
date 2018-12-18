@@ -17,18 +17,18 @@ using symbolic::IfInRange;
 namespace nnet {
 
 class SymbolGenerator {
- public:
+public:
   std::string I(size_t i) const { return "I[" + std::to_string(i) + "]"; }
   std::string I(std::string i) const { return "I[" + i + "]"; }
   std::string O(size_t i) const { return "O[" + std::to_string(i) + "]"; }
   std::string O(std::string i) const { return "O[" + i + "]"; }
 
-  Expression InputSymbolic(const Expression& index) const {
-    return Expression(I(index.to_string()));
+  Expression InputSymbolic(const Expression &index) const {
+    return Expression::CreateNumericValue(I(index.to_string()));
   }
 
-  Expression OutputSymbolic(const Expression& index) const {
-    return Expression(I(index.to_string()));
+  Expression OutputSymbolic(const Expression &index) const {
+    return Expression::CreateNumericValue(I(index.to_string()));
   }
 
   // Residual gradients for back propagation.
@@ -56,10 +56,10 @@ size_t Unflatten2dCol(size_t width, size_t height, size_t i) {
   return i % width;
 }
 
-}  // namespace internal
+} // namespace internal
 
 class DenseSymbolGenerator {
- public:
+public:
   explicit DenseSymbolGenerator(Dimensions dimensions)
       : dimensions_(dimensions) {
     size_t width = (dimensions_.num_inputs + 1);
@@ -68,10 +68,10 @@ class DenseSymbolGenerator {
 
     // Enumerate weights.
     // Normal weights.
-    for (size_t col = 0; i < width - 1; ++i) {
-      for (size_t row = 0; j < height; ++j) {
+    for (size_t col = 0; col < width - 1; ++col) {
+      for (size_t row = 0; row < height; ++row) {
         size_t index = internal::Flatten2d(width, height, row, col);
-        weights_[index] = W(row, col);
+        weights_[index] = W(row, col).to_string();
         if (weights_[index] != "") {
           std::cerr << "Error found in enumerating weights..." << std::endl;
           std::cerr << "Collision at row,col: " << row << "," << col
@@ -89,7 +89,7 @@ class DenseSymbolGenerator {
         std::cerr << "Collision at row: " << row << std::endl;
         std::exit(1);
       }
-      weights_[index] = W(row);
+      weights_[index] = W(row).to_string();
     }
   }
 
@@ -97,11 +97,11 @@ class DenseSymbolGenerator {
     return Expression::CreateNumericValue("I[" + std::to_string(index) + "]");
   }
 
-  Expression I(const Expression& index) const {
+  Expression I(const Expression &index) const {
     return Expression::CreateNumericValue("I[" + index.to_string() + "]");
   }
 
-  Expression W(const Expression& node_idx, const Expression& edge_idx) const {
+  Expression W(const Expression &node_idx, const Expression &edge_idx) const {
     return Expression::CreateNumericValue(
         "W[" +
         symbolic::Flatten2d(dimensions_.num_inputs + 1, dimensions_.num_outputs,
@@ -110,8 +110,8 @@ class DenseSymbolGenerator {
         "]");
   }
 
-  Expression BoundsCheckedW(const Expression& node_idx,
-                            const Expression& edge_idx) const {
+  Expression BoundsCheckedW(const Expression &node_idx,
+                            const Expression &edge_idx) const {
     Expression weight_symbol = W(node_idx, edge_idx);
     const Expression zero(0.0);
     Expression otherwise = zero;
@@ -122,7 +122,7 @@ class DenseSymbolGenerator {
     return node_and_edge_in_range;
   }
 
-  Expression W(const Expression& node_idx) const {
+  Expression W(const Expression &node_idx) const {
     return Expression::CreateNumericValue(
         "W[" +
         symbolic::Flatten2d(dimensions_.num_inputs + 1, dimensions_.num_outputs,
@@ -131,7 +131,7 @@ class DenseSymbolGenerator {
         "]");
   }
 
-  Expression BoundsCheckedW(const Expression& node_idx) const {
+  Expression BoundsCheckedW(const Expression &node_idx) const {
     Expression weight_symbol = W(node_idx);
     const Expression zero(0.0);
     Expression otherwise = zero;
@@ -142,21 +142,21 @@ class DenseSymbolGenerator {
 
   Expression W(size_t node_idx, size_t edge_idx) const {
     size_t index = internal::Flatten2d(
-        dimensions.num_inputs + 1, dimensions.num_outputs, node_idx, edge_idx);
+        dimensions_.num_inputs + 1, dimensions_.num_outputs, node_idx, edge_idx);
     return Expression::CreateNumericValue("W[" + std::to_string(index) + "]");
   }
 
   // Used for bias weight for a given output node.
   Expression W(size_t node) const {
     size_t index =
-        internal::Flatten2d(dimensions.num_inputs + 1, dimensions.num_outputs,
-                            node, dimensions.num_inputs);
+        internal::Flatten2d(dimensions_.num_inputs + 1, dimensions_.num_outputs,
+                            node, dimensions_.num_inputs);
     return Expression::CreateNumericValue("W[" + std::to_string(index) + "]");
   }
 
-  const std::vector<std::string>& weights() const { return weights_; }
+  const std::vector<std::string> &weights() const { return weights_; }
 
- private:
+private:
   // The dimensions given are for the layer itself. This class adds an extra
   // column for bias inputs.
   Dimensions dimensions_;
@@ -178,15 +178,15 @@ size_t Flatten3d(size_t width, size_t height, size_t depth, size_t row,
 size_t Unflatten3dRow(size_t width, size_t height, size_t depth, size_t i) {
   size_t z_plane_size = width * height;
   size_t z_plane = i / z_plane_size;
-  size_t 2d_index = i - z_plane * z_plane_size;
-  return 2d_index / width;
+  size_t index_2d = i - z_plane * z_plane_size;
+  return index_2d / width;
 }
 
 size_t Unflatten3dCol(size_t width, size_t height, size_t depth, size_t i) {
   size_t z_plane_size = width * height;
   size_t z_plane = i / z_plane_size;
-  size_t 2d_index = i - z_plane * z_plane_size;
-  return 2d_index % width;
+  size_t index_2d = i - z_plane * z_plane_size;
+  return index_2d % width;
 }
 
 size_t Unflatten3dZ(size_t width, size_t height, size_t depth, size_t i) {
@@ -194,23 +194,23 @@ size_t Unflatten3dZ(size_t width, size_t height, size_t depth, size_t i) {
   return i / z_plane_size;
 }
 
-}  // namespace internal
+} // namespace internal
 
 class InputVolumeSymbolGenerator {
- public:
-  explicit InputVolumeSymbolGenerator(const VolumeDimensions& dimensions)
+public:
+  explicit InputVolumeSymbolGenerator(const VolumeDimensions &dimensions)
       : dimensions_(dimensions) {}
 
-  Expression I(const Expression& row, const Expression& col,
-               const Expression& z) const {
+  Expression I(const Expression &row, const Expression &col,
+               const Expression &z) const {
     symbolic::Expression index = symbolic::Flatten3d(
-        dimensions_.width, dimensions_.height, dimensions.depth, row, col, z);
+        dimensions_.width, dimensions_.height, dimensions_.depth, row, col, z);
     return symbolic::Expression::CreateNumericValue("I[" + index.to_string() +
                                                     "]");
   }
 
-  Expression BoundsCheckedI(const Expression& row, const Expression& col,
-                            const Expression& z) const {
+  Expression BoundsCheckedI(const Expression &row, const Expression &col,
+                            const Expression &z) const {
     Expression input_symbol = I(row, col, z);
     // Bounds checking.
     Expression zero(0.0);
@@ -224,22 +224,24 @@ class InputVolumeSymbolGenerator {
   }
 
   Expression I(size_t row, size_t col, size_t z) const {
-    symbolic Expression index = internal::Flatten3d(
-        dimensions_.width, dimensions_.height, dimensions.depth, row, col, z);
+    symbolic::Expression index = internal::Flatten3d(
+        dimensions_.width, dimensions_.height, dimensions_.depth, row, col, z);
     return symbolic::Expression::CreateNumericValue("I[" + index.to_string() +
                                                     "]");
   }
 
- private:
+private:
   VolumeDimensions dimensions_;
 };
 
 class ConvSymbolGenerator {
- public:
-  explicit ConvSymbolGenerator(const VolumeDimensions& dimensions,
-                               const FilterParams& params)
+public:
+  explicit ConvSymbolGenerator(const VolumeDimensions &dimensions,
+                               const FilterParams &params)
       : input_generator_(dimensions), params_(params) {
     size_t filter_size = params.width * params.height * params.depth + 1;
+    // +1 for bias.
+    weights_.resize(params.num_filters * (params.width * params.height * params.depth + 1));
     for (size_t filter_no = 0; filter_no < params.num_filters; ++filter_no) {
       for (size_t x = 0; x < params.width; ++x) {
         for (size_t y = 0; y < params.height; ++y) {
@@ -248,74 +250,68 @@ class ConvSymbolGenerator {
             size_t index =
                 filter_offset + internal::Flatten3d(params.width, params.height,
                                                     params.depth, x, y, z);
-            weight_addr_to_index_[index] = W(filter_no, x, y, z);
+            weights_[index] = W(filter_no, x, y, z).to_string();
           }
         }
       }
       // Bias.
       size_t filter_offset = filter_no * filter_size;
       size_t index = filter_offset + (filter_size - 1);
-      weight_addr_to_index_[index] = W(filter_no);
+      weights_[index] = W(filter_no).to_string();
     }
 
-    weights_.resize(weight_addr_to_index_.size());
-    for (const auto& pair : weight_addr_to_index_) {
-      int index = pair.second;
-      ConvWeightAddress addr = pair.first;
-      if (addr.is_bias) {
-        weights_[index] = W(addr.filter);
-      } else {
-        weights_[index] = W(addr.filter, addr.x, addr.y, addr.z);
-      }
-    }
   }
 
-  Expression I(const Expression& row, const Expression& col,
-               const Expression& z) const {
+  Expression I(const Expression &row, const Expression &col,
+               const Expression &z) const {
     return input_generator_.I(row, col, z);
   }
 
-  Expression BoundsCheckedI(const Expression& row, const Expression& col,
-                            const Expression& z) const {
+  Expression BoundsCheckedI(const Expression &row, const Expression &col,
+                            const Expression &z) const {
     return input_generator_.BoundsCheckedI(row, col, z);
   }
 
-  Expression W(const Expression& filter, const Expression& row,
-               const Expression& col, const Expression& z) const {
+  Expression W(const Expression &filter, const Expression &row,
+               const Expression &col, const Expression &z) const {
     Expression zero(0.0);
+    // +1 for bias value.
     Expression filter_size = params_.width * params_.height * params_.depth + 1;
     Expression filter_base = filter * filter_size;
     return Expression::CreateNumericValue(
         "W[" +
-        (filter_base + symbolic::Flatten3d(filter, row, col, z)).to_string() +
+        (filter_base + symbolic::Flatten3d(params_.width, params_.height,
+                                           params_.depth, row, col, z))
+            .to_string() +
         "]");
   }
 
-  Expression BoundsCheckedW(const Expression& filter, const Expression& row,
-                            const Expression& col, const Expression& z) const {
+  Expression BoundsCheckedW(const Expression &filter, const Expression &row,
+                            const Expression &col, const Expression &z) const {
     Expression weight_symbol = W(filter, row, col, z);
     // Bounds checking.
     Expression weight_filter_in_range =
-        IfInRange(filter, 0, params_.num_filters, weight_symbol, zero);
+        IfInRange(filter, 0, params_.num_filters, weight_symbol, 0);
     Expression weight_row_in_range =
-        IfInRange(row, 0, params_.height, weight_filter_in_range, zero);
+        IfInRange(row, 0, params_.height, weight_filter_in_range, 0);
     Expression weight_col_and_row_in_range =
-        IfInRange(col, 0, params_.width, weight_row_in_range, zero);
+        IfInRange(col, 0, params_.width, weight_row_in_range, 0);
     Expression weight_all_in_range =
-        IfInRange(z, 0, params_.depth, weight_col_and_row_in_range, zero);
+        IfInRange(z, 0, params_.depth, weight_col_and_row_in_range, 0);
     return weight_all_in_range;
   }
 
-  Expression W(const Expression& filter) const {
+  Expression W(const Expression &filter) const {
     Expression filter_size = params_.width * params_.height * params_.depth + 1;
     Expression filter_base = filter * filter_size;
-    return Expression::CreateNumericValue("W[" + (filter_base + (filter_size - 1)).to_string() + "]");
+    return Expression::CreateNumericValue(
+        "W[" + (filter_base + (filter_size - 1)).to_string() + "]");
   }
 
   // Convolution layer weights.
   Expression W(size_t filter, size_t row, size_t col, size_t z) const {
     size_t filter_size =
-        params_.width * params_.height * params_.depth + 1;  // +1 for bias.
+        params_.width * params_.height * params_.depth + 1; // +1 for bias.
     size_t filter_offset = filter * filter_size;
     size_t index =
         filter_offset + internal::Flatten3d(params_.width, params_.height,
@@ -326,18 +322,18 @@ class ConvSymbolGenerator {
   // Convolution layer bias weights.
   Expression W(size_t filter) const {
     size_t filter_size =
-        params_.width * params_.height * params_.depth + 1;  // +1 for bias.
+        params_.width * params_.height * params_.depth + 1; // +1 for bias.
     size_t filter_offset = filter * filter_size;
     // Bias weight is stored in the final slot of the filter weights.
     size_t index = filter_offset + (filter_size - 1);
     return Expression::CreateNumericValue("W[" + std::to_string(index) + "]");
   }
 
-  const std::vector<std::string>& weights() const { return weights_; }
+  const std::vector<std::string> &weights() const { return weights_; }
 
- private:
-  FilterParams params_;
+private:
   InputVolumeSymbolGenerator input_generator_;
+  FilterParams params_;
   std::vector<std::string> weights_;
 };
 
@@ -345,7 +341,7 @@ class ConvSymbolGenerator {
 // will be used for codegen for opencl, the symbols are all one-dimensional
 // indices into arrays.
 class FlatWeightSymbolGenerator {
- public:
+public:
   // Fully connected layer weights.
   virtual std::string W(size_t layer, size_t node, size_t edge) {
     auto tuple = std::make_tuple(layer, node, edge);
@@ -392,7 +388,7 @@ class FlatWeightSymbolGenerator {
 
   size_t NumberWeights() const { return weight_count_; }
 
- private:
+private:
   // Mapping from <layer, node, edge> -> int. This lets each weight have a
   // single unique index.
   std::map<std::tuple<int, int, int>, int> ff_weight_index_;
@@ -414,6 +410,6 @@ class FlatWeightSymbolGenerator {
   size_t weight_count_ = 0;
 };
 
-}  // namespace nnet
+} // namespace nnet
 
 #endif /* SYMBOL_GENERATOR_H */

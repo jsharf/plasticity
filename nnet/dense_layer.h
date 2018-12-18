@@ -24,6 +24,7 @@ class DenseLayer : public LayerImpl {
   DenseLayer(const Dimensions& dimensions, size_t layer_index)
       : Super(dimensions, layer_index),
         generator_(dimensions),
+        dimensions_(dimensions),
         activation_function_(symbolic::Sigmoid) {}
 
   const std::vector<std::string>& weights() const override;
@@ -41,10 +42,11 @@ class DenseLayer : public LayerImpl {
 
  private:
   DenseSymbolGenerator generator_;
+  Dimensions dimensions_;
 
   // This function will be used to map the activation function to a matrix
   // of symbolic expressions.
-  std::function<symbolic::Expression(const symbolic::Expression&)>
+  std::function<symbolic::Expression(const symbolic::Expression &)>
       activation_function_;
 };
 

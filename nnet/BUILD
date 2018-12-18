@@ -132,6 +132,7 @@ cc_library(
     deps = [
         ":layer_dimensions",
         ":layer_impl",
+        ":symbol_generator",
         "//math/geometry:dynamic_matrix",
         "//math/stats:normal",
         "//math/symbolic",
@@ -149,6 +150,7 @@ cc_library(
     deps = [
         ":layer_dimensions",
         ":layer_impl",
+        ":symbol_generator",
         "//math/geometry:dynamic_matrix",
         "//math/stats:normal",
         "//math/symbolic",

@@ -65,7 +65,7 @@ symbolic::Expression MaxPoolLayer::GenerateOutputCode(
   for (size_t group_r = 0; group_r < group_height; ++group_r) {
     for (size_t group_c = 0; group_c < group_width; ++group_c) {
       group.push_back(
-          generator_.I(group_r + group_r_start, group_c_start, output_z));
+          generator_.I(group_r_start + group_r, group_c_start, output_z));
     }
   }
   symbolic::Expression group_max = symbolic::Max(group);

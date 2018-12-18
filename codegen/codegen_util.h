@@ -8,7 +8,7 @@ namespace codegen {
 std::string IfInRange(std::string index, std::string a, std::string b,
                       std::string then, std::string ifnot) {
   CudaGenerator cgen;
-  return cgen.ternary(cgen.op_and(cgen.gte(index, a), cgen.lt(index, length)), then, ifnot);
+  return cgen.ternary(cgen.op_and(cgen.gte(index, a), cgen.lt(index, b)), then, ifnot);
 }
 
 std::string BoundedArrayAccess(std::string array, std::string index,

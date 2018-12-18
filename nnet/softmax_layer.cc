@@ -7,10 +7,10 @@ symbolic::Expression SoftmaxLayer::GenerateOutputCode(const symbolic::Expression
   symbolic::Expression expsum = symbolic::NumericValue(0.0); 
 
   for (size_t i = 0; i < dimensions_.num_inputs; ++i) {
-    expsum = expsum + Exp(generator_.I(i));
+    expsum = expsum + symbolic::Exp(Expression::CreateNumericValue(generator_.I(i)));
   }
 
-  return Exp(symbolic::Expression::CreateNumericValue("I[" + index + "]"))/expsum;
+  return symbolic::Exp(symbolic::Expression::CreateNumericValue("I[" + index.to_string() + "]"))/expsum;
 }
 
 symbolic::Expression SoftmaxLayer::InputGradientCode(

@@ -9,6 +9,7 @@ DenseLayer::DenseLayer(const Dimensions& dimensions,
                        size_t layer_index)
     : Super(dimensions, layer_index),
       generator_(dimensions),
+      dimensions_(dimensions),
       activation_function_(activation_function) {}
 
 const std::vector<std::string>& DenseLayer::weights() const {

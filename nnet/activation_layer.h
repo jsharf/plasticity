@@ -3,6 +3,7 @@
 #include "math/geometry/dynamic_matrix.h"
 #include "math/nnet/layer_dimensions.h"
 #include "math/nnet/layer_impl.h"
+#include "math/nnet/symbol_generator.h"
 #include "math/stats/normal.h"
 #include "math/symbolic/expression.h"
 #include "math/symbolic/symbolic_util.h"

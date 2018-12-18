@@ -37,7 +37,7 @@ class ConvolutionLayer : public LayerImpl {
 
   symbolic::Expression GenerateGradientCode(const symbolic::Expression& index) const;
 
-  Matrix<symbolic::Expression> InputGradientsForOutput(const symbolic::Expression& index) const;
+  Matrix<std::vector<symbolic::Expression>> InputGradientsForOutput(const symbolic::Expression& index) const;
 
   Matrix<symbolic::Expression> WeightGradientsForOutput(const symbolic::Expression& index) const;
 
