@@ -13,6 +13,20 @@ symbolic::Expression SoftmaxLayer::GenerateOutputCode(const symbolic::Expression
   return Exp(symbolic::Expression::CreateNumericValue("I[" + index + "]"))/expsum;
 }
 
+symbolic::Expression SoftmaxLayer::InputGradientCode(
+    const symbolic::Expression& input_index) const {
+  symbolic::Expression output =
+      activation_function_(generator_.InputSymbolic(input_index));
+  symbolic::Expression deriv =
+      output.Derive(generator_.InputSymbolic(input_index).to_string());
+  return generator_.GRADIENT(input_index) * deriv;
+}
+
+symbolic::Expression SoftmaxLayer::WeightGradientCode(
+    const symbolic::Expression& weight_index) const {
+  return symbolic::Expression(0.0);   
+}
+
 std::unique_ptr<LayerImpl> SoftmaxLayer::Clone() const {
   return std::make_unique<SoftmaxLayer>(dimensions_.num_inputs, layer_index_);
 }

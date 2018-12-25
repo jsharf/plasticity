@@ -31,6 +31,12 @@ class DenseLayer : public LayerImpl {
   symbolic::Expression GenerateOutputCode(
       const symbolic::Expression& index) const override;
 
+  symbolic::Expression InputGradientCode(
+      const symbolic::Expression& input_index) const override;
+
+  symbolic::Expression WeightGradientCode(
+      const symbolic::Expression& weight_index) const override;
+
   std::unique_ptr<LayerImpl> Clone() const override;
 
  private:

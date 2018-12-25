@@ -220,7 +220,7 @@ class Matrix {
           out << ", ";
         }
       }
-      out << "}\n";
+      out << "},\n";
     }
     out << "}\n";
     return out.str();

@@ -27,7 +27,13 @@ class LayerImpl {
   }
 
   virtual symbolic::Expression GenerateOutputCode(
-      const symbolic::Expression& index) const = 0;
+      const symbolic::Expression& output_index) const = 0;
+
+  virtual symbolic::Expression InputGradientCode(
+      const symbolic::Expression& input_index) const = 0;
+
+  virtual symbolic::Expression WeightGradientCode(
+      const symbolic::Expression& weight_index) const = 0;
 
   virtual std::unique_ptr<LayerImpl> Clone() const = 0;
 
