@@ -5,15 +5,15 @@ namespace nnet {
 
 symbolic::Expression ActivationLayer::GenerateOutputCode(
     const symbolic::Expression& index) const {
-  return activation_function_(generator_.InputSymbolic(index));
+  return activation_function_(generator_.I(index));
 }
 
 symbolic::Expression ActivationLayer::InputGradientCode(
     const symbolic::Expression& input_index) const {
   symbolic::Expression output =
-      activation_function_(generator_.InputSymbolic(input_index));
+      activation_function_(generator_.I(input_index));
   symbolic::Expression deriv =
-      output.Derive(generator_.InputSymbolic(input_index).to_string());
+      output.Derive(generator_.I(input_index).to_string());
   return generator_.GRADIENT(input_index) * deriv;
 }
 

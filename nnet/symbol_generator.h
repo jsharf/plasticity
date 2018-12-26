@@ -23,17 +23,21 @@ public:
   std::string O(size_t i) const { return "O[" + std::to_string(i) + "]"; }
   std::string O(std::string i) const { return "O[" + i + "]"; }
 
-  Expression InputSymbolic(const Expression &index) const {
+  Expression I(const Expression &index) const {
     return Expression::CreateNumericValue(I(index.to_string()));
   }
 
-  Expression OutputSymbolic(const Expression &index) const {
+  Expression O(const Expression &index) const {
     return Expression::CreateNumericValue(I(index.to_string()));
   }
 
   // Residual gradients for back propagation.
   std::string GRADIENT(size_t i) const {
     return "GRADIENT[" + std::to_string(i) + "]";
+  }
+
+  Expression GRADIENT(const symbolic::Expression &i) const {
+    return Expression::CreateNumericValue("GRADIENT[" + i.to_string() + "]");
   }
 };
 
@@ -152,6 +156,16 @@ public:
         internal::Flatten2d(dimensions_.num_inputs + 1, dimensions_.num_outputs,
                             node, dimensions_.num_inputs);
     return Expression::CreateNumericValue("W[" + std::to_string(index) + "]");
+  }
+
+  // Residual gradients for back propagation.
+  Expression GRADIENT(size_t i) const {
+    return Expression::CreateNumericValue("GRADIENT[" + std::to_string(i) +
+                                          "]");
+  }
+
+  Expression GRADIENT(const symbolic::Expression &i) const {
+    return Expression::CreateNumericValue("GRADIENT[" + i.to_string() + "]");
   }
 
   const std::vector<std::string> &weights() const { return weights_; }

@@ -35,7 +35,7 @@ symbolic::Expression DenseLayer::InputGradientCode(
     const symbolic::Expression& input_index) const {
   symbolic::Expression sum = 0;
   for (size_t out_index = 0; out_index < dimensions_.num_outputs; ++out_index) {
-    sum += generator_.GRADIENT(out_index) * generator_.BoundsCheckedW(symbolic::Expression::CreateInteger(out_index), input_index);
+    sum += generator_.GRADIENT(out_index) * generator_.BoundsCheckedW(symbolic::Expression(out_index), input_index);
   }
   return sum;
 }

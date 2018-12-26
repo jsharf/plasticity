@@ -15,10 +15,9 @@ symbolic::Expression SoftmaxLayer::GenerateOutputCode(const symbolic::Expression
 
 symbolic::Expression SoftmaxLayer::InputGradientCode(
     const symbolic::Expression& input_index) const {
-  symbolic::Expression output =
-      activation_function_(generator_.InputSymbolic(input_index));
+  symbolic::Expression output = GenerateOutputCode(input_index);
   symbolic::Expression deriv =
-      output.Derive(generator_.InputSymbolic(input_index).to_string());
+      output.Derive(generator_.I(input_index).to_string());
   return generator_.GRADIENT(input_index) * deriv;
 }
 

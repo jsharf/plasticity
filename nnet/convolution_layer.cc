@@ -119,12 +119,19 @@ ConvolutionLayer::InputGradientsForOutput(
     for (size_t f_y = 0; f_y < filters_.height; ++f_y) {
       gradients.at(f_x, f_y).resize(filters_.depth);
       for (size_t f_z = 0; f_z < filters_.depth; ++f_z) {
+        symbolic::Expression input_x = conv_start_row + f_x;
+        symbolic::Expression input_y = conv_start_col + f_y;
+        symbolic::Expression input_z = f_z;
         gradients.at(f_x, f_y)[f_z] =
             output.Derive(generator_.I(input_x, input_y, input_z).to_string());
       }
     }
   }
   return gradients;
+}
+
+symbolic::Expression ConvolutionLayer::InputGradientCode(const symbolic::Expression& index) const {
+  return symbolic::Expression(0);
 }
 
 // symbolic::Expression ConvolutionLayer::InputGradientCode(
@@ -145,7 +152,7 @@ ConvolutionLayer::InputGradientsForOutput(
 //   symbolic::Expression output_row =
 //       (input_row + filters_.padding - filters_.width / 2) / filters_.stride;
 //   symbolic::Expression output_col =
-//       (input_col + filters_.padding - filters.width / 2) / filters_.stride;
+//       (input_col + filters_.padding - filters_.height / 2) / filters_.stride;
 // 
 //   size_t output_net_width = filters_.width/(filters_.stride);
 //   size_t output_net_height = filters_.height/(filters_.stride);
