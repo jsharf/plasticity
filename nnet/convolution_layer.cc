@@ -130,41 +130,56 @@ ConvolutionLayer::InputGradientsForOutput(
   return gradients;
 }
 
-symbolic::Expression ConvolutionLayer::InputGradientCode(const symbolic::Expression& index) const {
-  return symbolic::Expression(0);
-}
-
-// symbolic::Expression ConvolutionLayer::InputGradientCode(
-//     const symbolic::Expression& index) const {
-//   size_t input_width = imdim_.width;
-//   size_t input_height = imdim_.height;
-//   size_t input_depth = imdim_.depth;
-// 
-//   symbolic::Expression input_row =
-//       symbolic::Unflatten3dRow(input_width, input_height, input_depth, index);
-// 
-//   symbolic::Expression input_col =
-//       symbolic::Unflatten3dCol(input_width, input_height, input_depth, index);
-// 
-//   symbolic::Expression input_plane =
-//       symbolic::Unflatten3dPlane(input_width, input_height, input_depth, index);
-// 
-//   symbolic::Expression output_row =
-//       (input_row + filters_.padding - filters_.width / 2) / filters_.stride;
-//   symbolic::Expression output_col =
-//       (input_col + filters_.padding - filters_.height / 2) / filters_.stride;
-// 
-//   size_t output_net_width = filters_.width/(filters_.stride);
-//   size_t output_net_height = filters_.height/(filters_.stride);
-//   for (int d = -output_net_width/2; d <= output_net_width/2; d++) {
-//     for (size_t k = -output_net_height/2; k <= output_net_height/2; k++) {
-//       symbolic::Expression neighbor_output_flat_index = symbolic::Flatten3d(output_row , output_col, 
-//           // Need to think about this one. I think I need to iterate over
-//           // filter.num_filters since each is a diff output and then accumulate
-//           // all these gradients into an expression and then return it.
-//     }
-//   }
-// }
+ symbolic::Expression ConvolutionLayer::InputGradientCode(
+     const symbolic::Expression& index) const {
+   std::tuple<size_t, size_t, size_t> output_dims =
+       GetOutputDimensions(imdim_, filters_);
+   size_t output_width = std::get<0>(output_dims);
+   size_t output_height = std::get<1>(output_dims);
+   size_t output_depth = std::get<2>(output_dims);
+   size_t input_width = imdim_.width;
+   size_t input_height = imdim_.height;
+   size_t input_depth = imdim_.depth;
+ 
+   symbolic::Expression input_row =
+       symbolic::Unflatten3dRow(input_width, input_height, input_depth, index);
+ 
+   symbolic::Expression input_col =
+       symbolic::Unflatten3dCol(input_width, input_height, input_depth, index);
+ 
+   symbolic::Expression input_plane =
+       symbolic::Unflatten3dPlane(input_width, input_height, input_depth, index);
+ 
+   symbolic::Expression output_row =
+       (input_row + filters_.padding - filters_.width / 2) / filters_.stride;
+   symbolic::Expression output_col =
+       (input_col + filters_.padding - filters_.height / 2) / filters_.stride;
+ 
+   // The "net" includes all outputs which depend on this input. This is
+   // determined by the filter size and stride length. If the stride is 2, for
+   // instance, then inputs are skipped during the convolution, decreasing the
+   // number of outputs reliant on this input. The best way to illustrate this
+   // is by visualizing the convolution.
+   size_t output_net_width = filters_.width/(filters_.stride);
+   size_t output_net_height = filters_.height/(filters_.stride);
+   symbolic::Expression gradient_code(0.0);
+   for (int d = -output_net_width/2; d <= output_net_width/2; d++) {
+     for (size_t k = -output_net_height/2; k <= output_net_height/2; k++) {
+       for (size_t filter = 0; filter < filters_.num_filters; ++filter) {
+         symbolic::Expression neighbor_output_flat_index = symbolic::Flatten3d(
+             output_width, output_height, output_depth, output_row + d,
+             output_col + k, symbolic::Expression(filter));
+         Matrix<std::vector<symbolic::Expression>> neighbor_gradients =
+             InputGradientsForOutput(neighbor_output_flat_index);
+         const std::vector<symbolic::Expression>& self_gradients_of_neighbor = neighbor_gradients.at(output_net_width/2 - d, output_net_height/2 - k);
+         for (const auto gradient_component& : self_gradients_of_neighbor) {
+           gradient_code += self_gradients_of_neighbor * generator_.GRADIENT(output_flat_index);
+         }
+       }
+     }
+   }
+   return gradient_code;
+ }
 
 Matrix<symbolic::Expression> ConvolutionLayer::WeightGradientsForOutput(
     const symbolic::Expression& index) const {
