@@ -183,7 +183,35 @@ ConvolutionLayer::InputGradientsForOutput(
 
 Matrix<symbolic::Expression> ConvolutionLayer::WeightGradientsForOutput(
     const symbolic::Expression& index) const {
-      return Matrix<symbolic::Expression>();
+   std::tuple<size_t, size_t, size_t> output_dims =
+       GetOutputDimensions(imdim_, filters_);
+   size_t output_width = std::get<0>(output_dims);
+   size_t output_height = std::get<1>(output_dims);
+   size_t output_depth = std::get<2>(output_dims);
+
+   symbolic::Expression filter = generator_.GetWeightFilter(index);
+   symbolic::Expression weight_x = generator_.GetWeightX(index);
+   symbolic::Expression weight_y = generator_.GetWeightY(index);
+   symbolic::Expression weight_z = generator_.GetWeightZ(index);
+
+   symbolic::Expression gradients(0.0);
+   for (size_t output_x = 0; output_x < output_width; ++output_x) {
+     for (size_t output_y = 0; output_y < output_height; ++output_y) {
+       symbolic::Expression output_flat_index =
+           symbolic::Flatten3d(output_width, output_height, output_depth,
+                               output_x, output_y, filter);
+       symbolic::Expression input_x =
+           (output_x * filters_.stride) - filters_.padding + filters_.width / 2;
+       symbolic::Expression input_y = (output_y * filters_.stride) -
+                                      filters_.padding + filters_.height / 2;
+       gradients += generator_.GRADIENT(output_flat_index) *
+                    generator_.BoundsCheckedI(
+                        input_y + weight_y - filters_.height / 2,
+                        input_x + weight_x - filters_.width / 2, weight_z);
+     }
+   }
+
+   return gradients;
 }
 
 std::unique_ptr<LayerImpl> ConvolutionLayer::Clone() const {
