@@ -1,5 +1,6 @@
 #ifndef MAX_POOL_LAYER_H
 #define MAX_POOL_LAYER_H
+#include "math/codegen/codegen.h"
 #include "math/geometry/dynamic_matrix.h"
 #include "math/nnet/convolution_layer.h"
 #include "math/nnet/layer_dimensions.h"
@@ -32,14 +33,14 @@ class MaxPoolLayer : public LayerImpl {
   MaxPoolLayer(const VolumeDimensions& input, const AreaDimensions& output,
                size_t layer_index);
 
-  symbolic::Expression GenerateOutputCode(
-      const symbolic::Expression& index) const override;
+  void GenerateOutputCode(const symbolic::Expression &index,
+                          codegen::Generator *cg) const override;
 
-  symbolic::Expression InputGradientCode(
-      const symbolic::Expression& input_index) const override;
+  void InputGradientCode(const symbolic::Expression &input_index,
+                         codegen::Generator *cg) const override;
 
-  symbolic::Expression WeightGradientCode(
-      const symbolic::Expression& weight_index) const override;
+  void WeightGradientCode(const symbolic::Expression &weight_index,
+                          codegen::Generator *cg) const override;
 
   std::unique_ptr<LayerImpl> Clone() const override;
 

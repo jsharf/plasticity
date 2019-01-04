@@ -16,8 +16,8 @@ const std::vector<std::string>& DenseLayer::weights() const {
   return generator_.weights();
 }
 
-symbolic::Expression DenseLayer::GenerateOutputCode(
-    const symbolic::Expression& output_index) const {
+void DenseLayer::GenerateOutputCode(const symbolic::Expression &output_index,
+                                    codegen::Generator *cg) const {
   symbolic::Expression sum = 0;
   for (size_t i = 0; i < dimensions_.num_inputs; ++i) {
     sum += generator_.BoundsCheckedW(output_index, Expression(i)) * generator_.I(i);
@@ -26,28 +26,30 @@ symbolic::Expression DenseLayer::GenerateOutputCode(
   // Bias input.
   sum += generator_.W(output_index) * 1;
 
-  return activation_function_(sum);
+  symbolic::Expression retval = activation_function_(sum);
+  cg->AppendLineOfCode("return " + retval.to_string() + cg->linesep());
 }
 
 // The input gradient is just the sum of the weights between each output and that
 // input multiplied by the back-propagated gradients.
-symbolic::Expression DenseLayer::InputGradientCode(
-    const symbolic::Expression& input_index) const {
+void DenseLayer::InputGradientCode(const symbolic::Expression &input_index,
+                                   codegen::Generator *cg) const {
   symbolic::Expression sum = 0;
   for (size_t out_index = 0; out_index < dimensions_.num_outputs; ++out_index) {
     sum += generator_.GRADIENT(out_index) * generator_.BoundsCheckedW(symbolic::Expression(out_index), input_index);
   }
-  return sum;
+  cg->AppendLineOfCode("return " + sum.to_string() + cg->linesep());
 }
 
 // The weight gradient is just the input for that weight multiplied by the
 // back-propagated gradient.
-symbolic::Expression DenseLayer::WeightGradientCode(
-    const symbolic::Expression& weight_index) const {
+void DenseLayer::WeightGradientCode(
+    const symbolic::Expression& weight_index, codegen::Generator* cg) const {
   // Unflatten the weight index to node, edge.
   symbolic::Expression node = Unflatten2dRow(dimensions_.num_inputs + 1, dimensions_.num_outputs, weight_index);
   symbolic::Expression edge = Unflatten2dCol(dimensions_.num_inputs + 1, dimensions_.num_outputs, weight_index);
-  return generator_.GRADIENT(node) * generator_.I(edge);
+  symbolic::Expression retval = generator_.GRADIENT(node) * generator_.I(edge);
+  cg->AppendLineOfCode("return " + retval.to_string() + cg->linesep());
 }
 
 std::unique_ptr<LayerImpl> DenseLayer::Clone() const {

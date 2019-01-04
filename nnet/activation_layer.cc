@@ -3,23 +3,29 @@
 
 namespace nnet {
 
-symbolic::Expression ActivationLayer::GenerateOutputCode(
+void ActivationLayer::GenerateOutputCode(
     const symbolic::Expression& index) const {
-  return activation_function_(generator_.I(index));
+  symbolic::Expression retval = activation_function_(generator_.I(index));
+
+  codegen::CudaGenerator cg;
+  cg.AppendLineOfCode("return " + retval.to_string() + cg.linesep());
+  return cg;
 }
 
-symbolic::Expression ActivationLayer::InputGradientCode(
-    const symbolic::Expression& input_index) const {
+void ActivationLayer::InputGradientCode(const symbolic::Expression &input_index,
+                                        codegen::Generator *cg) const {
   symbolic::Expression output =
       activation_function_(generator_.I(input_index));
   symbolic::Expression deriv =
       output.Derive(generator_.I(input_index).to_string());
-  return generator_.GRADIENT(input_index) * deriv;
+  symbolic::Expression retval = generator_.GRADIENT(input_index) * deriv;
+
+  cg->AppendLineOfCode("return " + retval.to_string() + cg->linesep());
 }
 
-symbolic::Expression ActivationLayer::WeightGradientCode(
-    const symbolic::Expression& weight_index) const {
-  return symbolic::Expression(0.0);   
+void ActivationLayer::WeightGradientCode(
+    const symbolic::Expression &weight_index, codegen::Generator *cg) const {
+  cg->AppendLineOfCode("return 0.0" + cg->linesep());
 }
 
 std::unique_ptr<LayerImpl> ActivationLayer::Clone() const {

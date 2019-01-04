@@ -1,6 +1,7 @@
 #ifndef LAYER_IMPL_H
 #define LAYER_IMPL_H
 
+#include "math/codegen/codegen.h"
 #include "math/geometry/dynamic_matrix.h"
 #include "math/nnet/layer_dimensions.h"
 #include "math/stats/normal.h"
@@ -26,13 +27,13 @@ class LayerImpl {
     return empty;
   }
 
-  virtual symbolic::Expression GenerateOutputCode(
+  virtual codegen::CudaGenerator GenerateOutputCode(
       const symbolic::Expression& output_index) const = 0;
 
-  virtual symbolic::Expression InputGradientCode(
+  virtual codegen::CudaGenerator InputGradientCode(
       const symbolic::Expression& input_index) const = 0;
 
-  virtual symbolic::Expression WeightGradientCode(
+  virtual codegen::CudaGenerator WeightGradientCode(
       const symbolic::Expression& weight_index) const = 0;
 
   virtual std::unique_ptr<LayerImpl> Clone() const = 0;

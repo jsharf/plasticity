@@ -47,7 +47,13 @@ const std::vector<std::string>& ConvolutionLayer::weights() const {
   return generator_.weights();
 }
 
-symbolic::Expression ConvolutionLayer::GenerateOutputCode(
+void ConvolutionLayer::GenerateOutputCode(
+    const symbolic::Expression& index, codegen::Generator *cg) const {
+  symbolic::Expression retval = GenerateOutputSymbol(index);
+  cg->AppendLineOfCode("return " + retval.to_string() + cg->linesep());
+}
+
+symbolic::Expression ConvolutionLayer::GenerateOutputSymbol(
     const symbolic::Expression& index) const {
   std::tuple<size_t, size_t, size_t> output_dims =
       GetOutputDimensions(imdim_, filters_);
@@ -91,7 +97,7 @@ symbolic::Expression ConvolutionLayer::GenerateOutputCode(
 Matrix<std::vector<symbolic::Expression>>
 ConvolutionLayer::InputGradientsForOutput(
     const symbolic::Expression& index) const {
-  symbolic::Expression output = GenerateOutputCode(index);
+  symbolic::Expression output = GenerateOutputSymbol(index);
   Matrix<std::vector<symbolic::Expression>> gradients(filters_.width,
                                                       filters_.height);
 
@@ -130,88 +136,91 @@ ConvolutionLayer::InputGradientsForOutput(
   return gradients;
 }
 
- symbolic::Expression ConvolutionLayer::InputGradientCode(
-     const symbolic::Expression& index) const {
-   std::tuple<size_t, size_t, size_t> output_dims =
-       GetOutputDimensions(imdim_, filters_);
-   size_t output_width = std::get<0>(output_dims);
-   size_t output_height = std::get<1>(output_dims);
-   size_t output_depth = std::get<2>(output_dims);
-   size_t input_width = imdim_.width;
-   size_t input_height = imdim_.height;
-   size_t input_depth = imdim_.depth;
- 
-   symbolic::Expression input_row =
-       symbolic::Unflatten3dRow(input_width, input_height, input_depth, index);
- 
-   symbolic::Expression input_col =
-       symbolic::Unflatten3dCol(input_width, input_height, input_depth, index);
- 
-   symbolic::Expression input_plane =
-       symbolic::Unflatten3dPlane(input_width, input_height, input_depth, index);
- 
-   symbolic::Expression output_row =
-       (input_row + filters_.padding - filters_.width / 2) / filters_.stride;
-   symbolic::Expression output_col =
-       (input_col + filters_.padding - filters_.height / 2) / filters_.stride;
- 
-   // The "net" includes all outputs which depend on this input. This is
-   // determined by the filter size and stride length. If the stride is 2, for
-   // instance, then inputs are skipped during the convolution, decreasing the
-   // number of outputs reliant on this input. The best way to illustrate this
-   // is by visualizing the convolution.
-   size_t output_net_width = filters_.width/(filters_.stride);
-   size_t output_net_height = filters_.height/(filters_.stride);
-   symbolic::Expression gradient_code(0.0);
-   for (int d = -output_net_width/2; d <= output_net_width/2; d++) {
-     for (size_t k = -output_net_height/2; k <= output_net_height/2; k++) {
-       for (size_t filter = 0; filter < filters_.num_filters; ++filter) {
-         symbolic::Expression neighbor_output_flat_index = symbolic::Flatten3d(
-             output_width, output_height, output_depth, output_row + d,
-             output_col + k, symbolic::Expression(filter));
-         Matrix<std::vector<symbolic::Expression>> neighbor_gradients =
-             InputGradientsForOutput(neighbor_output_flat_index);
-         const std::vector<symbolic::Expression>& self_gradients_of_neighbor = neighbor_gradients.at(output_net_width/2 - d, output_net_height/2 - k);
-         for (const auto gradient_component& : self_gradients_of_neighbor) {
-           gradient_code += self_gradients_of_neighbor * generator_.GRADIENT(output_flat_index);
-         }
-       }
-     }
-   }
-   return gradient_code;
- }
+void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
+                                         codegen::Generator *cg) const {
+  std::tuple<size_t, size_t, size_t> output_dims =
+      GetOutputDimensions(imdim_, filters_);
+  size_t output_width = std::get<0>(output_dims);
+  size_t output_height = std::get<1>(output_dims);
+  size_t output_depth = std::get<2>(output_dims);
+  size_t input_width = imdim_.width;
+  size_t input_height = imdim_.height;
+  size_t input_depth = imdim_.depth;
 
-Matrix<symbolic::Expression> ConvolutionLayer::WeightGradientsForOutput(
-    const symbolic::Expression& index) const {
-   std::tuple<size_t, size_t, size_t> output_dims =
-       GetOutputDimensions(imdim_, filters_);
-   size_t output_width = std::get<0>(output_dims);
-   size_t output_height = std::get<1>(output_dims);
-   size_t output_depth = std::get<2>(output_dims);
+  symbolic::Expression input_row =
+      symbolic::Unflatten3dRow(input_width, input_height, input_depth, index);
 
-   symbolic::Expression filter = generator_.GetWeightFilter(index);
-   symbolic::Expression weight_x = generator_.GetWeightX(index);
-   symbolic::Expression weight_y = generator_.GetWeightY(index);
-   symbolic::Expression weight_z = generator_.GetWeightZ(index);
+  symbolic::Expression input_col =
+      symbolic::Unflatten3dCol(input_width, input_height, input_depth, index);
 
-   symbolic::Expression gradients(0.0);
-   for (size_t output_x = 0; output_x < output_width; ++output_x) {
-     for (size_t output_y = 0; output_y < output_height; ++output_y) {
-       symbolic::Expression output_flat_index =
-           symbolic::Flatten3d(output_width, output_height, output_depth,
-                               output_x, output_y, filter);
-       symbolic::Expression input_x =
-           (output_x * filters_.stride) - filters_.padding + filters_.width / 2;
-       symbolic::Expression input_y = (output_y * filters_.stride) -
-                                      filters_.padding + filters_.height / 2;
-       gradients += generator_.GRADIENT(output_flat_index) *
-                    generator_.BoundsCheckedI(
-                        input_y + weight_y - filters_.height / 2,
-                        input_x + weight_x - filters_.width / 2, weight_z);
-     }
-   }
+  symbolic::Expression input_plane =
+      symbolic::Unflatten3dPlane(input_width, input_height, input_depth, index);
 
-   return gradients;
+  symbolic::Expression output_row =
+      (input_row + filters_.padding - filters_.width / 2) / filters_.stride;
+  symbolic::Expression output_col =
+      (input_col + filters_.padding - filters_.height / 2) / filters_.stride;
+
+  // The "net" includes all outputs which depend on this input. This is
+  // determined by the filter size and stride length. If the stride is 2, for
+  // instance, then inputs are skipped during the convolution, decreasing the
+  // number of outputs reliant on this input. The best way to illustrate this
+  // is by visualizing the convolution.
+  size_t output_net_width = filters_.width / (filters_.stride);
+  size_t output_net_height = filters_.height / (filters_.stride);
+  symbolic::Expression gradient_code(0.0);
+  for (int d = -output_net_width / 2; d <= output_net_width / 2; d++) {
+    for (size_t k = -output_net_height / 2; k <= output_net_height / 2; k++) {
+      for (size_t filter = 0; filter < filters_.num_filters; ++filter) {
+        symbolic::Expression neighbor_output_flat_index = symbolic::Flatten3d(
+            output_width, output_height, output_depth, output_row + d,
+            output_col + k, symbolic::Expression(filter));
+        Matrix<std::vector<symbolic::Expression>> neighbor_gradients =
+            InputGradientsForOutput(neighbor_output_flat_index);
+        const std::vector<symbolic::Expression> &self_gradients_of_neighbor =
+            neighbor_gradients.at(output_net_width / 2 - d,
+                                  output_net_height / 2 - k);
+        for (const auto gradient_component & : self_gradients_of_neighbor) {
+          gradient_code += self_gradients_of_neighbor *
+                           generator_.GRADIENT(output_flat_index);
+        }
+      }
+    }
+  }
+  cg->AppendLineOfCode("return " + gradient_code.to_string() + cg->linesep());
+}
+
+void ConvolutionLayer::WeightGradientCode(
+    const symbolic::Expression &index, codegen::Generator *cg) const {
+  std::tuple<size_t, size_t, size_t> output_dims =
+      GetOutputDimensions(imdim_, filters_);
+  size_t output_width = std::get<0>(output_dims);
+  size_t output_height = std::get<1>(output_dims);
+  size_t output_depth = std::get<2>(output_dims);
+
+  symbolic::Expression filter = generator_.GetWeightFilter(index);
+  symbolic::Expression weight_x = generator_.GetWeightX(index);
+  symbolic::Expression weight_y = generator_.GetWeightY(index);
+  symbolic::Expression weight_z = generator_.GetWeightZ(index);
+
+  symbolic::Expression gradients(0.0);
+  for (size_t output_x = 0; output_x < output_width; ++output_x) {
+    for (size_t output_y = 0; output_y < output_height; ++output_y) {
+      symbolic::Expression output_flat_index =
+          symbolic::Flatten3d(output_width, output_height, output_depth,
+                              output_x, output_y, filter);
+      symbolic::Expression input_x =
+          (output_x * filters_.stride) - filters_.padding + filters_.width / 2;
+      symbolic::Expression input_y =
+          (output_y * filters_.stride) - filters_.padding + filters_.height / 2;
+      gradients += generator_.GRADIENT(output_flat_index) *
+                   generator_.BoundsCheckedI(
+                       input_y + weight_y - filters_.height / 2,
+                       input_x + weight_x - filters_.width / 2, weight_z);
+    }
+  }
+
+  cg->AppendLineOfCode("return " + gradients.to_string() + cg->linesep());
 }
 
 std::unique_ptr<LayerImpl> ConvolutionLayer::Clone() const {

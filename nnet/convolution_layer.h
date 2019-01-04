@@ -1,5 +1,6 @@
 #ifndef CONVOLUTION_LAYER_H
 #define CONVOLUTION_LAYER_H
+#include "math/codegen/codegen.h"
 #include "math/geometry/dynamic_matrix.h"
 #include "math/nnet/layer_impl.h"
 #include "math/nnet/symbol_generator.h"
@@ -32,14 +33,17 @@ class ConvolutionLayer : public LayerImpl {
 
   const std::vector<std::string>& weights() const override;
 
-  symbolic::Expression GenerateOutputCode(
+  symbolic::Expression GenerateOutputSymbol(
       const symbolic::Expression& index) const override;
 
-  symbolic::Expression GenerateGradientCode(const symbolic::Expression& index) const;
+  void GenerateOutputCode(
+      const symbolic::Expression& index, codegen::Generator *cg) const override;
+  void WeightGradientCode(const symbolic::Expression &index,
+                          codegen::Generator *cg) const;
+  void InputGradientCode(const symbolic::Expression &index,
+                         codegen::Generator *cg) const;
 
   Matrix<std::vector<symbolic::Expression>> InputGradientsForOutput(const symbolic::Expression& index) const;
-
-  Matrix<symbolic::Expression> WeightGradientsForOutput(const symbolic::Expression& index) const;
 
   std::unique_ptr<LayerImpl> Clone() const override;
 

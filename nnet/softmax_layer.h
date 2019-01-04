@@ -1,6 +1,6 @@
 #ifndef SOFTMAX_LAYER_H
 #define SOFTMAX_LAYER_H
-
+#include "math/codegen/codegen.h"
 #include "math/geometry/dynamic_matrix.h"
 #include "math/nnet/layer_dimensions.h"
 #include "math/nnet/layer_impl.h"
@@ -18,13 +18,14 @@ class SoftmaxLayer : public LayerImpl {
   SoftmaxLayer(size_t size, size_t layer_index)
       : Super(Dimensions{size, size}, layer_index) {}
 
-  symbolic::Expression GenerateOutputCode(const symbolic::Expression& index) const;
+  void GenerateOutputCode(const symbolic::Expression &index,
+                          codegen::Generator *cg) const;
 
-  symbolic::Expression InputGradientCode(
-      const symbolic::Expression& input_index) const override;
+  void InputGradientCode(const symbolic::Expression &input_index,
+                         codegen::Generator *cg) const override;
 
-  symbolic::Expression WeightGradientCode(
-      const symbolic::Expression& weight_index) const override;
+  void WeightGradientCode(const symbolic::Expression &weight_index,
+                          codegen::Generator *cg) const override;
 
   std::unique_ptr<LayerImpl> Clone() const override;
  private:
