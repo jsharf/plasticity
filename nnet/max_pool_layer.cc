@@ -143,7 +143,7 @@ void MaxPoolLayer::InputGradientCode(
   cg->AppendLineOfCode("return " + generator_.GRADIENT(input_index).to_string() + cg->linesep());
 }
 
-void MaxPoolLayer::WeightGradientCode(
+void MaxPoolLayer::WeightGradientCode const(
     const symbolic::Expression& weight_index, codegen::Generator *cg) const {
   cg->AppendLineOfCode("return 0.0" + cg->linesep());
 }
