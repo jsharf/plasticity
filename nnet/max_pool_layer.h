@@ -27,11 +27,15 @@ class MaxPoolLayer : public LayerImpl {
   }
 
   // Returns output volume dim (width, height, depth).
-  static std::tuple<size_t, size_t, size_t> GetOutputDimensions(
-      const VolumeDimensions& dim, const AreaDimensions& output);
+  static std::tuple<size_t, size_t, size_t>
+  GetOutputDimensions(const VolumeDimensions &dim,
+                      const AreaDimensions &output);
 
-  MaxPoolLayer(const VolumeDimensions& input, const AreaDimensions& output,
+  MaxPoolLayer(const VolumeDimensions &input, const AreaDimensions &output,
                size_t layer_index);
+
+  symbolic::Expression
+  GenerateOutputSymbol(const symbolic::Expression &index) const;
 
   void GenerateOutputCode(const symbolic::Expression &index,
                           codegen::Generator *cg) const override;

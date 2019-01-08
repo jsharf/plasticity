@@ -89,7 +89,7 @@ symbolic::Expression Unflatten2dCol(size_t width, size_t height,
 symbolic::Expression LtExpression(const symbolic::Expression& a,
                                   const symbolic::Expression& b) {
   return Expression(std::make_shared<const NotExpression>(
-      symbolic::Expression(std::make_shared<GteExpression>(a, b))));
+      Expression(std::make_shared<GteExpression>(a, b))));
 }
 
 symbolic::Expression IfInRange(const symbolic::Expression& index,

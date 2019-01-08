@@ -223,6 +223,15 @@ public:
                                                     "]");
   }
 
+  Expression GRADIENT(size_t i) const {
+    return Expression::CreateNumericValue("GRADIENT[" + std::to_string(i) +
+                                          "]");
+  }
+
+  Expression GRADIENT(const symbolic::Expression &i) const {
+    return Expression::CreateNumericValue("GRADIENT[" + i.to_string() + "]");
+  }
+
   Expression BoundsCheckedI(const Expression &row, const Expression &col,
                             const Expression &z) const {
     Expression input_symbol = I(row, col, z);
@@ -274,6 +283,15 @@ public:
       weights_[index] = W(filter_no).to_string();
     }
 
+  }
+
+  Expression GRADIENT(size_t i) const {
+    return Expression::CreateNumericValue("GRADIENT[" + std::to_string(i) +
+                                          "]");
+  }
+
+  Expression GRADIENT(const symbolic::Expression &i) const {
+    return Expression::CreateNumericValue("GRADIENT[" + i.to_string() + "]");
   }
 
   Expression I(const Expression &row, const Expression &col,

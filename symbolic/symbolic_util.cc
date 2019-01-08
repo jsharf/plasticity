@@ -54,17 +54,21 @@ Expression Softmax(const Matrix<Expression>& column_vector, int index) {
 
 namespace internal {
 
-Expression maxexpr(Expression a, std::vector<Expression> exprs) {
-  if (exprs.size() == 0) {
-    std::cerr << "maxexpr called with empty vec!" << std::endl;
+Expression maxexpr(Expression a, std::vector<Expression> exprs, size_t skip_index) {
+  if (exprs.size() <= 1) {
+    std::cerr << "internal::maxexpr called with too small vec!" << std::endl;
     std::exit(1);
   }
+  // Initialize condexpr with a "truthy" value.
   std::shared_ptr<const ExpressionNode> condexpr =
-      std::make_shared<const GteExpression>(a, exprs[0]);
-  for (size_t i = 1; i < exprs.size(); ++i) {
+      symbolic::Expression(1).GetPointer();
+  for (size_t i = 0; i < exprs.size(); ++i) {
+    if (i == skip_index) {
+      continue;
+    }
     condexpr = std::make_shared<const AndExpression>(
         condexpr,
-        Expression(std::make_shared<const GteExpression>(a, exprs[i])));
+        Expression(std::make_shared<GteExpression>(a, exprs[i])));
   }
   return Expression(std::move(condexpr));
 }
@@ -76,15 +80,14 @@ Expression Max(const std::vector<Expression>& exprs) {
     std::cerr << "maxexpr called with empty vec!" << std::endl;
     std::exit(1);
   }
+
   std::shared_ptr<const ExpressionNode> maxstatement =
       exprs[exprs.size() - 1].GetPointer()->Clone();
+  // This algorithm can probably be made smaller (in terms of the tree size of
+  // the output expression).
   for (size_t i = 0; i < exprs.size() - 1; ++i) {
-    // Make copy of exprs that does not contain i-expr.
-    std::vector<Expression> others = exprs;
-    others.erase(others.begin() + i);
-
     // Make conditional that i-expr is max.
-    Expression conditional = internal::maxexpr(exprs[i], others);
+    Expression conditional = internal::maxexpr(exprs[i], exprs, i);
 
     maxstatement = std::make_shared<const IfExpression>(
         conditional.GetPointer(), exprs[i].GetPointer(),
