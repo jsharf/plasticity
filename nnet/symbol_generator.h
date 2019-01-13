@@ -318,27 +318,30 @@ public:
         "]");
   }
 
-  Expression GetWeightFilter(const Expression& flat_index) {
+  Expression GetWeightFilter(const Expression& flat_index) const {
     Expression filter_size = params_.width * params_.height * params_.depth + 1;
     return flat_index / filter_size;
   }
 
-  Expression GetWeightX(const Expression& flat_index) {
+  Expression GetWeightX(const Expression& flat_index) const {
     Expression filter_size = params_.width * params_.height * params_.depth + 1;
     Expression weight_offset = flat_index - filter_size;
-    return symbolic::UnflattenCol(params_.width, params_.height, params_.depth, weight_offset);
+    return symbolic::Unflatten3dCol(params_.width, params_.height,
+                                    params_.depth, weight_offset);
   }
 
-  Expression GetWeightY(const Expression& flat_index) {
+  Expression GetWeightY(const Expression& flat_index) const {
     Expression filter_size = params_.width * params_.height * params_.depth + 1;
     Expression weight_offset = flat_index - filter_size;
-    return symbolic::UnflattenRow(params_.width, params_.height, params_.depth, weight_offset);
+    return symbolic::Unflatten3dRow(params_.width, params_.height,
+                                    params_.depth, weight_offset);
   }
 
-  Expression GetWeightZ(const Expression& flat_index) {
+  Expression GetWeightZ(const Expression& flat_index) const {
     Expression filter_size = params_.width * params_.height * params_.depth + 1;
     Expression weight_offset = flat_index - filter_size;
-    return symbolic::UnflattenPlane(params_.width, params_.height, params_.depth, weight_offset);
+    return symbolic::Unflatten3dPlane(params_.width, params_.height,
+                                      params_.depth, weight_offset);
   }
 
   Expression BoundsCheckedW(const Expression &filter, const Expression &row,

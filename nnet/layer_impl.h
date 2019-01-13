@@ -28,13 +28,13 @@ class LayerImpl {
   }
 
   virtual void GenerateOutputCode(const symbolic::Expression &output_index,
-                                  codegen::CudaGenerator &cg) const = 0;
+                                  codegen::Generator *cg) const = 0;
 
   virtual void InputGradientCode(const symbolic::Expression &input_index,
-                                 codegen::CudaGenerator &cg) const = 0;
+                                 codegen::Generator *cg) const = 0;
 
   virtual void WeightGradientCode(const symbolic::Expression &weight_index,
-                                  codegen::CudaGenerator &cg) const = 0;
+                                  codegen::Generator *cg) const = 0;
 
   virtual std::unique_ptr<LayerImpl> Clone() const = 0;
 

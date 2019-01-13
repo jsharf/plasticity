@@ -80,8 +80,6 @@ class Layer {
   Matrix<symbolic::Expression> InputGradients() const;
   Matrix<symbolic::Expression> WeightGradients() const;
 
-  Matrix<symbolic::Expression> GenerateExpression() const;
-
   stats::Normal XavierInitializer() const;
   void XavierInitializeWeights();
   

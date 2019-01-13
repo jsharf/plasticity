@@ -71,11 +71,6 @@ const std::vector<std::string>& Layer::weights() const {
   return impl_->weights();
 }
 
-Matrix<symbolic::Expression> Layer::GenerateExpression() const {
-  Matrix<symbolic::Expression> input = InputExpression();
-  return impl_->GenerateExpression(input);
-}
-
 stats::Normal Layer::XavierInitializer() const {
   return stats::Normal(0, 1.0 / (impl_->GetDimensions().num_inputs));
 }

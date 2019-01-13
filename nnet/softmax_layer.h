@@ -29,7 +29,10 @@ class SoftmaxLayer : public LayerImpl {
 
   std::unique_ptr<LayerImpl> Clone() const override;
  private:
-  SymbolGenerator generator_;
+   symbolic::Expression
+   GenerateOutputSymbol(const symbolic::Expression &index) const;
+
+   SymbolGenerator generator_;
 };
 
 }  // namespace nnet

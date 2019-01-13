@@ -111,15 +111,15 @@ class Nnet {
     return devices[0];
   }
 
-  Matrix<Number> EvaluateCl(Matrix<Number> in) {
+  Matrix<Number> Evaluate(Matrix<Number> in) {
     std::unique_ptr<std::vector<Matrix<Number>>> _(nullptr);
-    return EvaluateCl(in, _);
+    return Evaluate(in, _);
   }
 
   // (*out_layer_outputs)[i] is a column vector containing the outputs of layer
   // i. Layer outputs will only be saved if out_layer_outputs is non-null.
   // Otherwise it will be ignored.
-  Matrix<Number> EvaluateCl(
+  Matrix<Number> Evaluate(
       Matrix<Number> in,
       std::unique_ptr<std::vector<Matrix<Number>>>& out_layer_outputs) {
     cl::Device device = SelectDevice();
@@ -224,101 +224,6 @@ class Nnet {
     return gpu_buffer;
   }
 
-  Matrix<Number> Evaluate(Matrix<Number> in) {
-    std::unique_ptr<std::vector<Matrix<Number>>> _(nullptr);
-    return Evaluate(in, _);
-  }
-
-  Matrix<Number> Evaluate(
-      Matrix<Number> in,
-      std::unique_ptr<std::vector<Matrix<Number>>>& out_layer_outputs) {
-    Matrix<Number> inputs = in;
-    Matrix<Number> outputs;
-    for (Layer& layer : model_.layers) {
-      symbolic::Environment env = layer.env();
-      for (size_t i = 0; i < inputs.dimensions().rows; ++i) {
-        env[generator_.I(i)].real() = inputs.at(i, 0);
-      }
-
-      outputs = symbolic::MapBindAndEvaluate(layer.GenerateExpression(), env);
-      inputs = outputs;
-
-      if (out_layer_outputs) {
-        out_layer_outputs->emplace_back(outputs);
-      }
-    }
-
-    return outputs;
-  }
-
-  // Back propagation
-  void Train(Matrix<Number> in, Matrix<Number> o,
-             const LearningParameters& params) {
-    Number learning_rate = params.learning_rate;
-
-    // Forward pass, store each layer's outputs as a column vector in
-    // layer_outputs.
-    std::unique_ptr<std::vector<Matrix<Number>>> layer_outputs =
-        std::make_unique<std::vector<Matrix<Number>>>();
-    Matrix<Number> actual_output = Evaluate(in, layer_outputs);
-
-    Matrix<symbolic::Expression> output_symbolic =
-        GenerateOutputLayer(output_size());
-
-    Matrix<symbolic::Expression> expected_symbolic(o.dimensions().rows, 1);
-    for (size_t i = 0; i < o.dimensions().rows; ++i) {
-      expected_symbolic.at(i, 0) = symbolic::Expression(o.at(i, 0));
-    }
-    symbolic::Expression error =
-        GenerateErrorExpression(output_symbolic, expected_symbolic);
-
-    // Simultaneously generate symbolic expressions for output gradients and
-    // build environment for evaluating them.
-    Matrix<symbolic::Expression> output_gradients_symbolic(output_size(), 1);
-    symbolic::Environment env;
-    for (size_t i = 0; i < output_size(); ++i) {
-      output_gradients_symbolic.at(i, 0) =
-          error.Derive(output_symbolic.at(i, 0).to_string());
-
-      env[generator_.O(i)] = symbolic::NumericValue(actual_output.at(i, 0));
-    }
-
-    // Generate output gradients (first part of backprop).
-    Matrix<Number> gradients =
-        symbolic::MapBindAndEvaluate(output_gradients_symbolic, env);
-
-    // Propagate the gradients backwards.
-    // For each layer, take the current backpropagated gradients (stored in
-    // variable Matrix<Number> gradients) and pass it to the weight gradient
-    // kernel to calculate weight updates. Then pass it to the input gradient
-    // kernel to calculate the gradient for the next layer.
-    for (int i = model_.layers.size() - 1; i >= 0; --i) {
-      auto& layer = model_.layers[i];
-      const Matrix<Number>& layer_input =
-          (i > 0) ? layer_outputs->at(i - 1) : in;
-
-      Matrix<symbolic::Expression> input_gradients = layer.InputGradients();
-
-      symbolic::Environment env = layer.env();
-      for (size_t i = 0; i < layer_input.dimensions().rows; ++i) {
-        env[generator_.I(i)].real() = layer_input.at(i, 0);
-      }
-      for (size_t i = 0; i < gradients.dimensions().rows; ++i) {
-        env[generator_.GRADIENT(i)].real() = gradients.at(i, 0);
-      }
-
-      // Backprop layer weight updates.
-      Matrix<Number> weight_gradients =
-          symbolic::MapBindAndEvaluate(layer.WeightGradients(), env);
-      for (size_t i = 0; i < layer.weights().size(); ++i) {
-        layer.env()[layer.weights()[i]].real() -=
-            learning_rate * weight_gradients.at(i, 0);
-      }
-
-      gradients = symbolic::MapBindAndEvaluate(layer.InputGradients(), env);
-    }
-  }
-
   void CompileTrainingKernelsIfRequired(cl::Device device) {
     if (training_kernels_.compiled) {
       return;
@@ -337,8 +242,8 @@ class Nnet {
     std::cerr << "Done!" << std::endl;
   }
 
-  void TrainCl(Matrix<Number> in, Matrix<Number> o,
-               const LearningParameters& params) {
+  void Train(Matrix<Number> in, Matrix<Number> o,
+             const LearningParameters &params) {
     cl::Device device = SelectDevice();
 
     CompileTrainingKernelsIfRequired(device);
@@ -354,7 +259,7 @@ class Nnet {
     // layer_outputs.
     std::unique_ptr<std::vector<Matrix<Number>>> layer_outputs =
         std::make_unique<std::vector<Matrix<Number>>>();
-    Matrix<Number> actual_output = EvaluateCl(in, layer_outputs);
+    Matrix<Number> actual_output = Evaluate(in, layer_outputs);
 
     Matrix<symbolic::Expression> output_symbolic =
         GenerateOutputLayer(output_size());

@@ -4,12 +4,10 @@
 namespace nnet {
 
 void ActivationLayer::GenerateOutputCode(
-    const symbolic::Expression& index) const {
+    const symbolic::Expression& index, codegen::Generator* cg) const {
   symbolic::Expression retval = activation_function_(generator_.I(index));
 
-  codegen::CudaGenerator cg;
-  cg.AppendLineOfCode("return " + retval.to_string() + cg.linesep());
-  return cg;
+  cg->AppendLineOfCode("return " + retval.to_string() + cg->linesep());
 }
 
 void ActivationLayer::InputGradientCode(const symbolic::Expression &input_index,

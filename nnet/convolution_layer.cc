@@ -166,11 +166,11 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
   // instance, then inputs are skipped during the convolution, decreasing the
   // number of outputs reliant on this input. The best way to illustrate this
   // is by visualizing the convolution.
-  size_t output_net_width = filters_.width / (filters_.stride);
-  size_t output_net_height = filters_.height / (filters_.stride);
+  int output_net_width = filters_.width / (filters_.stride);
+  int output_net_height = filters_.height / (filters_.stride);
   symbolic::Expression gradient_code(0.0);
   for (int d = -output_net_width / 2; d <= output_net_width / 2; d++) {
-    for (size_t k = -output_net_height / 2; k <= output_net_height / 2; k++) {
+    for (int k = -output_net_height / 2; k <= output_net_height / 2; k++) {
       for (size_t filter = 0; filter < filters_.num_filters; ++filter) {
         symbolic::Expression neighbor_output_flat_index = symbolic::Flatten3d(
             output_width, output_height, output_depth, output_row + d,
@@ -180,9 +180,9 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
         const std::vector<symbolic::Expression> &self_gradients_of_neighbor =
             neighbor_gradients.at(output_net_width / 2 - d,
                                   output_net_height / 2 - k);
-        for (const auto gradient_component & : self_gradients_of_neighbor) {
-          gradient_code += self_gradients_of_neighbor *
-                           generator_.GRADIENT(output_flat_index);
+        for (const auto &gradient_component : self_gradients_of_neighbor) {
+          gradient_code += gradient_component *
+                           generator_.GRADIENT(neighbor_output_flat_index);
         }
       }
     }

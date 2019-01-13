@@ -34,14 +34,14 @@ class ConvolutionLayer : public LayerImpl {
   const std::vector<std::string>& weights() const override;
 
   symbolic::Expression GenerateOutputSymbol(
-      const symbolic::Expression& index) const override;
+      const symbolic::Expression& index) const;
 
   void GenerateOutputCode(
       const symbolic::Expression& index, codegen::Generator *cg) const override;
   void WeightGradientCode(const symbolic::Expression &index,
-                          codegen::Generator *cg) const;
+                          codegen::Generator *cg) const override;
   void InputGradientCode(const symbolic::Expression &index,
-                         codegen::Generator *cg) const;
+                         codegen::Generator *cg) const override;
 
   Matrix<std::vector<symbolic::Expression>> InputGradientsForOutput(const symbolic::Expression& index) const;
 
