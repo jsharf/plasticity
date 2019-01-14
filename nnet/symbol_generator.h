@@ -43,22 +43,11 @@ public:
 
 namespace internal {
 
-// Rewrite as FlattenDense, and then handle the bias weights inside here to
-// simplify DenseSymbolGenerator -- Actually this might not work. Think before
-// doing. (and this makes it consistent with FlattenConv, which needs to handle
-// bias weights inside of handling). Take nnet::Dimensions instead of width,
-// height.
-size_t Flatten2d(size_t width, size_t height, size_t row, size_t col) {
-  return row * width + col;
-}
-
-size_t Unflatten2dRow(size_t width, size_t height, size_t i) {
-  return i / width;
-}
-
-size_t Unflatten2dCol(size_t width, size_t height, size_t i) {
-  return i % width;
-}
+size_t Flatten2d(size_t width, size_t height, size_t row, size_t col);
+size_t Unflatten2dRow(size_t width, size_t height, size_t i);
+size_t Unflatten2dCol(size_t width, size_t height, size_t i);
+size_t Flatten3d(size_t width, size_t height, size_t depth, size_t row,
+                 size_t col, size_t z);
 
 } // namespace internal
 
@@ -176,39 +165,6 @@ private:
   Dimensions dimensions_;
   std::vector<string> weights_;
 };
-
-namespace internal {
-
-// Assumes each filter gets serialized into row-order flattened index. Then
-// filters from 0 to num_filters are appended.
-// Take nnet::Dimensions instead of width, height. Handle bias inside of flatten
-// functions.
-size_t Flatten3d(size_t width, size_t height, size_t depth, size_t row,
-                 size_t col, size_t z) {
-  size_t z_plane_size = width * height;
-  return z_plane_size * z + row * width + col;
-}
-
-size_t Unflatten3dRow(size_t width, size_t height, size_t depth, size_t i) {
-  size_t z_plane_size = width * height;
-  size_t z_plane = i / z_plane_size;
-  size_t index_2d = i - z_plane * z_plane_size;
-  return index_2d / width;
-}
-
-size_t Unflatten3dCol(size_t width, size_t height, size_t depth, size_t i) {
-  size_t z_plane_size = width * height;
-  size_t z_plane = i / z_plane_size;
-  size_t index_2d = i - z_plane * z_plane_size;
-  return index_2d % width;
-}
-
-size_t Unflatten3dZ(size_t width, size_t height, size_t depth, size_t i) {
-  size_t z_plane_size = width * height;
-  return i / z_plane_size;
-}
-
-} // namespace internal
 
 class InputVolumeSymbolGenerator {
 public:

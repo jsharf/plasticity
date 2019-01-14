@@ -13,6 +13,7 @@ cc_library(
 cc_library(
     name = "codegen_util",
     hdrs = ["codegen_util.h"],
+    srcs = ["codegen_util.cc"],
     copts = [
         "--std=c++1z",
     ],

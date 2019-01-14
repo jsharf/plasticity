@@ -37,7 +37,7 @@ int main() {
   nnet::Nnet::LearningParameters params{.learning_rate = 0.3};
 
   for (const std::tuple<Sample, double>& example : examples) {
-    test_net.TrainCl(std::get<0>(example),
+    test_net.Train(std::get<0>(example),
                      Matrix<nnet::Number>(
                          {{static_cast<nnet::Number>(std::get<1>(example))}}),
                      params);
@@ -51,9 +51,9 @@ int main() {
     double output_cpu =
         test_net.Evaluate(Matrix<nnet::Number>{{pointx}, {pointy}}).at(0, 0);
     double output_cl =
-        test_net.EvaluateCl(Matrix<nnet::Number>{{pointx}, {pointy}}).at(0, 0);
+        test_net.Evaluate(Matrix<nnet::Number>{{pointx}, {pointy}}).at(0, 0);
     std::cerr << output_cpu << std::endl;
-    if (abs(output_cpu - output_cl) > 0.000001) {
+    if (fabs(output_cpu - output_cl) > 0.000001) {
       std::cerr << "Error, CPU/GPU output mismatch." << std::endl;
       std::cerr << "CPU: " << output_cpu << std::endl;
       std::cerr << "GPU: " << output_cl << std::endl;

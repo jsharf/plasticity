@@ -20,16 +20,14 @@
 double CalculateWeightGradient_LAYERID(global double* I, global double* W,
                                        const global double* GRADIENT,
                                        size_t weight_index) {
-  switch (weight_index) { WEIGHT_GRADIENTS_HERE }
-  return NAN;
+  WEIGHT_GRADIENTS_HERE
 }
 
 // This function is generated automatically, do not edit.
 double CalculateInputGradient_LAYERID(global double* I, global double* W,
                                       const global double* GRADIENT,
                                       size_t input_index) {
-  switch (input_index) { INPUT_GRADIENTS_HERE };
-  return NAN;
+  INPUT_GRADIENTS_HERE
 }
 
 kernel void weight_delta_LAYERID(

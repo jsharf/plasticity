@@ -82,7 +82,7 @@ int main() {
   std::cout << "Training" << std::endl;
   for (const auto& example : flw) {
     std::cout << "." << std::flush;
-    test_net.TrainCl(ConvertToSample(example.first),
+    test_net.Train(ConvertToSample(example.first),
                      Matrix<nnet::Number>({{example.second}}), params);
   }
   std::cout << "Weights: " << std::endl;

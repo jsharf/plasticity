@@ -2,10 +2,7 @@
 
 // This function is generated automatically, do not edit.
 double Calculate_LAYERID(global double* I, global double* W, size_t output_index) {
-  switch(output_index) {
-    EXPRESSION_HERE
-  }
-  return NAN;
+  EXPRESSION_HERE
 }
 
 kernel void evaluate_LAYERID(global double* inputs, global double* weights, global double* outputs) {

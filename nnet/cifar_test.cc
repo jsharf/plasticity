@@ -186,7 +186,7 @@ int main() {
 
   for (const auto& sample : samples) {
     std::cout << ".";
-    test_net.TrainCl(sample.OneHotEncodedInput(), sample.OneHotEncodedOutput(),
+    test_net.Train(sample.OneHotEncodedInput(), sample.OneHotEncodedOutput(),
                      params);
   }
 

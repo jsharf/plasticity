@@ -76,10 +76,6 @@ class Layer {
 
   std::string WeightsToString() const;
 
-  Matrix<symbolic::Expression> BackpropGradients() const;
-  Matrix<symbolic::Expression> InputGradients() const;
-  Matrix<symbolic::Expression> WeightGradients() const;
-
   stats::Normal XavierInitializer() const;
   void XavierInitializeWeights();
   

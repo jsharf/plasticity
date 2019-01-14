@@ -236,7 +236,7 @@ class AndExpression : public CompoundExpression {
   }
 
   static bool ToBool(double x) {
-    return abs(x) > std::numeric_limits<double>::epsilon();
+    return fabs(x) > std::numeric_limits<double>::epsilon();
   }
 
   static double ToNumber(bool b) { return b ? 1.0 : 0.0; }

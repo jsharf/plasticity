@@ -77,6 +77,7 @@ cc_library(
 cc_library(
     name = "symbol_generator",
     hdrs = ["symbol_generator.h"],
+    srcs = ["symbol_generator.cc"],
     copts = [
         "--std=c++1z",
     ],
