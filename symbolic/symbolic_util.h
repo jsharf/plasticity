@@ -19,6 +19,10 @@ Expression Log(NumericValue base, const Expression& exp);
 // Natural logarithm.
 Expression Log(const Expression& exp);
 
+// If the input value is zero, it will have a tiny epsilon added to it to
+// compute the approximated log.
+Expression SafeLog(const Expression& exp);
+
 // Returns base^expression.
 Expression Exp(NumericValue base, const Expression& exp);
 

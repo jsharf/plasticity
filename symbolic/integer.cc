@@ -17,7 +17,7 @@ std::string Integer::to_string() const {
     return name_;
   }
   std::ostringstream result;
-  result << static_cast<int>(a_) << "i";
+  result << static_cast<int>(a_);
   return result.str();
 }
 

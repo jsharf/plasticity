@@ -458,6 +458,8 @@ std::unique_ptr<NumericValue> DivisionExpression::TryEvaluate() const {
 
   // Fail if denominator is zero.
   if (pow(b.real(), 2) + pow(b.imag(), 2) == 0) {
+    std::cerr << "Divide by zero error in evaluation of symbol: " << to_string()
+              << std::endl;
     return nullptr;
   }
 
@@ -535,6 +537,8 @@ std::unique_ptr<NumericValue> ModulusExpression::TryEvaluate() const {
 
   // Fail if either value has an imaginary component.
   if ((a.imag() != 0) || (b.imag() != 0)) {
+    std::cerr << "Modulus taken of value with imaginary component!"
+              << std::endl;
     return nullptr;
   }
 
@@ -629,11 +633,22 @@ std::unique_ptr<NumericValue> LogExpression::TryEvaluate() const {
     return nullptr;
   }
 
+  if (child_result->real() <= 0) {
+    std::cerr << "Error: tried evaluating log of a negative number! "
+                 "LogExpression failed to TryEvaluate()."
+              << std::endl;
+    std::cerr << "\tExpression: " << child_.to_string() << std::endl;
+    std::cerr << "\tValue: " << child_result->real() << std::endl;
+    return nullptr;
+  }
+
   if ((child_result->imag() != 0) || (b_.imag() != 0)) {
-    std::cerr << "Warning: Tried evaluating a LogExpression() on a complex "
+    std::cerr << "Error: Tried evaluating a LogExpression() on a complex "
                  "expression. LogExpression is only implemented for real "
                  "numbers."
               << std::endl;
+    std::cerr << "\tExpression: " << child_.to_string() << std::endl;
+    std::cerr << "\tValue: " << child_result->real() << std::endl;
     return nullptr;
   }
 

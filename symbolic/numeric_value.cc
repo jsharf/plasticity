@@ -16,6 +16,9 @@ std::shared_ptr<const ExpressionNode> NumericValue::Bind(
 }
 
 std::set<std::string> NumericValue::variables() const {
+  if (is_bound_) {
+    return std::set<std::string>{};
+  }
   return std::set<std::string>{name_};
 }
 

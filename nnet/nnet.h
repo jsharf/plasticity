@@ -429,11 +429,12 @@ class Nnet {
       symbolic::Expression e = expected.at(row, 0);
       symbolic::Expression a = actual.at(row, 0);
       symbolic::Expression output_error =
-          (e * symbolic::Log(a)) + ((symbolic::Expression(1) - e) *
-                                    symbolic::Log(symbolic::Expression(1) - a));
+          (e * symbolic::SafeLog(a)) +
+          ((symbolic::Expression(1.0) - e) *
+           symbolic::SafeLog(symbolic::Expression(1.0) - a));
       error = error + output_error;
     }
-    return (symbolic::Expression(-1) / n) * (error);
+    return (symbolic::Expression(-1.0) / n) * (error);
   }
 
   std::string WeightsToString() const {

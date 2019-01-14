@@ -32,6 +32,14 @@ Expression Log(const Expression& exp) {
       std::make_shared<const LogExpression>(NumericValue::e, exp));
 }
 
+Expression SafeLog(const Expression& exp) {
+  Expression log = Log(exp);
+  Expression epsilon_log = Log(exp + std::numeric_limits<double>::epsilon());
+  return IfInRange(exp, symbolic::Expression(0.0),
+                   symbolic::Expression(std::numeric_limits<double>::epsilon()),
+                   epsilon_log, log);
+}
+
 Expression Exp(NumericValue base, const Expression& exp) {
   return std::static_pointer_cast<const ExpressionNode>(
       std::make_shared<const ExponentExpression>(base, exp));
@@ -113,6 +121,10 @@ Matrix<double> MapBindAndEvaluate(Matrix<symbolic::Expression> symbols,
         std::cerr << "\t" << val.first << ": " << val.second.to_string()
                   << std::endl;
       }
+      std::cerr << "Required symbols: " << std::endl;
+      for (const auto& val : e.variables()) {
+        std::cerr << ">\t" << val << std::endl;
+      }
       std::exit(1);
     }
     return maybe_value->real();
@@ -187,7 +199,7 @@ symbolic::Expression IfInRange(const symbolic::Expression& index,
                                const symbolic::Expression& ifnot) {
   const symbolic::Expression gtea(
       std::make_shared<symbolic::GteExpression>(index, a));
-  const symbolic::Expression ltb = LtExpression(b, index);
+  const symbolic::Expression ltb = LtExpression(index, b);
   const symbolic::Expression gtea_and_ltb(
       std::make_shared<symbolic::AndExpression>(gtea, ltb));
   return symbolic::Expression(

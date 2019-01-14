@@ -64,13 +64,13 @@ public:
     for (size_t col = 0; col < width - 1; ++col) {
       for (size_t row = 0; row < height; ++row) {
         size_t index = internal::Flatten2d(width, height, row, col);
-        weights_[index] = W(row, col).to_string();
         if (weights_[index] != "") {
           std::cerr << "Error found in enumerating weights..." << std::endl;
           std::cerr << "Collision at row,col: " << row << "," << col
                     << std::endl;
           std::exit(1);
         }
+        weights_[index] = W(row, col).to_string();
       }
     }
 

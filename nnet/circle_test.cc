@@ -37,11 +37,14 @@ int main() {
   nnet::Nnet::LearningParameters params{.learning_rate = 0.3};
 
   for (const std::tuple<Sample, double>& example : examples) {
+    std::cout << "curr output for train example: " << test_net.Evaluate(std::get<0>(example)).at(0, 0) << std::endl;
+    std::cout << "Training w curr output: " << std::get<1>(example) << std::endl;
     test_net.Train(std::get<0>(example),
                      Matrix<nnet::Number>(
                          {{static_cast<nnet::Number>(std::get<1>(example))}}),
                      params);
   }
+  std::cout << "done training!" << std::endl;
 
   std::cout << std::endl;
 
