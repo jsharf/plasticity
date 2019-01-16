@@ -20,6 +20,7 @@ int main() {
   nnet::Architecture model(kInputSize);
   model.AddDenseLayer(kLayerSize);
   model.AddDenseLayer(kOutputSize);
+  //nnet::Nnet test_net(model, nnet::Nnet::Xavier, nnet::Nnet::MeanSquared);
   nnet::Nnet test_net(model, nnet::Nnet::Xavier, nnet::Nnet::CrossEntropy);
 
   std::vector<std::tuple<Sample, bool>> examples;

@@ -194,6 +194,7 @@ int main() {
 
   std::cout << "Network Weights: " << std::endl;
   std::cout << test_net.WeightsToString() << std::endl;
+  std::cout << "Trained over " << samples.size() << " Samples!" << std::endl;
 
   std::cout << std::endl;
   return 0;

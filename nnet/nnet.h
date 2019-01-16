@@ -10,6 +10,7 @@
 #include "math/symbolic/expression.h"
 #include "math/symbolic/symbolic_util.h"
 
+#include <cmath>
 #include <fstream>
 #include <map>
 #include <memory>
@@ -144,7 +145,8 @@ class Nnet {
     cl::Buffer outputs;
 
     // TODO Load invalidated layer weights. Skip ones which haven't changed.
-    for (Layer& layer : model_.layers) {
+    for (size_t index = 0; index < model_.layers.size(); ++index) {
+      Layer& layer = model_.layers[index];
       outputs = cl::Buffer(context, CL_MEM_READ_WRITE,
                            layer.GetDimensions().num_outputs * sizeof(Number));
 
@@ -346,6 +348,24 @@ class Nnet {
       queue.enqueueReadBuffer(gpu_new_weights, CL_TRUE, 0,
                               sizeof(Number) * number_weights, new_weights);
 
+      for (size_t i = 0; i < number_weights; ++i) {
+        if (std::isnan(new_weights[i])) {
+          std::cerr << "Weight " << i << " NAN after update: " << std::endl;
+          std::cerr << "Training Kernels\n=============\n" << layer.GenerateTrainingKernels() << std::endl;
+          std::cerr << "Weights\n=============\n" << layer.WeightsToString() << std::endl;
+          std::cerr << "Inputs\n=============\n" << layer_input.to_string() << std::endl;
+          // Load in gradients
+          size_t number_outputs = layer.GetDimensions().num_outputs;
+          Number outputs[number_outputs];
+          queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
+                                  sizeof(Number) * number_outputs, outputs);
+          std::cerr << "GRADIENTS\n=============\n";
+          for (size_t i = 0; i < number_outputs; ++i) {
+            std::cerr << "Grad[" << i << "] = " << outputs[i] << ";\n";
+          }
+          std::exit(1);
+        }
+      }
       for (size_t i = 0; i < number_weights; ++i) {
         layer.env()[layer.weights()[i]] =
             symbolic::NumericValue(new_weights[i]);

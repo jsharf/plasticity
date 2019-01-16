@@ -97,7 +97,7 @@ public:
   Expression W(const Expression &node_idx, const Expression &edge_idx) const {
     return Expression::CreateNumericValue(
         "W[" +
-        symbolic::Flatten2d(dimensions_.num_inputs + 1, dimensions_.num_outputs,
+        symbolic::Flatten2d(dimensions_.num_outputs, dimensions_.num_inputs + 1,
                             node_idx, edge_idx)
             .to_string() +
         "]");
