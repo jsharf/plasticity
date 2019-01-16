@@ -82,6 +82,7 @@ class Nnet {
     for (auto& kernel_future : eval_kernel_futures) {
       eval_kernel_sources.push_back(kernel_future.get());
     }
+    std::cerr << "Evaluation kernels generated. Compiling..." << std::endl;
     evaluate_kernels_ = CompileCl(eval_kernel_sources, device);
     std::cerr << "Done!" << std::endl;
   }
@@ -234,13 +235,21 @@ class Nnet {
     std::cerr << "Generating and compiling OpenCl Training kernels. This takes a while"
               << " the first time." << std::endl;
 
-    std::vector<std::string> training_kernel_sources;
+    std::vector<std::future<std::string>> train_kernel_futures;
     for (const Layer& layer : model_.layers) {
-      std::cerr << "?";
-      training_kernel_sources.push_back(layer.GenerateTrainingKernels());
+      std::cerr << "/";
+      train_kernel_futures.push_back(std::async(
+          std::launch::async, &Layer::GenerateTrainingKernels, &layer));
     }
 
-    training_kernels_ = CompileCl(training_kernel_sources, device);
+    // Wait for eval kernels to be ready.
+    std::vector<std::string> train_kernel_sources;
+    for (auto& kernel_future : train_kernel_futures) {
+      std::cerr << "\\";
+      train_kernel_sources.push_back(kernel_future.get());
+    }
+    std::cerr << "Training kernels generated. Compiling..." << std::endl;
+    training_kernels_ = CompileCl(train_kernel_sources, device);
     std::cerr << "Done!" << std::endl;
   }
 
