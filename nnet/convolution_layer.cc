@@ -94,48 +94,6 @@ symbolic::Expression ConvolutionLayer::GenerateOutputSymbol(
   return output;
 }
 
-Matrix<std::vector<symbolic::Expression>>
-ConvolutionLayer::InputGradientsForOutput(
-    const symbolic::Expression& index) const {
-  symbolic::Expression output = GenerateOutputSymbol(index);
-  Matrix<std::vector<symbolic::Expression>> gradients(filters_.width,
-                                                      filters_.height);
-
-  std::tuple<size_t, size_t, size_t> output_dims =
-      GetOutputDimensions(imdim_, filters_);
-  size_t output_width = std::get<0>(output_dims);
-  size_t output_height = std::get<1>(output_dims);
-  size_t output_depth = std::get<2>(output_dims);
-
-  symbolic::Expression output_row = symbolic::Unflatten3dRow(
-      output_width, output_height, output_depth, index);
-
-  symbolic::Expression output_col = symbolic::Unflatten3dCol(
-      output_width, output_height, output_depth, index);
-
-  symbolic::Expression output_filter = symbolic::Unflatten3dPlane(
-      output_width, output_height, output_depth, index);
-
-  symbolic::Expression conv_start_row =
-      (output_row * filters_.stride) - filters_.padding + filters_.width / 2;
-  symbolic::Expression conv_start_col =
-      (output_col * filters_.stride) - filters_.padding + filters_.height / 2;
-
-  for (size_t f_x = 0; f_x < filters_.width; ++f_x) {
-    for (size_t f_y = 0; f_y < filters_.height; ++f_y) {
-      gradients.at(f_x, f_y).resize(filters_.depth);
-      for (size_t f_z = 0; f_z < filters_.depth; ++f_z) {
-        symbolic::Expression input_x = conv_start_row + f_x;
-        symbolic::Expression input_y = conv_start_col + f_y;
-        symbolic::Expression input_z = f_z;
-        gradients.at(f_x, f_y)[f_z] =
-            output.Derive(generator_.I(input_x, input_y, input_z).to_string());
-      }
-    }
-  }
-  return gradients;
-}
-
 void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
                                          codegen::Generator *cg) const {
   std::tuple<size_t, size_t, size_t> output_dims =
@@ -175,13 +133,31 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
         symbolic::Expression neighbor_output_flat_index = symbolic::Flatten3d(
             output_width, output_height, output_depth, output_row + d,
             output_col + k, symbolic::Expression(filter));
-        Matrix<std::vector<symbolic::Expression>> neighbor_gradients =
-            InputGradientsForOutput(neighbor_output_flat_index);
-        const std::vector<symbolic::Expression> &self_gradients_of_neighbor =
-            neighbor_gradients.at(output_net_width / 2 - d,
-                                  output_net_height / 2 - k);
-        for (const auto &gradient_component : self_gradients_of_neighbor) {
-          gradient_code += gradient_component *
+        // When looking at the gradient component propagated from a neighbor
+        // output, we want to consider which weight this input is multiplied by
+        // to generate that output (this is the derivative wrt ourselves). So to
+        // get this, we need to figure out the relative coordinate of this input
+        // within the convolution domain of the neighboring output. Thinking of
+        // the 1-dimensional case, say you have a convolution of width 3. If you
+        // are looking for the backprop gradients of position I in an input
+        // array...
+        // Example 1D convolution:
+        //                 [ w1, w2, w3]
+        // [i[-3], i[-2], i[-1], i, i[+1], i[+2], i[+3]]
+        // 
+        // output = (i[-1] * w1) + (i * w2) + (i[+1] * w3)
+        //
+        // derivative of output w.r.t. i[-1] = w1.
+        //
+        // So for all partial derivatives wrt to some input, we need to find the
+        // weights (w1 in this case) multiplied by this input in order to
+        // generate all neighboring outputs.
+        size_t self_in_neighbor_col = output_net_width / 2 - d;
+        size_t self_in_neighbor_row = output_net_height / 2 - k;
+
+        for (size_t z = 0; z < filters_.depth; ++z) {
+          gradient_code += generator_.W(filter, self_in_neighbor_row,
+                                        self_in_neighbor_col, z) *
                            generator_.GRADIENT(neighbor_output_flat_index);
         }
       }

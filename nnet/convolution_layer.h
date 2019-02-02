@@ -43,9 +43,11 @@ class ConvolutionLayer : public LayerImpl {
   void InputGradientCode(const symbolic::Expression &index,
                          codegen::Generator *cg) const override;
 
-  Matrix<std::vector<symbolic::Expression>> InputGradientsForOutput(const symbolic::Expression& index) const;
-
   std::unique_ptr<LayerImpl> Clone() const override;
+
+  std::string layer_type() const override {
+    return "convolution_layer";
+  }
 
  private:
   ConvSymbolGenerator generator_;

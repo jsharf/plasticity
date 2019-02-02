@@ -28,6 +28,11 @@ class SoftmaxLayer : public LayerImpl {
                           codegen::Generator *cg) const override;
 
   std::unique_ptr<LayerImpl> Clone() const override;
+
+  std::string layer_type() const override {
+    return "softmax_layer";
+  }
+
  private:
    symbolic::Expression
    GenerateOutputSymbol(const symbolic::Expression &index) const;

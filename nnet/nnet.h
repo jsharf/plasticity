@@ -82,6 +82,9 @@ class Nnet {
     for (auto& kernel_future : eval_kernel_futures) {
       eval_kernel_sources.push_back(kernel_future.get());
     }
+    for (auto& kernel_source : eval_kernel_sources) {
+      // std::cerr << kernel_source << std::endl;
+    }
     std::cerr << "Evaluation kernels generated. Compiling..." << std::endl;
     evaluate_kernels_ = CompileCl(eval_kernel_sources, device);
     std::cerr << "Done!" << std::endl;
@@ -248,6 +251,9 @@ class Nnet {
       std::cerr << "\\";
       train_kernel_sources.push_back(kernel_future.get());
     }
+    //for (auto& kernel_source : train_kernel_sources) {
+    //  std::cerr << kernel_source << std::endl;
+    //}
     std::cerr << "Training kernels generated. Compiling..." << std::endl;
     training_kernels_ = CompileCl(train_kernel_sources, device);
     std::cerr << "Done!" << std::endl;
@@ -417,6 +423,8 @@ class Nnet {
     }
   }
 
+  // TODO(sharf): oops, I think N might be the number of examples (1 here) in
+  // the batch, not the number of rows...
   symbolic::Expression GenerateMseErrorExpression(
       const Matrix<symbolic::Expression>& actual,
       const Matrix<symbolic::Expression>& expected) const {
@@ -439,6 +447,8 @@ class Nnet {
     return error / n;
   }
 
+  // TODO(sharf): oops, I think N might be the number of examples (1 here) in
+  // the batch, not the number of rows...
   symbolic::Expression GenerateCrossEntropyErrorExpression(
       const Matrix<symbolic::Expression>& actual,
       const Matrix<symbolic::Expression>& expected) const {
@@ -458,12 +468,15 @@ class Nnet {
       symbolic::Expression e = expected.at(row, 0);
       symbolic::Expression a = actual.at(row, 0);
       symbolic::Expression output_error =
-          (e * symbolic::SafeLog(a)) +
+          (e * symbolic::Log(a)) +
           ((symbolic::Expression(1.0) - e) *
-           symbolic::SafeLog(symbolic::Expression(1.0) - a));
+           symbolic::Log(symbolic::Expression(1.0) - a));
       error = error + output_error;
     }
-    return (symbolic::Expression(-1.0) / n) * (error);
+    symbolic::Expression result = ((symbolic::Expression(-1.0) / ((double)n)) * (error));
+    std::cerr << "crossent err: " << std::endl;
+    std::cerr << result.to_string() << std::endl;
+    return result;
   }
 
   std::string WeightsToString() const {

@@ -48,6 +48,10 @@ class MaxPoolLayer : public LayerImpl {
 
   std::unique_ptr<LayerImpl> Clone() const override;
 
+  std::string layer_type() const override {
+    return "max_pool_layer";
+  }
+
  private:
   InputVolumeSymbolGenerator generator_;
   VolumeDimensions input_;

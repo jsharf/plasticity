@@ -42,6 +42,8 @@ class LayerImpl {
 
   size_t layer_index() const { return layer_index_; }
 
+  virtual std::string layer_type() const = 0;
+
   virtual ~LayerImpl() {}
 
  protected:

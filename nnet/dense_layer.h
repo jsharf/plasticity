@@ -41,6 +41,10 @@ class DenseLayer : public LayerImpl {
 
   std::unique_ptr<LayerImpl> Clone() const override;
 
+  std::string layer_type() const override {
+    return "dense_layer";
+  }
+
  private:
   DenseSymbolGenerator generator_;
   Dimensions dimensions_;

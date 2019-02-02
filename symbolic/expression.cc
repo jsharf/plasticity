@@ -396,6 +396,54 @@ std::string GteExpression::to_string() const {
   return result;
 }
 
+// == Expression
+
+std::set<std::string> EqExpression::variables() const {
+  std::set<std::string> variables;
+  std::set<std::string> a_vars = a_.variables();
+  std::set<std::string> b_vars = b_.variables();
+
+  variables.insert(a_vars.begin(), a_vars.end());
+  variables.insert(b_vars.begin(), b_vars.end());
+  return variables;
+}
+
+std::shared_ptr<const ExpressionNode> EqExpression::Bind(
+    const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+    const {
+  return std::make_shared<EqExpression>(a_.Bind(env), b_.Bind(env));
+}
+
+std::unique_ptr<NumericValue> EqExpression::TryEvaluate() const {
+  std::unique_ptr<NumericValue> a_result = a_.Evaluate();
+
+  std::unique_ptr<NumericValue> b_result = b_.Evaluate();
+
+  if (!(a_result && b_result)) {
+    return nullptr;
+  }
+
+  NumericValue a = *a_result;
+  NumericValue b = *b_result;
+
+  return std::make_unique<Integer>((a.real() == b.real()) ? 1.0 : 0.0);
+}
+
+// Not defined for ==.
+std::shared_ptr<const ExpressionNode> EqExpression::Derive(
+    const std::string& x) const {
+  return nullptr;
+}
+
+std::string EqExpression::to_string() const {
+  std::string result = "(";
+  result += a_.to_string();
+  result += ") == (";
+  result += b_.to_string();
+  result += ")";
+  return result;
+}
+
 // Not Expression
 
 std::set<std::string> NotExpression::variables() const {

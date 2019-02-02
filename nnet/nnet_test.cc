@@ -15,6 +15,63 @@ using Input = Matrix<Number>;
 Input MakeInput(Number a, Number b, Number c) { return Input({{a}, {b}, {c}}); }
 Input MakeInput(Number a, Number b) { return Input({{a}, {b}}); }
 
+// This test case generated from only the first layer in the example at:
+// https://medium.com/@14prakash/back-propagation-is-very-simple-who-made-it-complicated-97b794c97e5c
+TEST_CASE("One-layer RELU network output is validated", "[nnet]") {
+  // This test has a very lenient epsilon compared to regular floating point
+  // comparisons because the author of the article (linked above) that this test
+  // is based off of used very lenient rounding when calculating the expected
+  // outputs.
+  constexpr double EPSILON = 0.001;
+
+  constexpr size_t kInputSize = 3;
+  constexpr size_t kLayerSize = 3;
+  constexpr size_t kOutputSize = 3;
+
+  Architecture model(kInputSize);
+  model.AddDenseLayer(kLayerSize, symbolic::Relu);
+
+  DenseSymbolGenerator s(Dimensions{3, 3});
+
+  // Layer 1.
+  //
+  // The weights used in layer 1 in this example are actually misprinted at one
+  // point in the article. They are printed correctly at the beginning & end
+  // however, and in the area with the misprint, the results match what you
+  // would expect using the correct weights, so it looks like it's just a
+  // harmless (yet confusing) mistake.
+  //
+  // Node 1 edges.
+  model.layers[1].env()[s.W(0, 0).to_string()] = 0.1;
+  model.layers[1].env()[s.W(0, 1).to_string()] = 0.3;
+  model.layers[1].env()[s.W(0, 2).to_string()] = 0.4;
+  model.layers[1].env()[s.W(0).to_string()] = 1;  // bias.
+  // Node 2 edges.
+  model.layers[1].env()[s.W(1, 0).to_string()] = 0.2;
+  model.layers[1].env()[s.W(1, 1).to_string()] = 0.2;
+  model.layers[1].env()[s.W(1, 2).to_string()] = 0.3;
+  model.layers[1].env()[s.W(1).to_string()] = 1;  // bias.
+  // Node 3 edges.
+  model.layers[1].env()[s.W(2, 0).to_string()] = 0.3;
+  model.layers[1].env()[s.W(2, 1).to_string()] = 0.7;
+  model.layers[1].env()[s.W(2, 2).to_string()] = 0.9;
+  model.layers[1].env()[s.W(2).to_string()] = 1;  // bias.
+
+  // Use the model to generate a neural network.
+  Nnet test_net(model, Nnet::NoWeightInit, Nnet::CrossEntropy);
+
+  SECTION("Verify output") {
+    Matrix<Number> output =
+        test_net.Evaluate(MakeInput(0.1, 0.2, 0.7));
+    REQUIRE(output.dimensions().rows == 3);
+    REQUIRE(output.dimensions().cols == 1);
+
+    REQUIRE(output.at(0, 0) == Approx(1.35).epsilon(EPSILON));
+    REQUIRE(output.at(1, 0) == Approx(1.27).epsilon(EPSILON));
+    REQUIRE(output.at(2, 0) == Approx(1.8).epsilon(EPSILON));
+  }
+}
+
 // This test case generated from the example at:
 // https://medium.com/@14prakash/back-propagation-is-very-simple-who-made-it-complicated-97b794c97e5c
 TEST_CASE("Simple neural network output is validated", "[nnet]") {
@@ -47,6 +104,12 @@ TEST_CASE("Simple neural network output is validated", "[nnet]") {
   // clunky.
 
   // Layer 1.
+  //
+  // The weights used in layer 1 in this example are actually misprinted at one
+  // point in the article. They are printed correctly at the beginning & end
+  // however, and in the area with the misprint, the results match what you
+  // would expect using the correct weights, so it looks like it's just a
+  // harmless (yet confusing) mistake.
   //
   // Node 1 edges.
   model.layers[1].env()[s.W(0, 0).to_string()] = 0.1;

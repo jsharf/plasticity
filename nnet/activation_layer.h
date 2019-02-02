@@ -33,6 +33,10 @@ class ActivationLayer : public LayerImpl {
 
   std::unique_ptr<LayerImpl> Clone() const override;
 
+  std::string layer_type() const override {
+    return "activation_layer";
+  }
+
  private:
   ActivationFunctionType activation_function_;
   SymbolGenerator generator_;

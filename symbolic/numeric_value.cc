@@ -43,6 +43,7 @@ std::string NumericValue::to_string() const {
     return name_;
   }
   std::ostringstream result;
+  result << std::showpoint;
   result << a_;
   if (b_ != 0) {
     result << " + " << b_ << "i";

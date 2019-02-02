@@ -285,6 +285,41 @@ class GteExpression : public ExpressionNode {
   Expression b_;
 };
 
+// == Conditional expression
+
+class EqExpression : public ExpressionNode {
+ public:
+  EqExpression(const Expression& a, const Expression& b) : a_(a), b_(b) {}
+
+  // Variables which need to be resolved in order to evaluate the expression.
+  std::set<std::string> variables() const override;
+
+  // Bind variables to values to create an expression which can be evaluated.
+  std::shared_ptr<const ExpressionNode> Bind(
+      const std::unordered_map<std::string, std::unique_ptr<NumericValue>>& env)
+      const override;
+
+  // If all variables in the expression have been bound, this produces a
+  // numerical evaluation of the expression.
+  std::unique_ptr<NumericValue> TryEvaluate() const override;
+
+  // Not defined for EqExpression. Returns nullptr.
+  std::shared_ptr<const ExpressionNode> Derive(
+      const std::string& x) const override;
+
+  std::string to_string() const override;
+
+  std::unique_ptr<const ExpressionNode> Clone() const override {
+    std::unique_ptr<GteExpression> clone =
+        std::make_unique<GteExpression>(a_, b_);
+    return clone;
+  }
+
+ private:
+  Expression a_;
+  Expression b_;
+};
+
 class NotExpression : public ExpressionNode {
  public:
   NotExpression(const Expression& child) : child_(child) {}
