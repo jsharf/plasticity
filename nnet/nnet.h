@@ -251,9 +251,9 @@ class Nnet {
       std::cerr << "\\";
       train_kernel_sources.push_back(kernel_future.get());
     }
-    //for (auto& kernel_source : train_kernel_sources) {
-    //  std::cerr << kernel_source << std::endl;
-    //}
+    for (auto& kernel_source : train_kernel_sources) {
+      std::cerr << kernel_source << std::endl;
+    }
     std::cerr << "Training kernels generated. Compiling..." << std::endl;
     training_kernels_ = CompileCl(train_kernel_sources, device);
     std::cerr << "Done!" << std::endl;
@@ -288,6 +288,7 @@ class Nnet {
 
     symbolic::Expression error =
         GenerateErrorExpression(output_symbolic, expected_symbolic);
+    std::cout << "Error expression: " << std::endl << error.to_string() << std::endl;
 
     // Simultaneously generate symbolic expressions for output gradients and
     // build environment for evaluating them.
@@ -297,12 +298,18 @@ class Nnet {
       output_gradients_symbolic.at(i, 0) =
           error.Derive(output_symbolic.at(i, 0).to_string());
 
+      std::cout << "Partial error derivative wrt O[" << i << "]: " << std::endl << output_gradients_symbolic.at(i, 0).to_string() << std::endl;
+
       env[generator_.O(i)] = symbolic::NumericValue(actual_output.at(i, 0));
+      std::cout << "O[" << i << "] = " << actual_output.at(i, 0) << std::endl;
     }
 
     // Generate output gradients (first part of backprop).
     Matrix<Number> gradients =
         symbolic::MapBindAndEvaluate(output_gradients_symbolic, env);
+
+    std::cout << "Training initial gradients: " << std::endl;
+    std::cout << gradients.to_string() << std::endl;
 
     cl::Buffer gpu_gradients =
           ColumnVectorToGpuBuffer(context, &queue, gradients);
@@ -328,6 +335,7 @@ class Nnet {
       for (size_t i = 0; i < number_weights; ++i) {
         weights_buf[i] =
             static_cast<double>(layer.env()[layer.weights()[i]].real());
+        std::cout << weights_buf[i] << std::endl;
       }
       queue.enqueueWriteBuffer(weights, CL_TRUE, 0,
                                sizeof(Number) * number_weights, weights_buf);
@@ -342,6 +350,7 @@ class Nnet {
       cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
       queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0, sizeof(Number),
                                &params.learning_rate);
+      std::cout << "learning_rate: " << params.learning_rate << std::endl;
 
       cl::Buffer gpu_new_weights(context, CL_MEM_READ_WRITE,
                                  number_weights * sizeof(Number));
@@ -358,30 +367,27 @@ class Nnet {
                                  cl::NDRange(layer.weights().size()),
                                  cl::NullRange);
 
+      std::cout << "Pretrain weights: " << "\n=============\n" << layer.WeightsToString() << std::endl;
+      std::cout << "Inputs\n=============\n" << layer_input.to_string() << std::endl;
+      
+      // Load in gradients
+      size_t number_outputs = layer.GetDimensions().num_outputs;
+      Number grads[number_outputs];
+      queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
+                              sizeof(Number) * number_outputs, grads);
+      std::cout << "GRADIENTS\n=============\n";
+      for (size_t i = 0; i < number_outputs; ++i) {
+        std::cerr << "Grad[" << i << "] = " << grads[i] << ";\n";
+      }
+
       // Load in weight updates.
       Number new_weights[number_weights];
       queue.enqueueReadBuffer(gpu_new_weights, CL_TRUE, 0,
                               sizeof(Number) * number_weights, new_weights);
 
+      std::cout << "post train weights: " << std::endl;
       for (size_t i = 0; i < number_weights; ++i) {
-        if (std::isnan(new_weights[i])) {
-          std::cerr << "Weight " << i << " NAN after update: " << std::endl;
-          std::cerr << "Training Kernels\n=============\n" << layer.GenerateTrainingKernels() << std::endl;
-          std::cerr << "Weights\n=============\n" << layer.WeightsToString() << std::endl;
-          std::cerr << "Inputs\n=============\n" << layer_input.to_string() << std::endl;
-          // Load in gradients
-          size_t number_outputs = layer.GetDimensions().num_outputs;
-          Number outputs[number_outputs];
-          queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
-                                  sizeof(Number) * number_outputs, outputs);
-          std::cerr << "GRADIENTS\n=============\n";
-          for (size_t i = 0; i < number_outputs; ++i) {
-            std::cerr << "Grad[" << i << "] = " << outputs[i] << ";\n";
-          }
-          std::exit(1);
-        }
-      }
-      for (size_t i = 0; i < number_weights; ++i) {
+        std::cout << "W[" << i << "] = " << new_weights[i] << std::endl;
         layer.env()[layer.weights()[i]] =
             symbolic::NumericValue(new_weights[i]);
       }
@@ -463,7 +469,7 @@ class Nnet {
 
     size_t n = actual.dimensions().rows;
 
-    symbolic::Expression error;
+    symbolic::Expression error(0.0);
     for (size_t row = 0; row < actual.dimensions().rows; ++row) {
       symbolic::Expression e = expected.at(row, 0);
       symbolic::Expression a = actual.at(row, 0);
@@ -473,10 +479,7 @@ class Nnet {
            symbolic::Log(symbolic::Expression(1.0) - a));
       error = error + output_error;
     }
-    symbolic::Expression result = ((symbolic::Expression(-1.0) / ((double)n)) * (error));
-    std::cerr << "crossent err: " << std::endl;
-    std::cerr << result.to_string() << std::endl;
-    return result;
+    return ((symbolic::Expression(-1.0) / n) * error);
   }
 
   std::string WeightsToString() const {

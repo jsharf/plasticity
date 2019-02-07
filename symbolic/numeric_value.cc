@@ -33,9 +33,9 @@ std::unique_ptr<NumericValue> NumericValue::TryEvaluate() const {
 std::shared_ptr<const ExpressionNode> NumericValue::Derive(
     const std::string& x) const {
   if (!is_bound_ && (name_ == x)) {
-    return std::make_shared<NumericValue>(1);
+    return std::make_shared<NumericValue>(1.0);
   }
-  return std::make_shared<NumericValue>(0);
+  return std::make_shared<NumericValue>(0.0);
 }
 
 std::string NumericValue::to_string() const {

@@ -1,5 +1,6 @@
+#include "math/nnet/dense_layer.h"
 
-
+#include <vector>
 #include <cassert>
 
 namespace nnet {
@@ -18,7 +19,7 @@ const std::vector<std::string>& DenseLayer::weights() const {
 
 void DenseLayer::GenerateOutputCode(const symbolic::Expression &output_index,
                                     codegen::Generator *cg) const {
-  symbolic::Expression sum = 0;
+  symbolic::Expression sum = 0.0;
   for (size_t i = 0; i < dimensions_.num_inputs; ++i) {
     sum += generator_.W(output_index, Expression(i)) * generator_.I(i);
   }
@@ -34,7 +35,7 @@ void DenseLayer::GenerateOutputCode(const symbolic::Expression &output_index,
 // input multiplied by the back-propagated gradients.
 void DenseLayer::InputGradientCode(const symbolic::Expression &input_index,
                                    codegen::Generator *cg) const {
-  symbolic::Expression sum = 0;
+  symbolic::Expression sum = 0.0;
   for (size_t out_index = 0; out_index < dimensions_.num_outputs; ++out_index) {
     sum += generator_.GRADIENT(out_index) * generator_.W(symbolic::Expression(out_index), input_index);
   }

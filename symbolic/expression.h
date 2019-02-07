@@ -31,7 +31,7 @@ Expression CreateExpression(std::string expression);
 // interface.
 class Expression {
  public:
-  Expression() : Expression(0) {}
+  Expression() : Expression(0.0) {}
 
   Expression(std::unique_ptr<const ExpressionNode>&& root);
   Expression(std::shared_ptr<const ExpressionNode> root);

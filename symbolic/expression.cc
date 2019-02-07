@@ -166,7 +166,7 @@ Expression Expression::Derive(const std::string& x) const {
   // df(x)/dx = 0.
   std::set<std::string> unbound_vars = variables();
   if (unbound_vars.find(x) == unbound_vars.end()) {
-    return Expression(0);
+    return Expression(0.0);
   }
 
   return Expression(expression_root_->Derive(x));

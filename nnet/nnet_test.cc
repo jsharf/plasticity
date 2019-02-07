@@ -191,7 +191,7 @@ TEST_CASE("Simple neural network output is validated", "[nnet]") {
     // Incorrect actual output values because the example used had a weird
     // calculation for softmax (a/sum(a)) instead of exp(a)/sum(exp(a)).
     Matrix<symbolic::Expression> actual({{0.26980}, {0.32235}, {0.40784}});
-    Matrix<symbolic::Expression> expected({{1}, {0}, {0}});
+    Matrix<symbolic::Expression> expected({{1.0}, {0.0}, {0.0}});
 
     // Verify error value.
     symbolic::Expression error_value =
@@ -280,6 +280,9 @@ TEST_CASE("Simple neural network output and gradient descent is validated",
     // Layer 1.
     //
     // Node 1 edges.
+    for (auto kv : model.layers[1].env()) {
+      std::cout << kv.first << ": " << kv.second.to_string() << std::endl;
+    }
     REQUIRE(model.layers[1].env()[s.W(0, 0).to_string()].real() == Approx(0.149780716));
     REQUIRE(model.layers[1].env()[s.W(0, 1).to_string()].real() == Approx(0.19956143));
     // Node 2 edges.
