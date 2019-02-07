@@ -94,12 +94,16 @@ class Layer {
   // the next layer backwards.
   std::string GenerateTrainingKernels() const;
 
+  std::string LayerSuffix() const {
+    return impl_->layer_type() + "_" + std::to_string(impl_->layer_index());
+  }
+
   std::string InputGradientKernelName() const {
-    return "input_delta_"  + std::to_string(impl_->layer_index());
+    return "input_delta_" + LayerSuffix();
   }
 
   std::string WeightGradientKernelName() const {
-    return "weight_delta_" + std::to_string(impl_->layer_index());
+    return "weight_delta_" + LayerSuffix();
   }
 
   Matrix<symbolic::Expression> InputExpression() const;

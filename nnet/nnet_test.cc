@@ -283,20 +283,20 @@ TEST_CASE("Simple neural network output and gradient descent is validated",
     for (auto kv : model.layers[1].env()) {
       std::cout << kv.first << ": " << kv.second.to_string() << std::endl;
     }
-    REQUIRE(model.layers[1].env()[s.W(0, 0).to_string()].real() == Approx(0.149780716));
-    REQUIRE(model.layers[1].env()[s.W(0, 1).to_string()].real() == Approx(0.19956143));
+    CHECK(model.layers[1].env()[s.W(0, 0).to_string()].real() == Approx(0.149780716));
+    CHECK(model.layers[1].env()[s.W(0, 1).to_string()].real() == Approx(0.19956143));
     // Node 2 edges.
-    REQUIRE(model.layers[1].env()[s.W(1, 0).to_string()].real() == Approx(0.24975114));
-    REQUIRE(model.layers[1].env()[s.W(1, 1).to_string()].real() == Approx(0.29950229));
+    CHECK(model.layers[1].env()[s.W(1, 0).to_string()].real() == Approx(0.24975114));
+    CHECK(model.layers[1].env()[s.W(1, 1).to_string()].real() == Approx(0.29950229));
 
     // Layer 2.
     //
     // Node 1 edges.
-    REQUIRE(model.layers[2].env()[s.W(0, 0).to_string()].real() == Approx(0.35891648));
-    REQUIRE(model.layers[2].env()[s.W(0, 1).to_string()].real() == Approx(0.408666186));
+    CHECK(model.layers[2].env()[s.W(0, 0).to_string()].real() == Approx(0.35891648));
+    CHECK(model.layers[2].env()[s.W(0, 1).to_string()].real() == Approx(0.408666186));
     // Node 2 edges.
-    REQUIRE(model.layers[2].env()[s.W(1, 0).to_string()].real() == Approx(0.511301270));
-    REQUIRE(model.layers[2].env()[s.W(1, 1).to_string()].real() == Approx(0.561370121));
+    CHECK(model.layers[2].env()[s.W(1, 0).to_string()].real() == Approx(0.511301270));
+    CHECK(model.layers[2].env()[s.W(1, 1).to_string()].real() == Approx(0.561370121));
   }
 }
 

@@ -288,7 +288,6 @@ class Nnet {
 
     symbolic::Expression error =
         GenerateErrorExpression(output_symbolic, expected_symbolic);
-    std::cout << "Error expression: " << std::endl << error.to_string() << std::endl;
 
     // Simultaneously generate symbolic expressions for output gradients and
     // build environment for evaluating them.
@@ -298,18 +297,12 @@ class Nnet {
       output_gradients_symbolic.at(i, 0) =
           error.Derive(output_symbolic.at(i, 0).to_string());
 
-      std::cout << "Partial error derivative wrt O[" << i << "]: " << std::endl << output_gradients_symbolic.at(i, 0).to_string() << std::endl;
-
       env[generator_.O(i)] = symbolic::NumericValue(actual_output.at(i, 0));
-      std::cout << "O[" << i << "] = " << actual_output.at(i, 0) << std::endl;
     }
 
     // Generate output gradients (first part of backprop).
     Matrix<Number> gradients =
         symbolic::MapBindAndEvaluate(output_gradients_symbolic, env);
-
-    std::cout << "Training initial gradients: " << std::endl;
-    std::cout << gradients.to_string() << std::endl;
 
     cl::Buffer gpu_gradients =
           ColumnVectorToGpuBuffer(context, &queue, gradients);
@@ -335,7 +328,6 @@ class Nnet {
       for (size_t i = 0; i < number_weights; ++i) {
         weights_buf[i] =
             static_cast<double>(layer.env()[layer.weights()[i]].real());
-        std::cout << weights_buf[i] << std::endl;
       }
       queue.enqueueWriteBuffer(weights, CL_TRUE, 0,
                                sizeof(Number) * number_weights, weights_buf);
@@ -350,26 +342,29 @@ class Nnet {
       cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
       queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0, sizeof(Number),
                                &params.learning_rate);
-      std::cout << "learning_rate: " << params.learning_rate << std::endl;
 
       cl::Buffer gpu_new_weights(context, CL_MEM_READ_WRITE,
                                  number_weights * sizeof(Number));
 
-      // Backprop layer weight updates.
-      std::string weight_kernel_name = layer.WeightGradientKernelName();
-      cl::Kernel weight_update(program, weight_kernel_name.c_str());
-      weight_update.setArg(0, gpu_layer_input);
-      weight_update.setArg(1, weights);
-      weight_update.setArg(2, gpu_gradients);
-      weight_update.setArg(3, gpu_new_weights);
-      weight_update.setArg(4, learning_rate_buff);
-      queue.enqueueNDRangeKernel(weight_update, cl::NullRange,
-                                 cl::NDRange(layer.weights().size()),
-                                 cl::NullRange);
+      if (layer.weights().size() > 0) {
+        // Backprop layer weight updates.
+        std::string weight_kernel_name = layer.WeightGradientKernelName();
+        cl::Kernel weight_update(program, weight_kernel_name.c_str());
+        weight_update.setArg(0, gpu_layer_input);
+        weight_update.setArg(1, weights);
+        weight_update.setArg(2, gpu_gradients);
+        weight_update.setArg(3, gpu_new_weights);
+        weight_update.setArg(4, learning_rate_buff);
+        cl_int result = queue.enqueueNDRangeKernel(weight_update, cl::NullRange,
+                                   cl::NDRange(layer.weights().size()),
+                                   cl::NullRange);
+        if (result != CL_SUCCESS) {
+          std::cerr << "Error enqueuing kernel "
+                    << layer.WeightGradientKernelName() << std::endl;
+          std::exit(1);
+        }
+      }
 
-      std::cout << "Pretrain weights: " << "\n=============\n" << layer.WeightsToString() << std::endl;
-      std::cout << "Inputs\n=============\n" << layer_input.to_string() << std::endl;
-      
       // Load in gradients
       size_t number_outputs = layer.GetDimensions().num_outputs;
       Number grads[number_outputs];
@@ -396,16 +391,24 @@ class Nnet {
           context, CL_MEM_READ_WRITE,
           sizeof(Number) * layer.GetDimensions().num_inputs);
 
-      // Backprop gradient calculation.
-      std::string input_kernel_name = layer.InputGradientKernelName();
-      cl::Kernel input_update(program, input_kernel_name.c_str());
-      input_update.setArg(0, gpu_layer_input);
-      input_update.setArg(1, weights);
-      input_update.setArg(2, gpu_gradients);
-      input_update.setArg(3, gpu_new_gradients);
-      queue.enqueueNDRangeKernel(input_update, cl::NullRange,
-                                 cl::NDRange(layer.GetDimensions().num_inputs),
-                                 cl::NullRange);
+      if (layer.GetDimensions().num_inputs > 0) {
+
+        // Backprop gradient calculation.
+        std::string input_kernel_name = layer.InputGradientKernelName();
+        cl::Kernel input_update(program, input_kernel_name.c_str());
+        input_update.setArg(0, gpu_layer_input);
+        input_update.setArg(1, weights);
+        input_update.setArg(2, gpu_gradients);
+        input_update.setArg(3, gpu_new_gradients);
+        cl_int result = queue.enqueueNDRangeKernel(
+            input_update, cl::NullRange,
+            cl::NDRange(layer.GetDimensions().num_inputs), cl::NullRange);
+        if (result != CL_SUCCESS) {
+          std::cerr << "Error enqueuing kernel "
+                    << layer.InputGradientKernelName() << std::endl;
+          std::exit(1);
+        }
+      }
 
       // Use the new input gradients for the next layer backwards (the one
       // before this one, we're iterating backwards).

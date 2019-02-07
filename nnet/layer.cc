@@ -205,9 +205,7 @@ std::string Layer::GenerateTrainingKernels() const {
 
   for (size_t replacement_time = 0;
        replacement_time < kNumberExpectedReplacements; ++replacement_time) {
-    if (!FindAndReplace(&train_source, "LAYERID",
-                        impl_->layer_type() + "_" +
-                            std::to_string(impl_->layer_index()))) {
+    if (!FindAndReplace(&train_source, "LAYERID", LayerSuffix())) {
       std::cerr << "Could not find template substring \"LAYERID\"."
                 << std::endl;
       std::exit(1);
