@@ -69,10 +69,14 @@ struct Architecture {
     return *this;
   }
 
-  Architecture& AddConvolutionLayer(const VolumeDimensions& dimensions,
-                                    const FilterParams& params) {
+  // Adds an implicit
+  Architecture &AddConvolutionLayer(
+      const VolumeDimensions &dimensions, const FilterParams &params,
+      const ActivationFunctionType &activation_function = symbolic::Relu) {
     layers.push_back(
         Layer::MakeConvolutionLayer(layers.size(), dimensions, params));
+    size_t conv_outputs = layers[layers.size() - 1].GetDimensions().num_outputs;
+    AddActivationLayer(conv_outputs, activation_function);
     return *this;
   }
 

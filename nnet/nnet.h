@@ -82,12 +82,9 @@ class Nnet {
     for (auto& kernel_future : eval_kernel_futures) {
       eval_kernel_sources.push_back(kernel_future.get());
     }
-    for (auto& kernel_source : eval_kernel_sources) {
-      // std::cerr << kernel_source << std::endl;
-    }
-    std::cerr << "Evaluation kernels generated. Compiling..." << std::endl;
+    std::cout << "Evaluation kernels generated. Compiling..." << std::endl;
     evaluate_kernels_ = CompileCl(eval_kernel_sources, device);
-    std::cerr << "Done!" << std::endl;
+    std::cout << "Done!" << std::endl;
   }
 
   static bool ClDevicesAreEqual(const cl::Device& a, const cl::Device& b) {

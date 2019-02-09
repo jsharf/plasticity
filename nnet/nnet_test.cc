@@ -26,7 +26,6 @@ TEST_CASE("One-layer RELU network output is validated", "[nnet]") {
 
   constexpr size_t kInputSize = 3;
   constexpr size_t kLayerSize = 3;
-  constexpr size_t kOutputSize = 3;
 
   Architecture model(kInputSize);
   model.AddDenseLayer(kLayerSize, symbolic::Relu);

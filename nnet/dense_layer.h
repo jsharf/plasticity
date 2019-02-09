@@ -49,6 +49,8 @@ class DenseLayer : public LayerImpl {
   DenseSymbolGenerator generator_;
   Dimensions dimensions_;
 
+  symbolic::Expression OutputSymbol(const symbolic::Expression &output_index) const;
+
   // This function will be used to map the activation function to a matrix
   // of symbolic expressions.
   std::function<symbolic::Expression(const symbolic::Expression &)>
