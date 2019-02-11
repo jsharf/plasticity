@@ -42,12 +42,6 @@ Layer &Layer::operator=(Layer &&rhs) {
 }
 
 // Dense layer static constructors.
-Layer Layer::MakeDenseLayer(size_t layer_index, const Dimensions &dimensions,
-                            const ActivationFunctionType &activation_function) {
-  return Layer(std::make_unique<DenseLayer>(dimensions, activation_function,
-                                            layer_index));
-}
-
 Layer Layer::MakeDenseLayer(size_t layer_index, const Dimensions &dimensions) {
   return Layer(std::make_unique<DenseLayer>(dimensions, layer_index));
 }

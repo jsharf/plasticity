@@ -46,13 +46,9 @@ class Layer {
   Layer& operator=(const Layer& rhs);
   Layer& operator=(Layer&& rhs);
 
-  // Dense Layer constructors.
-  static Layer MakeDenseLayer(
-      size_t layer_index, const Dimensions& dimensions,
-      const ActivationFunctionType& activation_function);
-
-  static Layer MakeDenseLayer(size_t layer_index,
-                                    const Dimensions& dimensions);
+  // Dense Layer constructor. Dense layers alone do not contain an activation
+  // function. This is done via a separate activation layer.
+  static Layer MakeDenseLayer(size_t layer_index, const Dimensions &dimensions);
 
   // Convolutional Layer constructors.
   static Layer MakeConvolutionLayer(size_t layer_index,

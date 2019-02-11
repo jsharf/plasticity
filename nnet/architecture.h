@@ -52,8 +52,8 @@ struct Architecture {
         num_outputs,
     };
 
-    layers.push_back(Layer::MakeDenseLayer(layers.size(), dimensions,
-                                                 activation_function));
+    layers.push_back(Layer::MakeDenseLayer(layers.size(), dimensions));
+    AddActivationLayer(activation_function);
     return *this;
   }
 
@@ -66,6 +66,7 @@ struct Architecture {
     };
 
     layers.push_back(Layer::MakeDenseLayer(layers.size(), dimensions));
+    AddActivationLayer(symbolic::Sigmoid);
     return *this;
   }
 

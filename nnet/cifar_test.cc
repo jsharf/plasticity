@@ -93,21 +93,23 @@ std::string OneHotEncodedOutputToString(Matrix<double> output) {
 int main() {
   constexpr int kInputSize = kSampleSize;
 
+  // This model taken from:
+  // http://cs231n.github.io/convolutional-networks/
   nnet::Architecture model(kInputSize);
   model
       .AddConvolutionLayer(
           {
-              32,  // width
-              32,  // height
-              3,   // R,G,B (depth).
+              32, // width
+              32, // height
+              3,  // R,G,B (depth).
           },
           {
-              5,   // filter x size.
-              5,   // filter y size.
-              3,   // filter z depth size.
-              1,   // stride.
-              2,   // padding.
-              16,  // number of filters.
+              5,  // filter x size.
+              5,  // filter y size.
+              3,  // filter z depth size.
+              1,  // stride.
+              2,  // padding.
+              16, // number of filters.
           })
       .AddActivationLayer(symbolic::Relu)
       .AddMaxPoolLayer(
@@ -115,17 +117,17 @@ int main() {
           /* output size */ nnet::AreaDimensions{16, 16})
       .AddConvolutionLayer(
           {
-              16,  // width
-              16,  // height
-              16,  // R,G,B (depth).
+              16, // width
+              16, // height
+              16, // R,G,B (depth).
           },
           {
-              5,   // filter x size.
-              5,   // filter y size.
-              16,  // filter z depth size.
-              1,   // stride.
-              2,   // padding.
-              20,  // number of filters.
+              5,  // filter x size.
+              5,  // filter y size.
+              16, // filter z depth size.
+              1,  // stride.
+              2,  // padding.
+              20, // number of filters.
           })
       .AddActivationLayer(symbolic::Relu)
       .AddMaxPoolLayer(
@@ -133,22 +135,24 @@ int main() {
           /* output size */ nnet::AreaDimensions{8, 8})
       .AddConvolutionLayer(
           {
-              8,   // width
-              8,   // height
-              20,  // R,G,B (depth).
+              8,  // width
+              8,  // height
+              20, // R,G,B (depth).
           },
           {
-              5,   // filter x size.
-              5,   // filter y size.
-              20,  // filter z depth size.
-              1,   // stride.
-              2,   // padding.
-              20,  // number of filters.
+              5,  // filter x size.
+              5,  // filter y size.
+              20, // filter z depth size.
+              1,  // stride.
+              2,  // padding.
+              20, // number of filters.
           })
       .AddActivationLayer(symbolic::Relu)
       .AddMaxPoolLayer(/* Input size */ {8, 8, 20},
                        /* output size */ {4, 4})
-      .AddDenseLayer(10)
+      // No activation function, the next layer is softmax which functions as an
+      // activation function
+      .AddDenseLayer(10, symbolic::Identity)
       .AddSoftmaxLayer(10);
   std::cout << "Initializing network..." << std::endl;
   nnet::Nnet test_net(model);

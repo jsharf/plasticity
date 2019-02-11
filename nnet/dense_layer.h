@@ -11,22 +11,20 @@
 
 namespace nnet {
 
+// NOTE: This class alone is a linear net sum. In other words, it's a dense
+// layer *without* an activation function. Architecture.h will pair DenseLayer
+// with activation functions when building models, however they're actually
+// separate layers behind the seems. This simplifies the backprop by adding
+// another step (application of the chain rule).
 class DenseLayer : public LayerImpl {
  public:
   // Reference objects in superclass with Super::
   using Super = LayerImpl;
 
-  using ActivationFunctionType = LayerImpl::ActivationFunctionType;
-
-  DenseLayer(const Dimensions& dimensions,
-             const ActivationFunctionType& activation_function,
-             size_t layer_index);
-
   DenseLayer(const Dimensions& dimensions, size_t layer_index)
       : Super(dimensions, layer_index),
         generator_(dimensions),
-        dimensions_(dimensions),
-        activation_function_(symbolic::Sigmoid) {}
+        dimensions_(dimensions) {}
 
   const std::vector<std::string>& weights() const override;
 
@@ -50,11 +48,6 @@ class DenseLayer : public LayerImpl {
   Dimensions dimensions_;
 
   symbolic::Expression OutputSymbol(const symbolic::Expression &output_index) const;
-
-  // This function will be used to map the activation function to a matrix
-  // of symbolic expressions.
-  std::function<symbolic::Expression(const symbolic::Expression &)>
-      activation_function_;
 };
 
 }  // namespace nnet

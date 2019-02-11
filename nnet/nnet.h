@@ -67,7 +67,7 @@ class Nnet {
         ClDevicesAreEqual(evaluate_kernels_.device, SelectDevice())) {
       return;
     }
-    std::cerr
+    std::cout
         << "Generating and compiling OpenCl Eval kernels. This takes a while"
         << " the first time..." << std::endl;
     std::vector<std::future<std::string>> eval_kernel_futures;
@@ -248,9 +248,6 @@ class Nnet {
       std::cerr << "\\";
       train_kernel_sources.push_back(kernel_future.get());
     }
-    for (auto& kernel_source : train_kernel_sources) {
-      std::cerr << kernel_source << std::endl;
-    }
     std::cerr << "Training kernels generated. Compiling..." << std::endl;
     training_kernels_ = CompileCl(train_kernel_sources, device);
     std::cerr << "Done!" << std::endl;
@@ -309,6 +306,8 @@ class Nnet {
     // variable Matrix<Number> gradients) and pass it to the weight gradient
     // kernel to calculate weight updates. Then pass it to the input gradient
     // kernel to calculate the gradient for the next layer.
+    static int iter = 0;
+    iter++;
     for (int i = model_.layers.size() - 1; i >= 0; --i) {
       auto& layer = model_.layers[i];
       const Matrix<Number>& layer_input =
@@ -340,10 +339,10 @@ class Nnet {
       queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0, sizeof(Number),
                                &params.learning_rate);
 
-      cl::Buffer gpu_new_weights(context, CL_MEM_READ_WRITE,
-                                 number_weights * sizeof(Number));
 
-      if (layer.weights().size() > 0) {
+      if (number_weights > 0) {
+        cl::Buffer gpu_new_weights(context, CL_MEM_READ_WRITE,
+                                   number_weights * sizeof(Number));
         // Backprop layer weight updates.
         std::string weight_kernel_name = layer.WeightGradientKernelName();
         cl::Kernel weight_update(program, weight_kernel_name.c_str());
@@ -360,6 +359,22 @@ class Nnet {
                     << layer.WeightGradientKernelName() << std::endl;
           std::exit(1);
         }
+
+        // Load in weight updates.
+        Number new_weights[number_weights];
+        result = queue.enqueueReadBuffer(gpu_new_weights, CL_TRUE, 0,
+                                                sizeof(Number) * number_weights,
+                                                new_weights);
+        if (result != CL_SUCCESS) {
+          std::cerr << "Failed to read new weight values from gpu. Error code: "
+                    << result << std::endl;
+          std::exit(1);
+        }
+
+        for (size_t i = 0; i < number_weights; ++i) {
+          layer.env()[layer.weights()[i]] =
+              symbolic::NumericValue(new_weights[i]);
+        }
       }
 
       // Load in gradients
@@ -367,22 +382,6 @@ class Nnet {
       Number grads[number_outputs];
       queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
                               sizeof(Number) * number_outputs, grads);
-      std::cout << "GRADIENTS\n=============\n";
-      for (size_t i = 0; i < number_outputs; ++i) {
-        std::cerr << "Grad[" << i << "] = " << grads[i] << ";\n";
-      }
-
-      // Load in weight updates.
-      Number new_weights[number_weights];
-      queue.enqueueReadBuffer(gpu_new_weights, CL_TRUE, 0,
-                              sizeof(Number) * number_weights, new_weights);
-
-      std::cout << "post train weights: " << std::endl;
-      for (size_t i = 0; i < number_weights; ++i) {
-        std::cout << "W[" << i << "] = " << new_weights[i] << std::endl;
-        layer.env()[layer.weights()[i]] =
-            symbolic::NumericValue(new_weights[i]);
-      }
 
       cl::Buffer gpu_new_gradients(
           context, CL_MEM_READ_WRITE,
