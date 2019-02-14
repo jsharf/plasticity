@@ -4,13 +4,11 @@
 
 namespace nnet {
 
-ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
-                                   const FilterParams& filters,
+ConvolutionLayer::ConvolutionLayer(const VolumeDimensions &dimensions,
+                                   const FilterParams &filters,
                                    size_t layer_index)
     : Super(GenLinearDimensions(dimensions, filters), layer_index),
-      generator_(dimensions, filters),
-      filters_(filters),
-      imdim_(dimensions) {
+      generator_(dimensions, filters), filters_(filters), imdim_(dimensions) {
   if (filters_.depth != imdim_.depth) {
     std::cerr << "Convolution layer input depth != filter depth. Error!"
               << std::endl;
@@ -18,8 +16,9 @@ ConvolutionLayer::ConvolutionLayer(const VolumeDimensions& dimensions,
   }
 }
 
-LinearDimensions ConvolutionLayer::GenLinearDimensions(
-    const VolumeDimensions& dim, const FilterParams& filters) {
+LinearDimensions
+ConvolutionLayer::GenLinearDimensions(const VolumeDimensions &dim,
+                                      const FilterParams &filters) {
   std::tuple<size_t, size_t, size_t> output_dims =
       GetOutputDimensions(dim, filters);
   size_t output_width = std::get<0>(output_dims);
@@ -33,8 +32,9 @@ LinearDimensions ConvolutionLayer::GenLinearDimensions(
   };
 }
 
-std::tuple<size_t, size_t, size_t> ConvolutionLayer::GetOutputDimensions(
-    const VolumeDimensions& dim, const FilterParams& filters) {
+std::tuple<size_t, size_t, size_t>
+ConvolutionLayer::GetOutputDimensions(const VolumeDimensions &dim,
+                                      const FilterParams &filters) {
   size_t output_width =
       (dim.width - filters.width + filters.padding * 2) / filters.stride + 1;
   size_t output_height =
@@ -43,18 +43,12 @@ std::tuple<size_t, size_t, size_t> ConvolutionLayer::GetOutputDimensions(
   return std::make_tuple(output_width, output_height, output_depth);
 }
 
-const std::vector<std::string>& ConvolutionLayer::weights() const {
+const std::vector<std::string> &ConvolutionLayer::weights() const {
   return generator_.weights();
 }
 
-void ConvolutionLayer::GenerateOutputCode(
-    const symbolic::Expression& index, codegen::Generator *cg) const {
-  symbolic::Expression retval = GenerateOutputSymbol(index);
-  cg->AppendLineOfCode("return " + retval.to_string() + cg->linesep());
-}
-
-symbolic::Expression ConvolutionLayer::GenerateOutputSymbol(
-    const symbolic::Expression& index) const {
+void ConvolutionLayer::GenerateOutputCode(const symbolic::Expression &index,
+                                          codegen::Generator *cg) const {
   std::tuple<size_t, size_t, size_t> output_dims =
       GetOutputDimensions(imdim_, filters_);
   size_t output_width = std::get<0>(output_dims);
@@ -70,28 +64,37 @@ symbolic::Expression ConvolutionLayer::GenerateOutputSymbol(
   symbolic::Expression output_filter = symbolic::Unflatten3dPlane(
       output_width, output_height, output_depth, index);
 
-  // Add bias to the output.
-  symbolic::Expression output = generator_.W(output_filter);
-
   symbolic::Expression conv_start_row =
       (output_row * filters_.stride) - filters_.padding + filters_.width / 2;
   symbolic::Expression conv_start_col =
       (output_col * filters_.stride) - filters_.padding + filters_.height / 2;
 
   // Sum up the convolution, adding it to the output.
-  for (size_t f_x = 0; f_x < filters_.width; ++f_x) {
-    for (size_t f_y = 0; f_y < filters_.height; ++f_y) {
-      for (size_t f_z = 0; f_z < filters_.depth; ++f_z) {
-        symbolic::Expression input_x = conv_start_row + f_x;
-        symbolic::Expression input_y = conv_start_col + f_y;
-        symbolic::Expression input_z = f_z;
-        output += generator_.BoundsCheckedW(output_filter, f_x, f_y, f_z) *
-                  generator_.BoundsCheckedI(input_x, input_y, input_z);
-      }
-    }
-  }
-
-  return output;
+  cg->AppendLineOfCode(
+      cg->assign("double output", generator_.W(output_filter).to_string()) +
+      cg->linesep());
+  symbolic::Expression f_x = symbolic::Expression::CreateInteger("f_x");
+  symbolic::Expression f_y = symbolic::Expression::CreateInteger("f_y");
+  symbolic::Expression f_z = symbolic::Expression::CreateInteger("f_z");
+  symbolic::Expression input_x = conv_start_row + f_x;
+  symbolic::Expression input_y = conv_start_col + f_y;
+  symbolic::Expression input_z = f_z;
+  symbolic::Expression output_factor =
+      generator_.W(output_filter, f_x, f_y, f_z) *
+      generator_.BoundsCheckedI(input_x, input_y, input_z);
+  string output_sum =
+      cg->add_assign("output", output_factor.to_string() + cg->linesep());
+  string for_loop_z =
+      cg->for_loop("size_t f_z = 0", "f_z < " + std::to_string(filters_.depth),
+                   "++f_z", output_sum);
+  string for_loop_yz =
+      cg->for_loop("size_t f_y = 0", "f_y < " + std::to_string(filters_.height),
+                   "++f_y", for_loop_z);
+  string for_loop_xyz =
+      cg->for_loop("size_t f_x = 0", "f_x < " + std::to_string(filters_.width),
+                   "++f_x", for_loop_yz);
+  cg->AppendLineOfCode(for_loop_xyz);
+  cg->AppendLineOfCode("return output" + cg->linesep());
 }
 
 void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
@@ -126,48 +129,59 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
   // is by visualizing the convolution.
   int output_net_width = filters_.width / (filters_.stride);
   int output_net_height = filters_.height / (filters_.stride);
-  symbolic::Expression gradient_code(0.0);
-  for (int d = -output_net_width / 2; d <= output_net_width / 2; d++) {
-    for (int k = -output_net_height / 2; k <= output_net_height / 2; k++) {
-      for (size_t filter = 0; filter < filters_.num_filters; ++filter) {
-        symbolic::Expression neighbor_output_flat_index = symbolic::Flatten3d(
-            output_width, output_height, output_depth, output_row + d,
-            output_col + k, symbolic::Expression(filter));
-        // When looking at the gradient component propagated from a neighbor
-        // output, we want to consider which weight this input is multiplied by
-        // to generate that output (this is the derivative wrt ourselves). So to
-        // get this, we need to figure out the relative coordinate of this input
-        // within the convolution domain of the neighboring output. Thinking of
-        // the 1-dimensional case, say you have a convolution of width 3. If you
-        // are looking for the backprop gradients of position I in an input
-        // array...
-        // Example 1D convolution:
-        //                 [ w1, w2, w3]
-        // [i[-3], i[-2], i[-1], i, i[+1], i[+2], i[+3]]
-        // 
-        // output = (i[-1] * w1) + (i * w2) + (i[+1] * w3)
-        //
-        // derivative of output w.r.t. i[-1] = w1.
-        //
-        // So for all partial derivatives wrt to some input, we need to find the
-        // weights (w1 in this case) multiplied by this input in order to
-        // generate all neighboring outputs.
-        size_t self_in_neighbor_col = output_net_width / 2 - d;
-        size_t self_in_neighbor_row = output_net_height / 2 - k;
-
-        for (size_t z = 0; z < filters_.depth; ++z) {
-          gradient_code += generator_.W(filter, self_in_neighbor_row,
-                                        self_in_neighbor_col, z) *
-                           generator_.GRADIENT(neighbor_output_flat_index);
-        }
-      }
-    }
-  }
-  cg->AppendLineOfCode("return " + gradient_code.to_string() + cg->linesep());
+  // Sum up the convolution, adding it to the output.
+  cg->AppendLineOfCode(cg->assign("double gradient", "0") + cg->linesep());
+  symbolic::Expression d = symbolic::Expression::CreateInteger("d");
+  symbolic::Expression k = symbolic::Expression::CreateInteger("k");
+  symbolic::Expression filter = symbolic::Expression::CreateInteger("filter");
+  symbolic::Expression z = symbolic::Expression::CreateInteger("z");
+  symbolic::Expression neighbor_output_flat_index =
+      symbolic::Flatten3d(output_width, output_height, output_depth,
+                          output_row + d, output_col + k, filter);
+  symbolic::Expression self_in_neighbor_row = (d * -1) + output_net_width / 2;
+  symbolic::Expression self_in_neighbor_col = (k * -1) + output_net_height / 2;
+  // When looking at the gradient component propagated from a neighbor
+  // output, we want to consider which weight this input is multiplied by
+  // to generate that output (this is the derivative wrt ourselves). So to
+  // get this, we need to figure out the relative coordinate of this input
+  // within the convolution domain of the neighboring output. Thinking of
+  // the 1-dimensional case, say you have a convolution of width 3. If you
+  // are looking for the backprop gradients of position I in an input
+  // array...
+  // Example 1D convolution:
+  //                 [ w1, w2, w3]
+  // [i[-3], i[-2], i[-1], i, i[+1], i[+2], i[+3]]
+  //
+  // output = (i[-1] * w1) + (i * w2) + (i[+1] * w3)
+  //
+  // derivative of output w.r.t. i[-1] = w1.
+  //
+  // So for all partial derivatives wrt to some input, we need to find the
+  // weights (w1 in this case) multiplied by this input in order to
+  // generate all neighboring outputs.
+  symbolic::Expression gradient_factor =
+      generator_.W(filter, self_in_neighbor_row, self_in_neighbor_col, z) *
+      generator_.GRADIENT(neighbor_output_flat_index);
+  string output_sum =
+      cg->add_assign("gradient", gradient_factor.to_string() + cg->linesep());
+  string for_loop_z =
+      cg->for_loop("size_t z = 0", "z < " + std::to_string(filters_.depth),
+                   "++z", output_sum);
+  string for_loop_fz = cg->for_loop(
+      "size_t filter = 0", "filter < " + std::to_string(filters_.num_filters),
+      "++filter", for_loop_z);
+  string for_loop_kfz = cg->for_loop(
+      "size_t k = " + std::to_string(-output_net_height / 2),
+      "k <= " + std::to_string(output_net_height / 2), "++k", for_loop_fz);
+  string for_loop_dkfz = cg->for_loop(
+      "size_t d = " + std::to_string(-output_net_width / 2),
+      "d <= " + std::to_string(output_net_width / 2), "++d", for_loop_kfz);
+  cg->AppendLineOfCode(for_loop_dkfz);
+  cg->AppendLineOfCode("return gradient" + cg->linesep());
 }
 
-void ConvolutionLayer::WeightGradientCode(
-    const symbolic::Expression &index, codegen::Generator *cg) const {
+void ConvolutionLayer::WeightGradientCode(const symbolic::Expression &index,
+                                          codegen::Generator *cg) const {
   std::tuple<size_t, size_t, size_t> output_dims =
       GetOutputDimensions(imdim_, filters_);
   size_t output_width = std::get<0>(output_dims);
@@ -179,24 +193,30 @@ void ConvolutionLayer::WeightGradientCode(
   symbolic::Expression weight_y = generator_.GetWeightY(index);
   symbolic::Expression weight_z = generator_.GetWeightZ(index);
 
-  symbolic::Expression gradients(0.0);
-  for (size_t output_x = 0; output_x < output_width; ++output_x) {
-    for (size_t output_y = 0; output_y < output_height; ++output_y) {
-      symbolic::Expression output_flat_index =
-          symbolic::Flatten3d(output_width, output_height, output_depth,
-                              output_x, output_y, filter);
-      symbolic::Expression input_x =
-          (output_x * filters_.stride) - filters_.padding + filters_.width / 2;
-      symbolic::Expression input_y =
-          (output_y * filters_.stride) - filters_.padding + filters_.height / 2;
-      gradients += generator_.GRADIENT(output_flat_index) *
-                   generator_.BoundsCheckedI(
-                       input_y + weight_y - filters_.height / 2,
-                       input_x + weight_x - filters_.width / 2, weight_z);
-    }
-  }
-
-  cg->AppendLineOfCode("return " + gradients.to_string() + cg->linesep());
+  cg->AppendLineOfCode(cg->assign("double gradient", "0") + cg->linesep());
+  symbolic::Expression out_x = symbolic::Expression::CreateInteger("out_x");
+  symbolic::Expression out_y = symbolic::Expression::CreateInteger("out_y");
+  symbolic::Expression output_flat_index = symbolic::Flatten3d(
+      output_width, output_height, output_depth, out_x, out_y, filter);
+  symbolic::Expression input_x =
+      (out_x * filters_.stride) - filters_.padding + filters_.width / 2;
+  symbolic::Expression input_y =
+      (out_y * filters_.stride) - filters_.padding + filters_.height / 2;
+  symbolic::Expression gradient_factor =
+      generator_.GRADIENT(output_flat_index) *
+      generator_.BoundsCheckedI(input_y + weight_y - filters_.height / 2,
+                                input_x + weight_x - filters_.width / 2,
+                                weight_z);
+  string output_sum =
+      cg->add_assign("gradient", gradient_factor.to_string() + cg->linesep());
+  string for_loop_y = cg->for_loop("size_t out_y = 0",
+                                   "out_y < " + std::to_string(output_width),
+                                   "++out_y", output_sum);
+  string for_loop_xy = cg->for_loop("size_t out_x = 0",
+                                    "out_x < " + std::to_string(output_height),
+                                    "++out_x", for_loop_y);
+  cg->AppendLineOfCode(for_loop_xy);
+  cg->AppendLineOfCode("return gradient" + cg->linesep());
 }
 
 std::unique_ptr<LayerImpl> ConvolutionLayer::Clone() const {
@@ -204,4 +224,4 @@ std::unique_ptr<LayerImpl> ConvolutionLayer::Clone() const {
                                             Super::layer_index_);
 }
 
-}  // namespace nnet
+} // namespace nnet

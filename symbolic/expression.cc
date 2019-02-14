@@ -95,10 +95,14 @@ Expression Expression::operator+(const Expression& rhs) const {
 }
 
 Expression Expression::operator-(const Expression& rhs) const {
-  std::shared_ptr<const symbolic::ExpressionNode> neg =
-      std::make_shared<symbolic::NumericValue>(-1);
+  // This is an integer type. It's the RHS of the multiplication expression
+  // below, so its type never gets preserved. In instances where it gets
+  // stringified, it'll appear as -1, but presumably in most/all target
+  // backends, the code "-1" can be softly cast to a double in instances where
+  // it is an operand to an operator expecting double.
+  Expression neg(-1);
   std::shared_ptr<const symbolic::ExpressionNode> rhs_neg =
-      std::make_shared<MultiplicationExpression>(neg, rhs.expression_root_);
+      std::make_shared<MultiplicationExpression>(rhs, neg);
   return Expression(
       std::make_shared<AdditionExpression>(expression_root_, rhs_neg));
 }

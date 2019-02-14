@@ -77,7 +77,7 @@ void MaxPoolLayer::GenerateOutputCode(const symbolic::Expression &index,
   cg->AppendLineOfCode(
       cg->if_expr(cg->gt(current_input.to_string(), max.to_string())));
   cg->PushScope();
-  cg->AppendLineOfCode(cg->assign(max.to_string(), current_input.to_string())); 
+  cg->AppendLineOfCode(cg->assign(max.to_string(), current_input.to_string()) + cg->linesep()); 
   cg->PopScope();
   cg->PopScope();
   cg->PopScope();

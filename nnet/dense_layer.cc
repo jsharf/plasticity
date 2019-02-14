@@ -9,22 +9,22 @@ const std::vector<std::string>& DenseLayer::weights() const {
   return generator_.weights();
 }
 
-symbolic::Expression DenseLayer::OutputSymbol(const symbolic::Expression& output_index) const {
-  symbolic::Expression sum = 0.0;
-  for (size_t i = 0; i < dimensions_.num_inputs; ++i) {
-    sum += generator_.W(output_index, Expression(i)) * generator_.I(i);
-  }
-
-  // Bias input.
-  sum += generator_.W(output_index) * 1;
-
-  return sum;
-}
-
 void DenseLayer::GenerateOutputCode(const symbolic::Expression &output_index,
                                     codegen::Generator *cg) const {
-  symbolic::Expression output = OutputSymbol(output_index);
-  cg->AppendLineOfCode("return " + output.to_string() + cg->linesep());
+
+  // Initialize output to bias weight value.
+  cg->AppendLineOfCode(
+      cg->assign("double output", generator_.W(output_index).to_string()) +
+      cg->linesep());
+  symbolic::Expression i = Expression::CreateInteger("i");
+  symbolic::Expression output_factor =
+      generator_.W(output_index, i) * generator_.I(i);
+  string output_sum =
+      cg->add_assign("output", output_factor.to_string() + cg->linesep());
+  string for_loop_i = cg->for_loop(
+      "size_t i = 0", "i < " + std::to_string(dimensions_.num_inputs), "++i", output_sum);
+  cg->AppendLineOfCode(for_loop_i);
+  cg->AppendLineOfCode("return output" + cg->linesep());
 }
 
 // The input gradient is just the sum of the weights between each output and that

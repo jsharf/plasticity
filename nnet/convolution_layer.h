@@ -33,9 +33,6 @@ class ConvolutionLayer : public LayerImpl {
 
   const std::vector<std::string>& weights() const override;
 
-  symbolic::Expression GenerateOutputSymbol(
-      const symbolic::Expression& index) const;
-
   void GenerateOutputCode(
       const symbolic::Expression& index, codegen::Generator *cg) const override;
   void WeightGradientCode(const symbolic::Expression &index,

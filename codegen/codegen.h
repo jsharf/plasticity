@@ -97,6 +97,11 @@ class Generator {
   virtual std::string mod(const std::string& lhs,
                           const std::string& rhs) const = 0;
 
+  virtual std::string for_loop(const std::string &init,
+                               const std::string &condition,
+                               const std::string &next,
+                               const std::string &body) const = 0;
+
   // "else"
   virtual std::string else_expr() const = 0;
 
@@ -173,6 +178,10 @@ class CudaGenerator : public Generator {
 
   // "else"
   std::string else_expr() const override;
+
+  std::string for_loop(const std::string &init, const std::string &condition,
+                       const std::string &next,
+                       const std::string &body) const override;
 
   // ";"
   std::string linesep() const override;

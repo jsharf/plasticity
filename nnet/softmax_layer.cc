@@ -36,7 +36,7 @@ void SoftmaxLayer::InputGradientCode(const symbolic::Expression &input_index,
 
 void SoftmaxLayer::WeightGradientCode(const symbolic::Expression &weight_index,
                                       codegen::Generator *cg) const {
-  cg->AppendLineOfCode("Return 0.0" + cg->linesep());
+  cg->AppendLineOfCode("return 0.0" + cg->linesep());
 }
 
 std::unique_ptr<LayerImpl> SoftmaxLayer::Clone() const {

@@ -46,8 +46,6 @@ class DenseLayer : public LayerImpl {
  private:
   DenseSymbolGenerator generator_;
   Dimensions dimensions_;
-
-  symbolic::Expression OutputSymbol(const symbolic::Expression &output_index) const;
 };
 
 }  // namespace nnet

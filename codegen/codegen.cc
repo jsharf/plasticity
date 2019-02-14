@@ -118,6 +118,14 @@ std::string CudaGenerator::mod(const std::string& lhs,
   return lhs + "%" + rhs;
 }
 
+std::string CudaGenerator::for_loop(const std::string &init,
+                                    const std::string &condition,
+                                    const std::string &next,
+                                    const std::string &body) const {
+  return "for(" + init + "; " + condition + "; " + next + ") {\n\t" + body +
+         "\n}";
+}
+
 std::string CudaGenerator::else_expr() const { return "else"; }
 
 std::string CudaGenerator::linesep() const { return ";"; }

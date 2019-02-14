@@ -111,7 +111,6 @@ int main() {
               2,  // padding.
               16, // number of filters.
           })
-      .AddActivationLayer(symbolic::Relu)
       .AddMaxPoolLayer(
           /* Input size */ nnet::VolumeDimensions{32, 32, 16},
           /* output size */ nnet::AreaDimensions{16, 16})
@@ -129,7 +128,6 @@ int main() {
               2,  // padding.
               20, // number of filters.
           })
-      .AddActivationLayer(symbolic::Relu)
       .AddMaxPoolLayer(
           /* Input size */ nnet::VolumeDimensions{16, 16, 20},
           /* output size */ nnet::AreaDimensions{8, 8})
@@ -147,7 +145,6 @@ int main() {
               2,  // padding.
               20, // number of filters.
           })
-      .AddActivationLayer(symbolic::Relu)
       .AddMaxPoolLayer(/* Input size */ {8, 8, 20},
                        /* output size */ {4, 4})
       // No activation function, the next layer is softmax which functions as an
