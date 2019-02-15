@@ -155,17 +155,12 @@ class Nnet {
       // layers if their weights haven't changed and also caching weights_buf in
       // Layer.
       // Also, transfer all weights at once outside of this for-loop.
-      const size_t number_weights = layer.weights().size();
-      Number weights_buf[number_weights];
+      const size_t number_weights = layer.weight_buffer().size();
       cl::Buffer weights(context, CL_MEM_READ_WRITE,
-                         layer.weights().size() * sizeof(Number));
-      for (size_t i = 0; i < number_weights; ++i) {
-        weights_buf[i] =
-            static_cast<double>(layer.env()[layer.weights()[i]].real());
-      }
+                         number_weights * sizeof(Number));
       queue.enqueueWriteBuffer(weights, CL_TRUE, 0,
-                               sizeof(Number) * layer.weights().size(),
-                               weights_buf);
+                               sizeof(Number) * number_weights,
+                               layer.weight_buffer().data());
 
       // Evaluate.
       std::string kernel_name = layer.EvaluateKernelName();
@@ -294,6 +289,23 @@ class Nnet {
       env[generator_.O(i)] = symbolic::NumericValue(actual_output.at(i, 0));
     }
 
+    double error_value = error.Bind(env).Evaluate()->real();
+    std::cout << "Error (loss): " << error_value << std::endl;
+    if (std::isnan(error_value)) {
+      std::cerr << "The error has diverged to NaN" << std::endl;
+      std::cerr << "Training value input\n=========\n " << in.to_string() << std::endl;
+      std::cerr << "Training value expected output\n=========\n " << o.to_string() << std::endl;
+      std::cerr << "Training value actual output\n==========\n "
+                << actual_output.to_string() << std::endl;
+      std::cerr << "Weights\n==============\n" << WeightsToString() << std::endl;
+      int layer_index = 1;
+      for (auto& layer : *layer_outputs) {
+        std::cout << "layer_" << layer_index++ << ":" << std::endl;
+        std::cout << layer.to_string() << std::endl;
+      }
+      std::exit(1);
+    }
+
     // Generate output gradients (first part of backprop).
     Matrix<Number> gradients =
         symbolic::MapBindAndEvaluate(output_gradients_symbolic, env);
@@ -317,16 +329,11 @@ class Nnet {
       // re-loading layers if their weights haven't changed and also caching
       // weights_buf in Layer.
       // Also, transfer all weights at once outside of this for-loop.
-      const size_t number_weights = layer.weights().size();
-      Number weights_buf[number_weights];
+      const size_t number_weights = layer.weight_buffer().size();
       cl::Buffer weights(context, CL_MEM_READ_WRITE,
                          number_weights * sizeof(Number));
-      for (size_t i = 0; i < number_weights; ++i) {
-        weights_buf[i] =
-            static_cast<double>(layer.env()[layer.weights()[i]].real());
-      }
       queue.enqueueWriteBuffer(weights, CL_TRUE, 0,
-                               sizeof(Number) * number_weights, weights_buf);
+                               sizeof(Number) * number_weights, layer.weight_buffer().data());
 
       // Load layer inputs. TODO(sharf) optimize the shit out of this by
       // keeping them in GPU memory instead of passing them to CPU and then back
@@ -352,7 +359,7 @@ class Nnet {
         weight_update.setArg(3, gpu_new_weights);
         weight_update.setArg(4, learning_rate_buff);
         cl_int result = queue.enqueueNDRangeKernel(weight_update, cl::NullRange,
-                                   cl::NDRange(layer.weights().size()),
+                                   cl::NDRange(layer.weight_buffer().size()),
                                    cl::NullRange);
         if (result != CL_SUCCESS) {
           std::cerr << "Error enqueuing kernel "
@@ -361,19 +368,13 @@ class Nnet {
         }
 
         // Load in weight updates.
-        Number new_weights[number_weights];
         result = queue.enqueueReadBuffer(gpu_new_weights, CL_TRUE, 0,
                                                 sizeof(Number) * number_weights,
-                                                new_weights);
+                                                layer.weight_buffer().data());
         if (result != CL_SUCCESS) {
           std::cerr << "Failed to read new weight values from gpu. Error code: "
                     << result << std::endl;
           std::exit(1);
-        }
-
-        for (size_t i = 0; i < number_weights; ++i) {
-          layer.env()[layer.weights()[i]] =
-              symbolic::NumericValue(new_weights[i]);
         }
       }
 
@@ -484,7 +485,7 @@ class Nnet {
   std::string WeightsToString() const {
     std::stringstream output;
     output << "{";
-    for (auto layer : model_.layers) {
+    for (const auto& layer : model_.layers) {
       output << layer.WeightsToString() << "," << std::endl;
     }
     output << "}";

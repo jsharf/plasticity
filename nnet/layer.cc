@@ -23,23 +23,26 @@ constexpr char kWeightIndex[] = "weight_index";
 // Layer Class Implementation.
 
 // Boilerplate constructors.
-Layer::Layer(std::unique_ptr<LayerImpl> &&root) : impl_(std::move(root)) {}
+Layer::Layer(std::unique_ptr<LayerImpl> &&root) : impl_(std::move(root)) {
+  weights_.resize(impl_->weights().size(), 0);
+}
 Layer::Layer(Layer &&other)
-    : impl_(std::move(other.impl_)), env_(std::move(other.env_)) {}
+    : impl_(std::move(other.impl_)),
+      weights_(std::move(other.weights_)) {}
 Layer::Layer(const Layer &other)
-    : impl_(other.impl_->Clone()), env_(other.env_) {}
+    : impl_(other.impl_->Clone()), weights_(other.weights_) {}
 
 // Boilerplate operator.
-Layer &Layer::operator=(const Layer &rhs) {
-  impl_ = rhs.impl_->Clone();
-  env_ = rhs.env_;
-  return *this;
-}
-Layer &Layer::operator=(Layer &&rhs) {
-  impl_ = std::move(rhs.impl_);
-  env_ = std::move(rhs.env_);
-  return *this;
-}
+//Layer &Layer::operator=(const Layer &rhs) {
+//  impl_ = rhs.impl_->Clone();
+//  weights_ = rhs.weights_;
+//  return *this;
+//}
+//Layer &Layer::operator=(Layer &&rhs) {
+//  impl_ = std::move(rhs.impl_);
+//  weights_ = std::move(rhs.weights_);
+//  return *this;
+//}
 
 // Dense layer static constructors.
 Layer Layer::MakeDenseLayer(size_t layer_index, const Dimensions &dimensions) {
@@ -70,22 +73,18 @@ Layer Layer::MakeSoftmaxLayer(size_t layer_index, size_t size) {
   return Layer(std::make_unique<SoftmaxLayer>(size, layer_index));
 }
 
-const std::vector<std::string> &Layer::weights() const {
-  return impl_->weights();
-}
-
 stats::Normal Layer::XavierInitializer() const {
   return stats::Normal(0, 1.0 / (impl_->GetDimensions().num_inputs));
 }
 
 void Layer::XavierInitializeWeights() {
-  if (weights().size() == 0) {
+  if (weights_.size() == 0) {
     return;
   }
 
   stats::Normal X = XavierInitializer();
-  for (const std::string &weight : weights()) {
-    env()[weight].real() = X.sample();
+  for (size_t i = 0; i < weights_.size(); ++i) {
+    weights_[i] = X.sample();
   }
 }
 
@@ -157,9 +156,9 @@ std::string Layer::GenerateEvaluationKernel() const {
 
 std::string Layer::WeightsToString() const {
   std::stringstream output;
-  output << "layer_" << impl_->layer_index() << ": {" << std::endl;
-  for (const auto &kv : env_) {
-    output << kv.first << ":" << kv.second.to_string() << "," << std::endl;
+  output << "layer_" << LayerSuffix() << ": {" << std::endl;
+  for (size_t i = 0; i < weights_.size(); ++i) {
+    output << "W[" << i << "]:" << weights_[i] << "," << std::endl;
   }
   output << "}" << std::endl;
   return output.str();

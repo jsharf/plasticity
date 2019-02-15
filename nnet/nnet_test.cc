@@ -41,20 +41,20 @@ TEST_CASE("One-layer RELU network output is validated", "[nnet]") {
   // harmless (yet confusing) mistake.
   //
   // Node 1 edges.
-  model.layers[1].env()[s.W(0, 0).to_string()] = 0.1;
-  model.layers[1].env()[s.W(0, 1).to_string()] = 0.3;
-  model.layers[1].env()[s.W(0, 2).to_string()] = 0.4;
-  model.layers[1].env()[s.W(0).to_string()] = 1;  // bias.
+  model.layers[1].W(s.W(0, 0)) = 0.1;
+  model.layers[1].W(s.W(0, 1)) = 0.3;
+  model.layers[1].W(s.W(0, 2)) = 0.4;
+  model.layers[1].W(s.W(0)) = 1;  // bias.
   // Node 2 edges.
-  model.layers[1].env()[s.W(1, 0).to_string()] = 0.2;
-  model.layers[1].env()[s.W(1, 1).to_string()] = 0.2;
-  model.layers[1].env()[s.W(1, 2).to_string()] = 0.3;
-  model.layers[1].env()[s.W(1).to_string()] = 1;  // bias.
+  model.layers[1].W(s.W(1, 0)) = 0.2;
+  model.layers[1].W(s.W(1, 1)) = 0.2;
+  model.layers[1].W(s.W(1, 2)) = 0.3;
+  model.layers[1].W(s.W(1)) = 1;  // bias.
   // Node 3 edges.
-  model.layers[1].env()[s.W(2, 0).to_string()] = 0.3;
-  model.layers[1].env()[s.W(2, 1).to_string()] = 0.7;
-  model.layers[1].env()[s.W(2, 2).to_string()] = 0.9;
-  model.layers[1].env()[s.W(2).to_string()] = 1;  // bias.
+  model.layers[1].W(s.W(2, 0)) = 0.3;
+  model.layers[1].W(s.W(2, 1)) = 0.7;
+  model.layers[1].W(s.W(2, 2)) = 0.9;
+  model.layers[1].W(s.W(2)) = 1;  // bias.
 
   // Use the model to generate a neural network.
   Nnet test_net(model, Nnet::NoWeightInit, Nnet::CrossEntropy);
@@ -111,38 +111,38 @@ TEST_CASE("Simple neural network output is validated", "[nnet]") {
   // harmless (yet confusing) mistake.
   //
   // Node 1 edges.
-  model.layers[1].env()[s.W(0, 0).to_string()] = 0.1;
-  model.layers[1].env()[s.W(0, 1).to_string()] = 0.3;
-  model.layers[1].env()[s.W(0, 2).to_string()] = 0.4;
-  model.layers[1].env()[s.W(0).to_string()] = 1;  // bias.
-  // Node 2 edges.
-  model.layers[1].env()[s.W(1, 0).to_string()] = 0.2;
-  model.layers[1].env()[s.W(1, 1).to_string()] = 0.2;
-  model.layers[1].env()[s.W(1, 2).to_string()] = 0.3;
-  model.layers[1].env()[s.W(1).to_string()] = 1;  // bias.
-  // Node 3 edges.
-  model.layers[1].env()[s.W(2, 0).to_string()] = 0.3;
-  model.layers[1].env()[s.W(2, 1).to_string()] = 0.7;
-  model.layers[1].env()[s.W(2, 2).to_string()] = 0.9;
-  model.layers[1].env()[s.W(2).to_string()] = 1;  // bias.
+  model.layers[1].W(s.W(0, 0)) = 0.1;
+  model.layers[1].W(s.W(0, 1)) = 0.3;
+  model.layers[1].W(s.W(0, 2)) = 0.4;
+  model.layers[1].W(s.W(0)) = 1;  // bias.
+  // Node 2 edges.W(
+  model.layers[1].W(s.W(1, 0)) = 0.2;
+  model.layers[1].W(s.W(1, 1)) = 0.2;
+  model.layers[1].W(s.W(1, 2)) = 0.3;
+  model.layers[1].W(s.W(1)) = 1;  // bias.
+  // Node 3 edges.W(
+  model.layers[1].W(s.W(2, 0)) = 0.3;
+  model.layers[1].W(s.W(2, 1)) = 0.7;
+  model.layers[1].W(s.W(2, 2)) = 0.9;
+  model.layers[1].W(s.W(2))= 1;  // bias.
 
   // Layer 2.
   //
   // Node 1 edges.
-  model.layers[3].env()[s.W(0, 0).to_string()] = 0.2;
-  model.layers[3].env()[s.W(0, 1).to_string()] = 0.3;
-  model.layers[3].env()[s.W(0, 2).to_string()] = 0.6;
-  model.layers[3].env()[s.W(0).to_string()] = 1;  // bias.
-  // Node 2 edges.
-  model.layers[3].env()[s.W(1, 0).to_string()] = 0.3;
-  model.layers[3].env()[s.W(1, 1).to_string()] = 0.5;
-  model.layers[3].env()[s.W(1, 2).to_string()] = 0.4;
-  model.layers[3].env()[s.W(1).to_string()] = 1;  // bias.
+  model.layers[3].W(s.W(0, 0)) = 0.2;
+  model.layers[3].W(s.W(0, 1)) = 0.3;
+  model.layers[3].W(s.W(0, 2)) = 0.6;
+  model.layers[3].W(s.W(0))= 1;  // bias.
+  // Node 2 edges.W(
+  model.layers[3].W(s.W(1, 0)) = 0.3;
+  model.layers[3].W(s.W(1, 1)) = 0.5;
+  model.layers[3].W(s.W(1, 2)) = 0.4;
+  model.layers[3].W(s.W(1)) = 1;  // bias.
   // Node 3 edges.
-  model.layers[3].env()[s.W(2, 0).to_string()] = 0.5;
-  model.layers[3].env()[s.W(2, 1).to_string()] = 0.7;
-  model.layers[3].env()[s.W(2, 2).to_string()] = 0.8;
-  model.layers[3].env()[s.W(2).to_string()] = 1;  // bias.
+  model.layers[3].W(s.W(2, 0)) = 0.5;
+  model.layers[3].W(s.W(2, 1)) = 0.7;
+  model.layers[3].W(s.W(2, 2)) = 0.8;
+  model.layers[3].W(s.W(2)) = 1;  // bias.
 
   // Layer 3.
   //
@@ -150,22 +150,22 @@ TEST_CASE("Simple neural network output is validated", "[nnet]") {
   // outputs should be used to compare to the outputs of layer 3 in the example.
   //
   // Node 1 edges.
-  model.layers[5].env()[s.W(0, 0).to_string()] = 0.1;
-  model.layers[5].env()[s.W(0, 1).to_string()] = 0.3;
-  model.layers[5].env()[s.W(0, 2).to_string()] = 0.5;
-  model.layers[5].env()[s.W(0).to_string()] = 1;  // bias.
+  model.layers[5].W(s.W(0, 0)) = 0.1;
+  model.layers[5].W(s.W(0, 1)) = 0.3;
+  model.layers[5].W(s.W(0, 2)) = 0.5;
+  model.layers[5].W(s.W(0)) = 1;  // bias.
 
   // Node 2 edges.
-  model.layers[5].env()[s.W(1, 0).to_string()] = 0.4;
-  model.layers[5].env()[s.W(1, 1).to_string()] = 0.7;
-  model.layers[5].env()[s.W(1, 2).to_string()] = 0.2;
-  model.layers[5].env()[s.W(1).to_string()] = 1;  // bias.
+  model.layers[5].W(s.W(1, 0)) = 0.4;
+  model.layers[5].W(s.W(1, 1)) = 0.7;
+  model.layers[5].W(s.W(1, 2)) = 0.2;
+  model.layers[5].W(s.W(1)) = 1;  // bias.
 
   // Node 3 edges.
-  model.layers[5].env()[s.W(2, 0).to_string()] = 0.8;
-  model.layers[5].env()[s.W(2, 1).to_string()] = 0.2;
-  model.layers[5].env()[s.W(2, 2).to_string()] = 0.9;
-  model.layers[5].env()[s.W(2).to_string()] = 1;  // bias.
+  model.layers[5].W(s.W(2, 0)) = 0.8;
+  model.layers[5].W(s.W(2, 1)) = 0.2;
+  model.layers[5].W(s.W(2, 2)) = 0.9;
+  model.layers[5].W(s.W(2)) = 1;  // bias.
 
   // Use the model to generate a neural network.
   Nnet test_net(model, Nnet::NoWeightInit, Nnet::CrossEntropy);
@@ -217,24 +217,24 @@ TEST_CASE("Simple neural network output and gradient descent is validated",
   // Layer 1.
   //
   // Node 1 edges.
-  model.layers[1].env()[s.W(0, 0).to_string()] = 0.15;
-  model.layers[1].env()[s.W(0, 1).to_string()] = 0.2;
-  model.layers[1].env()[s.W(0).to_string()] = 0.35;  // bias.
+  model.layers[1].W(s.W(0, 0)) = 0.15;
+  model.layers[1].W(s.W(0, 1)) = 0.2;
+  model.layers[1].W(s.W(0)) = 0.35;  // bias.
   // Node 2 edges.
-  model.layers[1].env()[s.W(1, 0).to_string()] = 0.25;
-  model.layers[1].env()[s.W(1, 1).to_string()] = 0.3;
-  model.layers[1].env()[s.W(1).to_string()] = 0.35;  // bias.
+  model.layers[1].W(s.W(1, 0)) = 0.25;
+  model.layers[1].W(s.W(1, 1)) = 0.3;
+  model.layers[1].W(s.W(1)) = 0.35;  // bias.
 
   // Layer 2.
   //
   // Node 1 edges.
-  model.layers[3].env()[s.W(0, 0).to_string()] = 0.4;
-  model.layers[3].env()[s.W(0, 1).to_string()] = 0.45;
-  model.layers[3].env()[s.W(0).to_string()] = 0.60;  // bias.
+  model.layers[3].W(s.W(0, 0)) = 0.4;
+  model.layers[3].W(s.W(0, 1)) = 0.45;
+  model.layers[3].W(s.W(0)) = 0.60;  // bias.
   // Node 2 edges.
-  model.layers[3].env()[s.W(1, 0).to_string()] = 0.5;
-  model.layers[3].env()[s.W(1, 1).to_string()] = 0.55;
-  model.layers[3].env()[s.W(1).to_string()] = 0.60;  // bias.
+  model.layers[3].W(s.W(1, 0)) = 0.5;
+  model.layers[3].W(s.W(1, 1)) = 0.55;
+  model.layers[3].W(s.W(1)) = 0.60;  // bias.
 
   // Use the model to generate a neural network.
   Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
@@ -272,20 +272,20 @@ TEST_CASE("Simple neural network output and gradient descent is validated",
     // Layer 1.
     //
     // Node 1 edges.
-    CHECK(model.layers[1].env()[s.W(0, 0).to_string()].real() == Approx(0.149780716));
-    CHECK(model.layers[1].env()[s.W(0, 1).to_string()].real() == Approx(0.19956143));
+    CHECK(model.layers[1].W(s.W(0, 0)) == Approx(0.149780716));
+    CHECK(model.layers[1].W(s.W(0, 1)) == Approx(0.19956143));
     // Node 2 edges.
-    CHECK(model.layers[1].env()[s.W(1, 0).to_string()].real() == Approx(0.24975114));
-    CHECK(model.layers[1].env()[s.W(1, 1).to_string()].real() == Approx(0.29950229));
+    CHECK(model.layers[1].W(s.W(1, 0)) == Approx(0.24975114));
+    CHECK(model.layers[1].W(s.W(1, 1)) == Approx(0.29950229));
 
     // Layer 2.
     //
     // Node 1 edges.
-    CHECK(model.layers[3].env()[s.W(0, 0).to_string()].real() == Approx(0.35891648));
-    CHECK(model.layers[3].env()[s.W(0, 1).to_string()].real() == Approx(0.408666186));
+    CHECK(model.layers[3].W(s.W(0, 0)) == Approx(0.35891648));
+    CHECK(model.layers[3].W(s.W(0, 1)) == Approx(0.408666186));
     // Node 2 edges.
-    CHECK(model.layers[3].env()[s.W(1, 0).to_string()].real() == Approx(0.511301270));
-    CHECK(model.layers[3].env()[s.W(1, 1).to_string()].real() == Approx(0.561370121));
+    CHECK(model.layers[3].W(s.W(1, 0)) == Approx(0.511301270));
+    CHECK(model.layers[3].W(s.W(1, 1)) == Approx(0.561370121));
   }
 }
 

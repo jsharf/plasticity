@@ -28,23 +28,17 @@ class Layer {
   using ActivationFunctionType = LayerImpl::ActivationFunctionType;
 
   // Constructors.
-  Layer() {
-    // Default to zero initialization. For Xavier initialization, call
-    // XavierInitializeWeights().
-    for (const std::string& weight : weights()) {
-      env()[weight].real() = 0;
-    }
-  }
-  Layer(std::unique_ptr<LayerImpl>&& root);
-  explicit Layer(Layer&& rhs);
+  Layer() = delete;
+  explicit Layer(std::unique_ptr<LayerImpl>&& root);
+  Layer(Layer&& rhs);
   Layer(const Layer& rhs);
 
   // Destructor.
   virtual ~Layer() {}
 
   // Assignment Operators.
-  Layer& operator=(const Layer& rhs);
-  Layer& operator=(Layer&& rhs);
+  Layer& operator=(const Layer& rhs) = delete;
+  Layer& operator=(Layer&& rhs) = delete;
 
   // Dense Layer constructor. Dense layers alone do not contain an activation
   // function. This is done via a separate activation layer.
@@ -65,15 +59,37 @@ class Layer {
                                 const VolumeDimensions& input,
                                 const AreaDimensions& output);
 
-  const std::vector<std::string>& weights() const;
-
-  symbolic::Environment& env() { return env_; }
-  const symbolic::Environment& env() const { return env_; }
-
   std::string WeightsToString() const;
 
   stats::Normal XavierInitializer() const;
   void XavierInitializeWeights();
+
+  double& W(symbolic::Expression weight) {
+    // This is such a hack. Just for testing.
+    std::string weight_string = weight.to_string();
+    if (weight_string.substr(0, 2) != "W[" || weight_string[weight_string.size() -1] != ']') {
+      std::cerr << "Invalid weight passed to Layer::W: " << weight.to_string()
+                << ", must be in form W[n]." << std::endl;
+      std::exit(1);
+    }
+    std::string weight_index = weight_string.substr(2, weight_string.size() - 3);
+    symbolic::Expression index = symbolic::CreateExpression(weight_index);
+    auto result = index.Evaluate();
+    if (!result) {
+      std::cerr << "Invalid weight index: " << index.to_string() << std::endl;
+      // std::cerr << "Evaluates to: " << result->to_string() << std::endl;
+      std::exit(1);
+    }
+    size_t index_val = static_cast<int>(result->real());
+    if (index_val >= weights_.size()) {
+      std::cerr << "Too large weight index: " << index_val << std::endl;
+      std::exit(1);
+    }
+    return weights_[index_val];
+  }
+
+  std::vector<double>& weight_buffer() { return weights_; }
+  const std::vector<double>& weight_buffer() const { return weights_; }
   
   Dimensions GetDimensions() const { return impl_->GetDimensions(); }
 
@@ -108,7 +124,7 @@ class Layer {
  private:
   SymbolGenerator generator_;
   std::unique_ptr<LayerImpl> impl_;
-  symbolic::Environment env_;
+  std::vector<double> weights_;
 };
 
 }  // namespace nnet

@@ -8,10 +8,9 @@
 namespace symbolic {
 
 Expression Sigmoid(const Expression& a) {
-  return CreateExpression("1") /
-         (CreateExpression("1") +
-          Expression(std::make_shared<ExponentExpression>(
-              NumericValue::e, (CreateExpression("-1") * a).GetPointer())));
+  return Expression(1.0) /
+         (Expression(1.0) + Expression(std::make_shared<ExponentExpression>(
+                                NumericValue::e, (Expression(-1.0) * a))));
 }
 
 Expression Relu(const Expression& a) {
