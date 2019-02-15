@@ -60,8 +60,7 @@ TEST_CASE("One-layer RELU network output is validated", "[nnet]") {
   Nnet test_net(model, Nnet::NoWeightInit, Nnet::CrossEntropy);
 
   SECTION("Verify output") {
-    Matrix<Number> output =
-        test_net.Evaluate(MakeInput(0.1, 0.2, 0.7));
+    Matrix<Number> output = test_net.Evaluate(MakeInput(0.1, 0.2, 0.7));
     REQUIRE(output.dimensions().rows == 3);
     REQUIRE(output.dimensions().cols == 1);
 
@@ -171,10 +170,8 @@ TEST_CASE("Simple neural network output is validated", "[nnet]") {
   Nnet test_net(model, Nnet::NoWeightInit, Nnet::CrossEntropy);
 
   SECTION("Verify output") {
-    std::unique_ptr<std::vector<Matrix<Number>>> layer_outputs =
-        std::make_unique<std::vector<Matrix<Number>>>();
     Matrix<Number> output =
-        test_net.Evaluate(MakeInput(0.1, 0.2, 0.7), layer_outputs);
+        test_net.Evaluate(MakeInput(0.1, 0.2, 0.7));
     REQUIRE(output.dimensions().rows == 3);
     REQUIRE(output.dimensions().cols == 1);
 
@@ -240,10 +237,7 @@ TEST_CASE("Simple neural network output and gradient descent is validated",
   Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
 
   SECTION("Verify Output of neural network", "[nnet]") {
-    std::unique_ptr<std::vector<Matrix<Number>>> layer_outputs =
-        std::make_unique<std::vector<Matrix<Number>>>();
-    Matrix<Number> output =
-        test_net.Evaluate(MakeInput(0.05, 0.10), layer_outputs);
+    Matrix<Number> output = test_net.Evaluate(MakeInput(0.05, 0.10));
     REQUIRE(output.dimensions().rows == 2);
     REQUIRE(output.dimensions().cols == 1);
 

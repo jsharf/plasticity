@@ -62,28 +62,30 @@ class Nnet {
     return model_;
   }
 
-  void CompileEvaluateKernelsIfRequired(cl::Device device) {
-    if (evaluate_kernels_.compiled &&
-        ClDevicesAreEqual(evaluate_kernels_.device, SelectDevice())) {
+  void CompileKernelsIfRequired(cl::Device device) {
+    if (opencl_.compiled &&
+        ClDevicesAreEqual(opencl_.device, SelectDevice())) {
       return;
     }
-    std::cout
-        << "Generating and compiling OpenCl Eval kernels. This takes a while"
-        << " the first time..." << std::endl;
-    std::vector<std::future<std::string>> eval_kernel_futures;
+    std::cout << "Generating and compiling OpenCl kernels. This takes a while"
+              << " the first time..." << std::endl;
+    std::vector<std::future<std::string>> kernel_futures;
     for (const Layer& layer : model_.layers) {
-      std::cerr << ".";
-      eval_kernel_futures.push_back(std::async(
+      std::cerr << "/";
+      kernel_futures.push_back(std::async(
           std::launch::async, &Layer::GenerateEvaluationKernel, &layer));
+      kernel_futures.push_back(std::async(
+          std::launch::async, &Layer::GenerateTrainingKernels, &layer));
     }
 
-    // Wait for eval kernels to be ready.
-    std::vector<std::string> eval_kernel_sources;
-    for (auto& kernel_future : eval_kernel_futures) {
-      eval_kernel_sources.push_back(kernel_future.get());
+    // Wait for kernels to be ready.
+    std::vector<std::string> kernel_sources;
+    for (auto& kernel_future : kernel_futures) {
+      std::cerr << "\\";
+      kernel_sources.push_back(kernel_future.get());
     }
-    std::cout << "Evaluation kernels generated. Compiling..." << std::endl;
-    evaluate_kernels_ = CompileCl(eval_kernel_sources, device);
+    std::cout << "Kernels generated. Compiling..." << std::endl;
+    opencl_ = CompileCl(kernel_sources, device);
     std::cout << "Done!" << std::endl;
   }
 
@@ -114,25 +116,25 @@ class Nnet {
   }
 
   Matrix<Number> Evaluate(Matrix<Number> in) {
-    std::unique_ptr<std::vector<Matrix<Number>>> _(nullptr);
+    std::unique_ptr<std::vector<cl::Buffer>> _(nullptr);
     return Evaluate(in, _);
   }
 
-  // (*out_layer_outputs)[i] is a column vector containing the outputs of layer
-  // i. Layer outputs will only be saved if out_layer_outputs is non-null.
+  // (*out_layer_outputs)[i] is a GPU buffer containing the outputs of layer i.
+  // Layer outputs will only be saved if out_layer_outputs is non-null.
   // Otherwise it will be ignored.
   Matrix<Number> Evaluate(
       Matrix<Number> in,
-      std::unique_ptr<std::vector<Matrix<Number>>>& out_layer_outputs) {
+      std::unique_ptr<std::vector<cl::Buffer>>& out_layer_outputs) {
     cl::Device device = SelectDevice();
-    CompileEvaluateKernelsIfRequired(device);
+    CompileKernelsIfRequired(device);
 
-    cl::Context& context = std::get<0>(evaluate_kernels_.compilation_units);
-    cl::Program& program = std::get<1>(evaluate_kernels_.compilation_units);
+    cl::Context& context = std::get<0>(opencl_.compilation_units);
+    cl::Program& program = std::get<1>(opencl_.compilation_units);
 
     // Create a queue (a queue of commands that the GPU will execute)
     // Assumes that all kernels compiled for same device.
-    cl::CommandQueue queue(context, device);
+    cl::CommandQueue& queue = opencl_.queue;
 
     // Load input.
     cl::Buffer inputs(context, CL_MEM_READ_ONLY, input_size() * sizeof(Number));
@@ -173,13 +175,7 @@ class Nnet {
                                  cl::NullRange);
 
       if (out_layer_outputs) {
-        Number output_buf[layer.GetDimensions().num_outputs];
-        queue.enqueueReadBuffer(outputs, CL_TRUE, 0, sizeof(output_buf),
-                                output_buf);
-        out_layer_outputs->emplace_back(layer.GetDimensions().num_outputs, 1);
-        for (size_t i = 0; i < layer.GetDimensions().num_outputs; ++i) {
-          out_layer_outputs->back().at(i, 0) = output_buf[i];
-        }
+        out_layer_outputs->push_back(outputs);
       }
 
       // inputs = outputs (output of this layer is input for next layer).
@@ -222,49 +218,23 @@ class Nnet {
     return gpu_buffer;
   }
 
-  void CompileTrainingKernelsIfRequired(cl::Device device) {
-    if (training_kernels_.compiled) {
-      return;
-    }
-
-    std::cerr << "Generating and compiling OpenCl Training kernels. This takes a while"
-              << " the first time." << std::endl;
-
-    std::vector<std::future<std::string>> train_kernel_futures;
-    for (const Layer& layer : model_.layers) {
-      std::cerr << "/";
-      train_kernel_futures.push_back(std::async(
-          std::launch::async, &Layer::GenerateTrainingKernels, &layer));
-    }
-
-    // Wait for eval kernels to be ready.
-    std::vector<std::string> train_kernel_sources;
-    for (auto& kernel_future : train_kernel_futures) {
-      std::cerr << "\\";
-      train_kernel_sources.push_back(kernel_future.get());
-    }
-    std::cerr << "Training kernels generated. Compiling..." << std::endl;
-    training_kernels_ = CompileCl(train_kernel_sources, device);
-    std::cerr << "Done!" << std::endl;
-  }
-
   void Train(Matrix<Number> in, Matrix<Number> o,
              const LearningParameters &params) {
     cl::Device device = SelectDevice();
 
-    CompileTrainingKernelsIfRequired(device);
+    CompileKernelsIfRequired(device);
 
-    cl::Context& context = std::get<0>(training_kernels_.compilation_units);
-    cl::Program& program = std::get<1>(training_kernels_.compilation_units);
+    cl::Context& context = std::get<0>(opencl_.compilation_units);
+    cl::Program& program = std::get<1>(opencl_.compilation_units);
 
     // Create a queue (a queue of commands that the GPU will execute)
     // Assumes that all kernels compiled for same device.
-    cl::CommandQueue queue(context, device);
+    cl::CommandQueue& queue = opencl_.queue;
 
     // Forward pass, store each layer's outputs as a column vector in
     // layer_outputs.
-    std::unique_ptr<std::vector<Matrix<Number>>> layer_outputs =
-        std::make_unique<std::vector<Matrix<Number>>>();
+    std::unique_ptr<std::vector<cl::Buffer>> layer_outputs =
+        std::make_unique<std::vector<cl::Buffer>>();
     Matrix<Number> actual_output = Evaluate(in, layer_outputs);
 
     Matrix<symbolic::Expression> output_symbolic =
@@ -298,11 +268,11 @@ class Nnet {
       std::cerr << "Training value actual output\n==========\n "
                 << actual_output.to_string() << std::endl;
       std::cerr << "Weights\n==============\n" << WeightsToString() << std::endl;
-      int layer_index = 1;
-      for (auto& layer : *layer_outputs) {
-        std::cout << "layer_" << layer_index++ << ":" << std::endl;
-        std::cout << layer.to_string() << std::endl;
-      }
+      //int layer_index = 1;
+      //for (auto& layer : *layer_outputs) {
+      //  std::cout << "layer_" << layer_index++ << ":" << std::endl;
+      //  std::cout << layer << std::endl;
+      //}
       std::exit(1);
     }
 
@@ -322,8 +292,8 @@ class Nnet {
     iter++;
     for (int i = model_.layers.size() - 1; i >= 0; --i) {
       auto& layer = model_.layers[i];
-      const Matrix<Number>& layer_input =
-          (i > 0) ? layer_outputs->at(i - 1) : in;
+      const cl::Buffer& gpu_layer_input =
+          (i > 0) ? layer_outputs->at(i - 1) : ColumnVectorToGpuBuffer(context, &queue, in);
 
       // Load weights. TODO(sharf) optimize the shit out of this by not
       // re-loading layers if their weights haven't changed and also caching
@@ -334,13 +304,6 @@ class Nnet {
                          number_weights * sizeof(Number));
       queue.enqueueWriteBuffer(weights, CL_TRUE, 0,
                                sizeof(Number) * number_weights, layer.weight_buffer().data());
-
-      // Load layer inputs. TODO(sharf) optimize the shit out of this by
-      // keeping them in GPU memory instead of passing them to CPU and then back
-      // to GPU (copied to CPU in EvaluateCL and then back to GPU here).
-      // Also, transfer all inputs at once outside of this for-loop.
-      cl::Buffer gpu_layer_input =
-          ColumnVectorToGpuBuffer(context, &queue, layer_input);
 
       cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
       queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0, sizeof(Number),
@@ -532,20 +495,21 @@ class Nnet {
     bool compiled = false;
     std::tuple<cl::Context, cl::Program> compilation_units;
     cl::Device device;
+    cl::CommandQueue queue;
   };
 
   OpenClState CompileCl(const std::vector<std::string>& kernel_source,
                         cl::Device device) {
-    OpenClState evaluate_kernel;
-    evaluate_kernel.device = device;
-    evaluate_kernel.compiled = true;
-    evaluate_kernel.compilation_units = clutil::Compile(device, kernel_source);
-    return evaluate_kernel;
+    OpenClState kernel;
+    kernel.device = device;
+    kernel.compiled = true;
+    kernel.compilation_units = clutil::Compile(device, kernel_source);
+    kernel.queue =
+        cl::CommandQueue(std::get<0>(kernel.compilation_units), device);
+    return kernel;
   }
 
-  OpenClState evaluate_kernels_;
-  OpenClState training_kernels_;
-  std::vector<OpenClState> layer_backprop_kernels_;
+  OpenClState opencl_;
 };
 
 }  // namespace nnet
