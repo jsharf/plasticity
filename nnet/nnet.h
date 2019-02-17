@@ -363,22 +363,22 @@ class Nnet {
       // weights_buf in Layer.
       // Also, transfer all weights at once outside of this for-loop.
       const size_t number_weights = layer.weight_buffer().size();
-      cl::Buffer weights(context, CL_MEM_READ_WRITE,
-                         number_weights * sizeof(Number));
-      cl_int result = queue.enqueueWriteBuffer(weights, CL_TRUE, 0,
-                               sizeof(Number) * number_weights, layer.weight_buffer().data());
-      if (result != CL_SUCCESS) {
-        std::cerr << "Error enqueuing weight buffer write:  " << result << std::endl;
-        std::exit(1);
+      std::unique_ptr<cl::Buffer> weights;
+      if (number_weights > 0) {
+        weights = std::make_unique<cl::Buffer>(context, CL_MEM_READ_WRITE,
+                                               number_weights * sizeof(Number));
+        CL_CHECK(queue.enqueueWriteBuffer(*weights, CL_TRUE, 0,
+                                          sizeof(Number) * number_weights,
+                                          layer.weight_buffer().data()));
+      } else {
+        // Make a dummy 1-weight buffer so openCL doesn't complain about null
+        // argument.
+        weights = std::make_unique<cl::Buffer>(context, CL_MEM_READ_WRITE, sizeof(Number));
       }
 
       cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
-      result = queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0,
-                                        sizeof(Number), &params.learning_rate);
-      if (result != CL_SUCCESS) {
-        std::cerr << "Error enqueuing learning rate buffer write:  " << result << std::endl;
-        std::exit(1);
-      }
+      CL_CHECK(queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0,
+                                        sizeof(Number), &params.learning_rate));
 
       if (number_weights > 0) {
         cl::Buffer gpu_new_weights(context, CL_MEM_READ_WRITE,
@@ -386,12 +386,12 @@ class Nnet {
         // Backprop layer weight updates.
         std::string weight_kernel_name = layer.WeightGradientKernelName();
         cl::Kernel weight_update(program, weight_kernel_name.c_str());
-        weight_update.setArg(0, gpu_layer_input);
-        weight_update.setArg(1, weights);
-        weight_update.setArg(2, gpu_gradients);
-        weight_update.setArg(3, gpu_new_weights);
-        weight_update.setArg(4, learning_rate_buff);
-        result = queue.enqueueNDRangeKernel(
+        CL_CHECK(weight_update.setArg(0, gpu_layer_input));
+        CL_CHECK(weight_update.setArg(1, *weights));
+        CL_CHECK(weight_update.setArg(2, gpu_gradients));
+        CL_CHECK(weight_update.setArg(3, gpu_new_weights));
+        CL_CHECK(weight_update.setArg(4, learning_rate_buff));
+        cl_int result = queue.enqueueNDRangeKernel(
             weight_update, cl::NullRange,
             cl::NDRange(layer.weight_buffer().size()), cl::NullRange);
         if (result != CL_SUCCESS) {
@@ -421,10 +421,10 @@ class Nnet {
         // Backprop gradient calculation.
         std::string input_kernel_name = layer.InputGradientKernelName();
         cl::Kernel input_update(program, input_kernel_name.c_str());
-        input_update.setArg(0, gpu_layer_input);
-        input_update.setArg(1, weights);
-        input_update.setArg(2, gpu_gradients);
-        input_update.setArg(3, gpu_new_gradients);
+        CL_CHECK(input_update.setArg(0, gpu_layer_input));
+        CL_CHECK(input_update.setArg(1, *weights));
+        CL_CHECK(input_update.setArg(2, gpu_gradients));
+        CL_CHECK(input_update.setArg(3, gpu_new_gradients));
         cl_int result = queue.enqueueNDRangeKernel(
             input_update, cl::NullRange,
             cl::NDRange(layer.GetDimensions().num_inputs), cl::NullRange);
