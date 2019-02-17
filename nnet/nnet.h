@@ -282,7 +282,14 @@ class Nnet {
   }
 
   void Train(Matrix<Number> in, Matrix<Number> o,
-             const LearningParameters &params) {
+             const LearningParameters& params) {
+    std::unique_ptr<Matrix<Number>> _(nullptr);
+    return Train(in, o, params,  _);
+  }
+
+  void Train(Matrix<Number> in, Matrix<Number> o,
+             const LearningParameters& params,
+             std::unique_ptr<Matrix<Number>>& input_gradients) {
     cl::Device device = SelectDevice();
 
     CompileKernelsIfRequired(device);
@@ -439,6 +446,18 @@ class Nnet {
       // before this one, we're iterating backwards).
       gpu_gradients = gpu_new_gradients;
 
+    }
+    if (input_gradients) {
+      size_t num_inputs = in.dimensions().rows;
+      input_gradients->resize(num_inputs, 1);
+      // Load in final gradients.
+      std::vector<Number> temp_gradients(num_inputs, 0);
+      CL_CHECK(queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
+                                       sizeof(Number) * num_inputs,
+                                       temp_gradients.data()));
+      for (size_t i = 0; i < num_inputs; ++i) {
+        input_gradients->at(i, 0) = temp_gradients[i];
+      }
     }
   }
 

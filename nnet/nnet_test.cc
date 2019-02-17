@@ -283,4 +283,100 @@ TEST_CASE("Simple neural network output and gradient descent is validated",
   }
 }
 
+TEST_CASE("Just testing a single max_pool layer", "[maxpool]") {
+  constexpr size_t kInputSize = 48;
+
+  Architecture model(kInputSize);
+  model.AddMaxPoolLayer(
+      // Input
+      {
+          4, 4, 3  // width, height, depth
+      },
+      // Output (depth not specified since it's assumed to be the same as
+      // input).
+      {
+          2, 2  // width, height
+      });
+
+  // Use the model to generate a neural network.
+  Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+
+  // input is a 3D 4x4x3 image.
+  Input example = {
+    // Layer 1
+    {1}, {0}, {0}, {3},
+    {32}, {0}, {0}, {2},
+    {0}, {0}, {0}, {0},
+    {0}, {0}, {0}, {5},
+    // Layer 2
+    {1}, {0}, {0}, {3},
+    {7}, {8}, {10}, {2},
+    {0}, {0}, {5}, {0},
+    {1}, {0}, {0}, {5},
+    // Layer 3
+    {1}, {-8}, {0}, {3},
+    {32}, {24}, {0}, {2},
+    {0}, {100}, {0}, {0},
+    {0}, {0}, {0}, {5},
+  };
+
+  Input expected = {
+    // Layer 1
+    {32}, {3}, 
+    {0}, {5},
+    // Layer 2
+    {8}, {10},
+    {1}, {5},
+    // Layer 3
+    {32}, {3},
+    {100}, {5},
+  };
+  auto actual = test_net.Evaluate(example);
+
+  SECTION("forward pass", "[maxpool]") {
+    for (size_t i = 0; i < expected.dimensions().rows; ++i) {
+      for (size_t j = 0; j < expected.dimensions().cols; ++j) {
+        CAPTURE(expected.at(i, j));
+        CAPTURE(actual.at(i, j));
+        REQUIRE(expected.at(i, j) == Approx(actual.at(i, j)));
+      }
+    }
+  }
+
+  SECTION("gradient backprop", "[maxpool]") {
+    nnet::Nnet::LearningParameters params{.learning_rate = 1};
+    Input expected_altered = {
+        // Layer 1
+        {33}, {3},
+        {100}, {4},
+        // Layer 2
+        {8}, {10},
+        {1}, {5},
+        // Layer 3
+        {31}, {4},
+        {90}, {6},
+    };
+    std::unique_ptr<Matrix<double>> gradients = std::make_unique<Matrix<double>>();
+    test_net.Train(example, expected_altered, params, gradients);
+
+    // Layer 1
+    CHECK(gradients->at(0, 0) < (0.0));
+    CHECK(gradients->at(1, 0) == Approx(0.0));
+    CHECK(gradients->at(2, 0) < (0.0));
+    CHECK(gradients->at(3, 0) > (0.0));
+
+    // Layer 2
+    CHECK(gradients->at(4, 0) == Approx(0.0));
+    CHECK(gradients->at(5, 0) == Approx(0.0));
+    CHECK(gradients->at(6, 0) == Approx(0.0));
+    CHECK(gradients->at(7, 0) == Approx(0.0));
+
+    // Layer 3
+    CHECK(gradients->at(8, 0) > (0.0));
+    CHECK(gradients->at(9, 0) < (0.0));
+    CHECK(gradients->at(10, 0) > (0.0));
+    CHECK(gradients->at(11, 0) < (0.0));
+  }
+}
+
 }  // namespace nnet
