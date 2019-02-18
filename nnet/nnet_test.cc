@@ -331,6 +331,7 @@ TEST_CASE("Just testing a single max_pool layer", "[maxpool]") {
     {32}, {3},
     {100}, {5},
   };
+
   auto actual = test_net.Evaluate(example);
 
   SECTION("forward pass", "[maxpool]") {
@@ -359,23 +360,71 @@ TEST_CASE("Just testing a single max_pool layer", "[maxpool]") {
     std::unique_ptr<Matrix<double>> gradients = std::make_unique<Matrix<double>>();
     test_net.Train(example, expected_altered, params, gradients);
 
-    // Layer 1
-    CHECK(gradients->at(0, 0) < (0.0));
-    CHECK(gradients->at(1, 0) == Approx(0.0));
-    CHECK(gradients->at(2, 0) < (0.0));
-    CHECK(gradients->at(3, 0) > (0.0));
+    REQUIRE(gradients->dimensions().rows == 48);
+    REQUIRE(example.dimensions().rows == 48);
 
-    // Layer 2
-    CHECK(gradients->at(4, 0) == Approx(0.0));
+    // Layer 1
+    CHECK(gradients->at(0, 0) == Approx(0.0));
+    CHECK(gradients->at(1, 0) == Approx(0.0));
+    CHECK(gradients->at(2, 0) == Approx(0.0));
+    CHECK(gradients->at(3, 0) == Approx(0.0));
+
+    CHECK(gradients->at(4, 0) < (0.0));
     CHECK(gradients->at(5, 0) == Approx(0.0));
     CHECK(gradients->at(6, 0) == Approx(0.0));
     CHECK(gradients->at(7, 0) == Approx(0.0));
 
-    // Layer 3
-    CHECK(gradients->at(8, 0) > (0.0));
+    CHECK(gradients->at(8, 0) < (0.0));
     CHECK(gradients->at(9, 0) < (0.0));
-    CHECK(gradients->at(10, 0) > (0.0));
-    CHECK(gradients->at(11, 0) < (0.0));
+    CHECK(gradients->at(10, 0) == Approx(0.0));
+    CHECK(gradients->at(11, 0) == Approx(0.0));
+
+    CHECK(gradients->at(12, 0) < (0.0));
+    CHECK(gradients->at(13, 0) < (0.0));
+    CHECK(gradients->at(14, 0) == Approx(0.0));
+    CHECK(gradients->at(15, 0) > (0.0));
+
+    // Layer 2
+    CHECK(gradients->at(16, 0) == Approx(0.0));
+    CHECK(gradients->at(17, 0) == Approx(0.0));
+    CHECK(gradients->at(18, 0) == Approx(0.0));
+    CHECK(gradients->at(19, 0) == Approx(0.0));
+
+    CHECK(gradients->at(20, 0) == Approx(0.0));
+    CHECK(gradients->at(21, 0) == Approx(0.0));
+    CHECK(gradients->at(22, 0) == Approx(0.0));
+    CHECK(gradients->at(23, 0) == Approx(0.0));
+
+    CHECK(gradients->at(24, 0) == Approx(0.0));
+    CHECK(gradients->at(25, 0) == Approx(0.0));
+    CHECK(gradients->at(26, 0) == Approx(0.0));
+    CHECK(gradients->at(27, 0) == Approx(0.0));
+
+    CHECK(gradients->at(28, 0) == Approx(0.0));
+    CHECK(gradients->at(29, 0) == Approx(0.0));
+    CHECK(gradients->at(30, 0) == Approx(0.0));
+    CHECK(gradients->at(31, 0) == Approx(0.0));
+
+    // Layer 3
+    CHECK(gradients->at(32, 0) == Approx(0.0));
+    CHECK(gradients->at(33, 0) == Approx(0.0));
+    CHECK(gradients->at(34, 0) == Approx(0.0));
+    CHECK(gradients->at(35, 0) < (0.0));
+
+    CHECK(gradients->at(36, 0) > (0.0));
+    CHECK(gradients->at(37, 0) == Approx(0.0));
+    CHECK(gradients->at(38, 0) == Approx(0.0));
+    CHECK(gradients->at(39, 0) == Approx(0.0));
+
+    CHECK(gradients->at(40, 0) == Approx(0.0));
+    CHECK(gradients->at(41, 0) > (0.0));
+    CHECK(gradients->at(42, 0) == Approx(0.0));
+    CHECK(gradients->at(43, 0) == Approx(0.0));
+
+    CHECK(gradients->at(44, 0) == Approx(0.0));
+    CHECK(gradients->at(45, 0) == Approx(0.0));
+    CHECK(gradients->at(46, 0) == Approx(0.0));
+    CHECK(gradients->at(47, 0) < (0.0));
   }
 }
 

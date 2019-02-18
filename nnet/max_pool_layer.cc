@@ -39,8 +39,7 @@ std::tuple<size_t, size_t, size_t> MaxPoolLayer::GetOutputDimensions(
 
 void MaxPoolLayer::GenerateOutputCode(const symbolic::Expression &index,
                                       codegen::Generator *cg) const {
-  // Get 3D output dimensions. (output will be a 1D serialized form of this,
-  // using mapping output_flat_index).
+  // Get 3D output dimensions.
   std::tuple<size_t, size_t, size_t> output_dims =
       GetOutputDimensions(input_, target_);
   size_t output_width = std::get<0>(output_dims);
@@ -134,7 +133,9 @@ void MaxPoolLayer::InputGradientCode(
   cg->PopScope();
   cg->PopScope();
   cg->PopScope();
-  cg->AppendLineOfCode("return " + generator_.GRADIENT(input_index).to_string() + cg->linesep());
+  cg->AppendLineOfCode("return " +
+                       generator_.GRADIENT(output_flat_index).to_string() +
+                       cg->linesep());
 }
 
 void MaxPoolLayer::WeightGradientCode(
