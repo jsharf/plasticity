@@ -428,4 +428,172 @@ TEST_CASE("Just testing a single max_pool layer", "[maxpool]") {
   }
 }
 
+// Taken from the convolution demo here:
+// http://cs231n.github.io/convolutional-networks/#conv
+TEST_CASE("Convolution layer test", "[convnet]") {
+  constexpr size_t kInputSize = 75;
+
+  Architecture model(kInputSize);
+  VolumeDimensions layer_dimensions = {
+      5, 5, 3  // width, height, depth
+  };
+  FilterParams params = {
+      3, 3, 3,  // Width, Height, Depth
+      2,        // Stride
+      1,        // Padding
+      2         // Number of filters.
+  };
+  model.AddConvolutionLayer(
+      // Inputs
+      layer_dimensions,
+      // Filter params
+      params,
+      // No activation function.
+      symbolic::Identity);
+
+  ConvSymbolGenerator s(layer_dimensions, params);
+
+  // Use the model to generate a neural network.
+  Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+
+  // Filter 1.
+  //
+  // Depth 0
+  model.layers[1].W(s.W(0, 0, 0, 0)) = 0;
+  model.layers[1].W(s.W(0, 0, 1, 0)) = 1;
+  model.layers[1].W(s.W(0, 0, 2, 0)) = 0;
+
+  model.layers[1].W(s.W(0, 1, 0, 0)) = 0;
+  model.layers[1].W(s.W(0, 1, 1, 0)) = -1;
+  model.layers[1].W(s.W(0, 1, 2, 0)) = 1;
+
+  model.layers[1].W(s.W(0, 2, 0, 0)) = -1;
+  model.layers[1].W(s.W(0, 2, 1, 0)) = 1;
+  model.layers[1].W(s.W(0, 2, 2, 0)) = 0;
+
+  // Depth 1
+  model.layers[1].W(s.W(0, 0, 0, 1)) = 0;
+  model.layers[1].W(s.W(0, 0, 1, 1)) = -1;
+  model.layers[1].W(s.W(0, 0, 2, 1)) = 1;
+
+  model.layers[1].W(s.W(0, 1, 0, 1)) = 0;
+  model.layers[1].W(s.W(0, 1, 1, 1)) = -1;
+  model.layers[1].W(s.W(0, 1, 2, 1)) = -1;
+
+  model.layers[1].W(s.W(0, 2, 0, 1)) = 0;
+  model.layers[1].W(s.W(0, 2, 1, 1)) = 0;
+  model.layers[1].W(s.W(0, 2, 2, 1)) = -1;
+
+  // Depth 3
+  model.layers[1].W(s.W(0, 0, 0, 1)) = -1;
+  model.layers[1].W(s.W(0, 0, 1, 1)) = -1;
+  model.layers[1].W(s.W(0, 0, 2, 1)) = 1;
+
+  model.layers[1].W(s.W(0, 1, 0, 1)) = 1;
+  model.layers[1].W(s.W(0, 1, 1, 1)) = 1;
+  model.layers[1].W(s.W(0, 1, 2, 1)) = 0;
+
+  model.layers[1].W(s.W(0, 2, 0, 1)) = 0;
+  model.layers[1].W(s.W(0, 2, 1, 1)) = 1;
+  model.layers[1].W(s.W(0, 2, 2, 1)) = 1;
+  
+  // Bias
+  model.layers[1].W(s.W(0)) = 1;
+
+  // Filter 2.
+  //
+  // Depth 0
+  model.layers[1].W(s.W(1, 0, 0, 0)) = 0;
+  model.layers[1].W(s.W(1, 0, 1, 0)) = -1;
+  model.layers[1].W(s.W(1, 0, 2, 0)) = -1;
+
+  model.layers[1].W(s.W(1, 1, 0, 0)) = 1;
+  model.layers[1].W(s.W(1, 1, 1, 0)) = 1;
+  model.layers[1].W(s.W(1, 1, 2, 0)) = 0;
+
+  model.layers[1].W(s.W(1, 2, 0, 0)) = 0;
+  model.layers[1].W(s.W(1, 2, 1, 0)) = 0;
+  model.layers[1].W(s.W(1, 2, 2, 0)) = 0;
+
+  // Depth 1
+  model.layers[1].W(s.W(1, 0, 0, 1)) = 0;
+  model.layers[1].W(s.W(1, 0, 1, 1)) = -1;
+  model.layers[1].W(s.W(1, 0, 2, 1)) = -1;
+
+  model.layers[1].W(s.W(1, 1, 0, 1)) = 0;
+  model.layers[1].W(s.W(1, 1, 1, 1)) = 0;
+  model.layers[1].W(s.W(1, 1, 2, 1)) = 0;
+
+  model.layers[1].W(s.W(1, 2, 0, 1)) = 1;
+  model.layers[1].W(s.W(1, 2, 1, 1)) = 0;
+  model.layers[1].W(s.W(1, 2, 2, 1)) = -1;
+
+  // Depth 3
+  model.layers[1].W(s.W(1, 0, 0, 1)) = 1;
+  model.layers[1].W(s.W(1, 0, 1, 1)) = 1;
+  model.layers[1].W(s.W(1, 0, 2, 1)) = -1;
+
+  model.layers[1].W(s.W(1, 1, 0, 1)) = 1;
+  model.layers[1].W(s.W(1, 1, 1, 1)) = 1;
+  model.layers[1].W(s.W(1, 1, 2, 1)) = 0;
+
+  model.layers[1].W(s.W(1, 2, 0, 1)) = 1;
+  model.layers[1].W(s.W(1, 2, 1, 1)) = 0;
+  model.layers[1].W(s.W(1, 2, 2, 1)) = 0;
+
+  // Bias
+  model.layers[1].W(s.W(1)) = 0;
+
+
+
+  // input is a 3D 5x5x3 image.
+  Input example = {
+    // Layer 1
+    {1}, {0}, {0}, {1}, {1},
+    {2}, {0}, {0}, {2}, {1},
+    {0}, {1}, {1}, {2}, {0},
+    {1}, {0}, {0}, {2}, {1},
+    {2}, {2}, {1}, {1}, {1},
+    // Layer 2
+    {0}, {2}, {0}, {0}, {1},
+    {1}, {1}, {1}, {1}, {2},
+    {1}, {1}, {0}, {1}, {1},
+    {1}, {1}, {1}, {0}, {2},
+    {2}, {0}, {2}, {0}, {0},
+    // Layer 3
+    {2}, {0}, {2}, {1}, {2},
+    {0}, {2}, {1}, {0}, {0},
+    {2}, {1}, {1}, {0}, {0},
+    {1}, {1}, {0}, {0}, {0},
+    {2}, {1}, {1}, {1}, {2},
+  };
+
+  Input expected = {
+    // Layer 1
+    {3}, {4}, {1},
+    {8}, {0}, {-2},
+    {2}, {-1}, {2},
+    // Layer 2
+    {2}, {4}, {6},
+    {-5}, {5}, {-1},
+    {1}, {3}, {2},
+  };
+
+  auto actual = test_net.Evaluate(example);
+
+  SECTION("forward pass", "[maxpool]") {
+    for (size_t i = 0; i < expected.dimensions().rows; ++i) {
+      for (size_t j = 0; j < expected.dimensions().cols; ++j) {
+        CAPTURE(i);
+        CAPTURE(j);
+        CAPTURE(expected.at(i, j));
+        CAPTURE(actual.at(i, j));
+        REQUIRE(expected.at(i, j) == Approx(actual.at(i, j)));
+      }
+    }
+  }
+
+
+}
+
 }  // namespace nnet
