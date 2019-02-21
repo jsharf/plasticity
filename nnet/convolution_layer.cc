@@ -76,8 +76,8 @@ void ConvolutionLayer::GenerateOutputCode(const symbolic::Expression &index,
   symbolic::Expression f_x = symbolic::Expression::CreateInteger("f_x");
   symbolic::Expression f_y = symbolic::Expression::CreateInteger("f_y");
   symbolic::Expression f_z = symbolic::Expression::CreateInteger("f_z");
-  symbolic::Expression input_x = conv_start_row + f_x;
-  symbolic::Expression input_y = conv_start_col + f_y;
+  symbolic::Expression input_x = conv_start_row + f_x - filters_.width/2;
+  symbolic::Expression input_y = conv_start_col + f_y - filters_.height/2;
   symbolic::Expression input_z = f_z;
   symbolic::Expression output_factor =
       generator_.W(output_filter, f_x, f_y, f_z) *

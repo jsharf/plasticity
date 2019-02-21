@@ -41,20 +41,20 @@ TEST_CASE("One-layer RELU network output is validated", "[nnet]") {
   // harmless (yet confusing) mistake.
   //
   // Node 1 edges.
-  model.layers[1].W(s.W(0, 0)) = 0.1;
-  model.layers[1].W(s.W(0, 1)) = 0.3;
-  model.layers[1].W(s.W(0, 2)) = 0.4;
-  model.layers[1].W(s.W(0)) = 1;  // bias.
+  model.layers[1].W(s.WeightNumber(0, 0)) = 0.1;
+  model.layers[1].W(s.WeightNumber(0, 1)) = 0.3;
+  model.layers[1].W(s.WeightNumber(0, 2)) = 0.4;
+  model.layers[1].W(s.WeightNumber(0)) = 1;  // bias.
   // Node 2 edges.
-  model.layers[1].W(s.W(1, 0)) = 0.2;
-  model.layers[1].W(s.W(1, 1)) = 0.2;
-  model.layers[1].W(s.W(1, 2)) = 0.3;
-  model.layers[1].W(s.W(1)) = 1;  // bias.
+  model.layers[1].W(s.WeightNumber(1, 0)) = 0.2;
+  model.layers[1].W(s.WeightNumber(1, 1)) = 0.2;
+  model.layers[1].W(s.WeightNumber(1, 2)) = 0.3;
+  model.layers[1].W(s.WeightNumber(1)) = 1;  // bias.
   // Node 3 edges.
-  model.layers[1].W(s.W(2, 0)) = 0.3;
-  model.layers[1].W(s.W(2, 1)) = 0.7;
-  model.layers[1].W(s.W(2, 2)) = 0.9;
-  model.layers[1].W(s.W(2)) = 1;  // bias.
+  model.layers[1].W(s.WeightNumber(2, 0)) = 0.3;
+  model.layers[1].W(s.WeightNumber(2, 1)) = 0.7;
+  model.layers[1].W(s.WeightNumber(2, 2)) = 0.9;
+  model.layers[1].W(s.WeightNumber(2)) = 1;  // bias.
 
   // Use the model to generate a neural network.
   Nnet test_net(model, Nnet::NoWeightInit, Nnet::CrossEntropy);
@@ -110,38 +110,38 @@ TEST_CASE("Simple neural network output is validated", "[nnet]") {
   // harmless (yet confusing) mistake.
   //
   // Node 1 edges.
-  model.layers[1].W(s.W(0, 0)) = 0.1;
-  model.layers[1].W(s.W(0, 1)) = 0.3;
-  model.layers[1].W(s.W(0, 2)) = 0.4;
-  model.layers[1].W(s.W(0)) = 1;  // bias.
-  // Node 2 edges.W(
-  model.layers[1].W(s.W(1, 0)) = 0.2;
-  model.layers[1].W(s.W(1, 1)) = 0.2;
-  model.layers[1].W(s.W(1, 2)) = 0.3;
-  model.layers[1].W(s.W(1)) = 1;  // bias.
-  // Node 3 edges.W(
-  model.layers[1].W(s.W(2, 0)) = 0.3;
-  model.layers[1].W(s.W(2, 1)) = 0.7;
-  model.layers[1].W(s.W(2, 2)) = 0.9;
-  model.layers[1].W(s.W(2))= 1;  // bias.
+  model.layers[1].W(s.WeightNumber(0, 0)) = 0.1;
+  model.layers[1].W(s.WeightNumber(0, 1)) = 0.3;
+  model.layers[1].W(s.WeightNumber(0, 2)) = 0.4;
+  model.layers[1].W(s.WeightNumber(0)) = 1;  // bias.
+  // Node 2 edges.
+  model.layers[1].W(s.WeightNumber(1, 0)) = 0.2;
+  model.layers[1].W(s.WeightNumber(1, 1)) = 0.2;
+  model.layers[1].W(s.WeightNumber(1, 2)) = 0.3;
+  model.layers[1].W(s.WeightNumber(1)) = 1;  // bias.
+  // Node 3 edges.
+  model.layers[1].W(s.WeightNumber(2, 0)) = 0.3;
+  model.layers[1].W(s.WeightNumber(2, 1)) = 0.7;
+  model.layers[1].W(s.WeightNumber(2, 2)) = 0.9;
+  model.layers[1].W(s.WeightNumber(2))= 1;  // bias.
 
   // Layer 2.
   //
   // Node 1 edges.
-  model.layers[3].W(s.W(0, 0)) = 0.2;
-  model.layers[3].W(s.W(0, 1)) = 0.3;
-  model.layers[3].W(s.W(0, 2)) = 0.6;
-  model.layers[3].W(s.W(0))= 1;  // bias.
-  // Node 2 edges.W(
-  model.layers[3].W(s.W(1, 0)) = 0.3;
-  model.layers[3].W(s.W(1, 1)) = 0.5;
-  model.layers[3].W(s.W(1, 2)) = 0.4;
-  model.layers[3].W(s.W(1)) = 1;  // bias.
+  model.layers[3].W(s.WeightNumber(0, 0)) = 0.2;
+  model.layers[3].W(s.WeightNumber(0, 1)) = 0.3;
+  model.layers[3].W(s.WeightNumber(0, 2)) = 0.6;
+  model.layers[3].W(s.WeightNumber(0))= 1;  // bias.
+  // Node 2 edges.
+  model.layers[3].W(s.WeightNumber(1, 0)) = 0.3;
+  model.layers[3].W(s.WeightNumber(1, 1)) = 0.5;
+  model.layers[3].W(s.WeightNumber(1, 2)) = 0.4;
+  model.layers[3].W(s.WeightNumber(1)) = 1;  // bias.
   // Node 3 edges.
-  model.layers[3].W(s.W(2, 0)) = 0.5;
-  model.layers[3].W(s.W(2, 1)) = 0.7;
-  model.layers[3].W(s.W(2, 2)) = 0.8;
-  model.layers[3].W(s.W(2)) = 1;  // bias.
+  model.layers[3].W(s.WeightNumber(2, 0)) = 0.5;
+  model.layers[3].W(s.WeightNumber(2, 1)) = 0.7;
+  model.layers[3].W(s.WeightNumber(2, 2)) = 0.8;
+  model.layers[3].W(s.WeightNumber(2)) = 1;  // bias.
 
   // Layer 3.
   //
@@ -149,22 +149,22 @@ TEST_CASE("Simple neural network output is validated", "[nnet]") {
   // outputs should be used to compare to the outputs of layer 3 in the example.
   //
   // Node 1 edges.
-  model.layers[5].W(s.W(0, 0)) = 0.1;
-  model.layers[5].W(s.W(0, 1)) = 0.3;
-  model.layers[5].W(s.W(0, 2)) = 0.5;
-  model.layers[5].W(s.W(0)) = 1;  // bias.
+  model.layers[5].W(s.WeightNumber(0, 0)) = 0.1;
+  model.layers[5].W(s.WeightNumber(0, 1)) = 0.3;
+  model.layers[5].W(s.WeightNumber(0, 2)) = 0.5;
+  model.layers[5].W(s.WeightNumber(0)) = 1;  // bias.
 
   // Node 2 edges.
-  model.layers[5].W(s.W(1, 0)) = 0.4;
-  model.layers[5].W(s.W(1, 1)) = 0.7;
-  model.layers[5].W(s.W(1, 2)) = 0.2;
-  model.layers[5].W(s.W(1)) = 1;  // bias.
+  model.layers[5].W(s.WeightNumber(1, 0)) = 0.4;
+  model.layers[5].W(s.WeightNumber(1, 1)) = 0.7;
+  model.layers[5].W(s.WeightNumber(1, 2)) = 0.2;
+  model.layers[5].W(s.WeightNumber(1)) = 1;  // bias.
 
   // Node 3 edges.
-  model.layers[5].W(s.W(2, 0)) = 0.8;
-  model.layers[5].W(s.W(2, 1)) = 0.2;
-  model.layers[5].W(s.W(2, 2)) = 0.9;
-  model.layers[5].W(s.W(2)) = 1;  // bias.
+  model.layers[5].W(s.WeightNumber(2, 0)) = 0.8;
+  model.layers[5].W(s.WeightNumber(2, 1)) = 0.2;
+  model.layers[5].W(s.WeightNumber(2, 2)) = 0.9;
+  model.layers[5].W(s.WeightNumber(2)) = 1;  // bias.
 
   // Use the model to generate a neural network.
   Nnet test_net(model, Nnet::NoWeightInit, Nnet::CrossEntropy);
@@ -214,24 +214,24 @@ TEST_CASE("Simple neural network output and gradient descent is validated",
   // Layer 1.
   //
   // Node 1 edges.
-  model.layers[1].W(s.W(0, 0)) = 0.15;
-  model.layers[1].W(s.W(0, 1)) = 0.2;
-  model.layers[1].W(s.W(0)) = 0.35;  // bias.
+  model.layers[1].W(s.WeightNumber(0, 0)) = 0.15;
+  model.layers[1].W(s.WeightNumber(0, 1)) = 0.2;
+  model.layers[1].W(s.WeightNumber(0)) = 0.35;  // bias.
   // Node 2 edges.
-  model.layers[1].W(s.W(1, 0)) = 0.25;
-  model.layers[1].W(s.W(1, 1)) = 0.3;
-  model.layers[1].W(s.W(1)) = 0.35;  // bias.
+  model.layers[1].W(s.WeightNumber(1, 0)) = 0.25;
+  model.layers[1].W(s.WeightNumber(1, 1)) = 0.3;
+  model.layers[1].W(s.WeightNumber(1)) = 0.35;  // bias.
 
   // Layer 2.
   //
   // Node 1 edges.
-  model.layers[3].W(s.W(0, 0)) = 0.4;
-  model.layers[3].W(s.W(0, 1)) = 0.45;
-  model.layers[3].W(s.W(0)) = 0.60;  // bias.
+  model.layers[3].W(s.WeightNumber(0, 0)) = 0.4;
+  model.layers[3].W(s.WeightNumber(0, 1)) = 0.45;
+  model.layers[3].W(s.WeightNumber(0)) = 0.60;  // bias.
   // Node 2 edges.
-  model.layers[3].W(s.W(1, 0)) = 0.5;
-  model.layers[3].W(s.W(1, 1)) = 0.55;
-  model.layers[3].W(s.W(1)) = 0.60;  // bias.
+  model.layers[3].W(s.WeightNumber(1, 0)) = 0.5;
+  model.layers[3].W(s.WeightNumber(1, 1)) = 0.55;
+  model.layers[3].W(s.WeightNumber(1)) = 0.60;  // bias.
 
   // Use the model to generate a neural network.
   Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
@@ -266,20 +266,20 @@ TEST_CASE("Simple neural network output and gradient descent is validated",
     // Layer 1.
     //
     // Node 1 edges.
-    CHECK(model.layers[1].W(s.W(0, 0)) == Approx(0.149780716));
-    CHECK(model.layers[1].W(s.W(0, 1)) == Approx(0.19956143));
+    CHECK(model.layers[1].W(s.WeightNumber(0, 0)) == Approx(0.149780716));
+    CHECK(model.layers[1].W(s.WeightNumber(0, 1)) == Approx(0.19956143));
     // Node 2 edges.
-    CHECK(model.layers[1].W(s.W(1, 0)) == Approx(0.24975114));
-    CHECK(model.layers[1].W(s.W(1, 1)) == Approx(0.29950229));
+    CHECK(model.layers[1].W(s.WeightNumber(1, 0)) == Approx(0.24975114));
+    CHECK(model.layers[1].W(s.WeightNumber(1, 1)) == Approx(0.29950229));
 
     // Layer 2.
     //
     // Node 1 edges.
-    CHECK(model.layers[3].W(s.W(0, 0)) == Approx(0.35891648));
-    CHECK(model.layers[3].W(s.W(0, 1)) == Approx(0.408666186));
+    CHECK(model.layers[3].W(s.WeightNumber(0, 0)) == Approx(0.35891648));
+    CHECK(model.layers[3].W(s.WeightNumber(0, 1)) == Approx(0.408666186));
     // Node 2 edges.
-    CHECK(model.layers[3].W(s.W(1, 0)) == Approx(0.511301270));
-    CHECK(model.layers[3].W(s.W(1, 1)) == Approx(0.561370121));
+    CHECK(model.layers[3].W(s.WeightNumber(1, 0)) == Approx(0.511301270));
+    CHECK(model.layers[3].W(s.WeightNumber(1, 1)) == Approx(0.561370121));
   }
 }
 
@@ -428,6 +428,103 @@ TEST_CASE("Just testing a single max_pool layer", "[maxpool]") {
   }
 }
 
+TEST_CASE("Symbol Generator", "[symgen]") {
+  SECTION("Convolution symbol generator", "[symgen]") {
+    VolumeDimensions layer_dimensions = {
+        5, 5, 3  // width, height, depth
+    };
+
+    FilterParams params = {
+        3, 3, 3,  // Width, Height, Depth
+        2,        // Stride
+        1,        // Padding
+        2         // Number of filters.
+    };
+
+    ConvSymbolGenerator s(layer_dimensions, params);
+
+    // Layer 1.
+    REQUIRE(s.WeightNumber(0, 0, 0, 0) == 0);
+    REQUIRE(s.WeightNumber(0, 0, 1, 0) == 1);
+    REQUIRE(s.WeightNumber(0, 0, 2, 0) == 2);
+
+    REQUIRE(s.WeightNumber(0, 1, 0, 0) == 3);
+    REQUIRE(s.WeightNumber(0, 1, 1, 0) == 4);
+    REQUIRE(s.WeightNumber(0, 1, 2, 0) == 5);
+
+    REQUIRE(s.WeightNumber(0, 2, 0, 0) == 6);
+    REQUIRE(s.WeightNumber(0, 2, 1, 0) == 7);
+    REQUIRE(s.WeightNumber(0, 2, 2, 0) == 8);
+
+    REQUIRE(s.WeightNumber(0, 0, 0, 1) == 9);
+    REQUIRE(s.WeightNumber(0, 0, 1, 1) == 10);
+    REQUIRE(s.WeightNumber(0, 0, 2, 1) == 11);
+
+    REQUIRE(s.WeightNumber(0, 1, 0, 1) == 12);
+    REQUIRE(s.WeightNumber(0, 1, 1, 1) == 13);
+    REQUIRE(s.WeightNumber(0, 1, 2, 1) == 14);
+
+    REQUIRE(s.WeightNumber(0, 2, 0, 1) == 15);
+    REQUIRE(s.WeightNumber(0, 2, 1, 1) == 16);
+    REQUIRE(s.WeightNumber(0, 2, 2, 1) == 17);
+
+    REQUIRE(s.WeightNumber(0, 0, 0, 2) == 18);
+    REQUIRE(s.WeightNumber(0, 0, 1, 2) == 19);
+    REQUIRE(s.WeightNumber(0, 0, 2, 2) == 20);
+
+    REQUIRE(s.WeightNumber(0, 1, 0, 2) == 21);
+    REQUIRE(s.WeightNumber(0, 1, 1, 2) == 22);
+    REQUIRE(s.WeightNumber(0, 1, 2, 2) == 23);
+
+    REQUIRE(s.WeightNumber(0, 2, 0, 2) == 24);
+    REQUIRE(s.WeightNumber(0, 2, 1, 2) == 25);
+    REQUIRE(s.WeightNumber(0, 2, 2, 2) == 26);
+
+    // Bias
+    REQUIRE(s.WeightNumber(0) == 27);
+
+    // Layer 2.
+    REQUIRE(s.WeightNumber(1, 0, 0, 0) == 28);
+    REQUIRE(s.WeightNumber(1, 0, 1, 0) == 29);
+    REQUIRE(s.WeightNumber(1, 0, 2, 0) == 30);
+
+    REQUIRE(s.WeightNumber(1, 1, 0, 0) == 31);
+    REQUIRE(s.WeightNumber(1, 1, 1, 0) == 32);
+    REQUIRE(s.WeightNumber(1, 1, 2, 0) == 33);
+
+    REQUIRE(s.WeightNumber(1, 2, 0, 0) == 34);
+    REQUIRE(s.WeightNumber(1, 2, 1, 0) == 35);
+    REQUIRE(s.WeightNumber(1, 2, 2, 0) == 36);
+
+    REQUIRE(s.WeightNumber(1, 0, 0, 1) == 37);
+    REQUIRE(s.WeightNumber(1, 0, 1, 1) == 38);
+    REQUIRE(s.WeightNumber(1, 0, 2, 1) == 39);
+
+    REQUIRE(s.WeightNumber(1, 1, 0, 1) == 40);
+    REQUIRE(s.WeightNumber(1, 1, 1, 1) == 41);
+    REQUIRE(s.WeightNumber(1, 1, 2, 1) == 42);
+
+    REQUIRE(s.WeightNumber(1, 2, 0, 1) == 43);
+    REQUIRE(s.WeightNumber(1, 2, 1, 1) == 44);
+    REQUIRE(s.WeightNumber(1, 2, 2, 1) == 45);
+
+    REQUIRE(s.WeightNumber(1, 0, 0, 2) == 46);
+    REQUIRE(s.WeightNumber(1, 0, 1, 2) == 47);
+    REQUIRE(s.WeightNumber(1, 0, 2, 2) == 48);
+
+    REQUIRE(s.WeightNumber(1, 1, 0, 2) == 49);
+    REQUIRE(s.WeightNumber(1, 1, 1, 2) == 50);
+    REQUIRE(s.WeightNumber(1, 1, 2, 2) == 51);
+
+    REQUIRE(s.WeightNumber(1, 2, 0, 2) == 52);
+    REQUIRE(s.WeightNumber(1, 2, 1, 2) == 53);
+    REQUIRE(s.WeightNumber(1, 2, 2, 2) == 54);
+
+    // Bias
+    REQUIRE(s.WeightNumber(1) == 55);
+  }
+}
+
 // Taken from the convolution demo here:
 // http://cs231n.github.io/convolutional-networks/#conv
 TEST_CASE("Convolution layer test", "[convnet]") {
@@ -453,98 +550,96 @@ TEST_CASE("Convolution layer test", "[convnet]") {
 
   ConvSymbolGenerator s(layer_dimensions, params);
 
-  // Use the model to generate a neural network.
-  Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
-
   // Filter 1.
   //
   // Depth 0
-  model.layers[1].W(s.W(0, 0, 0, 0)) = 0;
-  model.layers[1].W(s.W(0, 0, 1, 0)) = 1;
-  model.layers[1].W(s.W(0, 0, 2, 0)) = 0;
+  model.layers[1].W(s.WeightNumber(0, 0, 0, 0)) = 0;
+  model.layers[1].W(s.WeightNumber(0, 0, 1, 0)) = 1;
+  model.layers[1].W(s.WeightNumber(0, 0, 2, 0)) = 0;
 
-  model.layers[1].W(s.W(0, 1, 0, 0)) = 0;
-  model.layers[1].W(s.W(0, 1, 1, 0)) = -1;
-  model.layers[1].W(s.W(0, 1, 2, 0)) = 1;
+  model.layers[1].W(s.WeightNumber(0, 1, 0, 0)) = 0;
+  model.layers[1].W(s.WeightNumber(0, 1, 1, 0)) = -1;
+  model.layers[1].W(s.WeightNumber(0, 1, 2, 0)) = 1;
 
-  model.layers[1].W(s.W(0, 2, 0, 0)) = -1;
-  model.layers[1].W(s.W(0, 2, 1, 0)) = 1;
-  model.layers[1].W(s.W(0, 2, 2, 0)) = 0;
+  model.layers[1].W(s.WeightNumber(0, 2, 0, 0)) = -1;
+  model.layers[1].W(s.WeightNumber(0, 2, 1, 0)) = 1;
+  model.layers[1].W(s.WeightNumber(0, 2, 2, 0)) = 0;
 
   // Depth 1
-  model.layers[1].W(s.W(0, 0, 0, 1)) = 0;
-  model.layers[1].W(s.W(0, 0, 1, 1)) = -1;
-  model.layers[1].W(s.W(0, 0, 2, 1)) = 1;
+  model.layers[1].W(s.WeightNumber(0, 0, 0, 1)) = 0;
+  model.layers[1].W(s.WeightNumber(0, 0, 1, 1)) = -1;
+  model.layers[1].W(s.WeightNumber(0, 0, 2, 1)) = 1;
 
-  model.layers[1].W(s.W(0, 1, 0, 1)) = 0;
-  model.layers[1].W(s.W(0, 1, 1, 1)) = -1;
-  model.layers[1].W(s.W(0, 1, 2, 1)) = -1;
+  model.layers[1].W(s.WeightNumber(0, 1, 0, 1)) = 0;
+  model.layers[1].W(s.WeightNumber(0, 1, 1, 1)) = -1;
+  model.layers[1].W(s.WeightNumber(0, 1, 2, 1)) = -1;
 
-  model.layers[1].W(s.W(0, 2, 0, 1)) = 0;
-  model.layers[1].W(s.W(0, 2, 1, 1)) = 0;
-  model.layers[1].W(s.W(0, 2, 2, 1)) = -1;
+  model.layers[1].W(s.WeightNumber(0, 2, 0, 1)) = 0;
+  model.layers[1].W(s.WeightNumber(0, 2, 1, 1)) = 0;
+  model.layers[1].W(s.WeightNumber(0, 2, 2, 1)) = -1;
 
   // Depth 3
-  model.layers[1].W(s.W(0, 0, 0, 1)) = -1;
-  model.layers[1].W(s.W(0, 0, 1, 1)) = -1;
-  model.layers[1].W(s.W(0, 0, 2, 1)) = 1;
+  model.layers[1].W(s.WeightNumber(0, 0, 0, 2)) = -1;
+  model.layers[1].W(s.WeightNumber(0, 0, 1, 2)) = -1;
+  model.layers[1].W(s.WeightNumber(0, 0, 2, 2)) = 1;
 
-  model.layers[1].W(s.W(0, 1, 0, 1)) = 1;
-  model.layers[1].W(s.W(0, 1, 1, 1)) = 1;
-  model.layers[1].W(s.W(0, 1, 2, 1)) = 0;
+  model.layers[1].W(s.WeightNumber(0, 1, 0, 2)) = 1;
+  model.layers[1].W(s.WeightNumber(0, 1, 1, 2)) = 1;
+  model.layers[1].W(s.WeightNumber(0, 1, 2, 2)) = 0;
 
-  model.layers[1].W(s.W(0, 2, 0, 1)) = 0;
-  model.layers[1].W(s.W(0, 2, 1, 1)) = 1;
-  model.layers[1].W(s.W(0, 2, 2, 1)) = 1;
+  model.layers[1].W(s.WeightNumber(0, 2, 0, 2)) = 0;
+  model.layers[1].W(s.WeightNumber(0, 2, 1, 2)) = 1;
+  model.layers[1].W(s.WeightNumber(0, 2, 2, 2)) = 1;
   
   // Bias
-  model.layers[1].W(s.W(0)) = 1;
+  model.layers[1].W(s.WeightNumber(0)) = 1;
 
   // Filter 2.
   //
   // Depth 0
-  model.layers[1].W(s.W(1, 0, 0, 0)) = 0;
-  model.layers[1].W(s.W(1, 0, 1, 0)) = -1;
-  model.layers[1].W(s.W(1, 0, 2, 0)) = -1;
+  model.layers[1].W(s.WeightNumber(1, 0, 0, 0)) = 0;
+  model.layers[1].W(s.WeightNumber(1, 0, 1, 0)) = -1;
+  model.layers[1].W(s.WeightNumber(1, 0, 2, 0)) = -1;
 
-  model.layers[1].W(s.W(1, 1, 0, 0)) = 1;
-  model.layers[1].W(s.W(1, 1, 1, 0)) = 1;
-  model.layers[1].W(s.W(1, 1, 2, 0)) = 0;
+  model.layers[1].W(s.WeightNumber(1, 1, 0, 0)) = 1;
+  model.layers[1].W(s.WeightNumber(1, 1, 1, 0)) = 1;
+  model.layers[1].W(s.WeightNumber(1, 1, 2, 0)) = 0;
 
-  model.layers[1].W(s.W(1, 2, 0, 0)) = 0;
-  model.layers[1].W(s.W(1, 2, 1, 0)) = 0;
-  model.layers[1].W(s.W(1, 2, 2, 0)) = 0;
+  model.layers[1].W(s.WeightNumber(1, 2, 0, 0)) = 0;
+  model.layers[1].W(s.WeightNumber(1, 2, 1, 0)) = 0;
+  model.layers[1].W(s.WeightNumber(1, 2, 2, 0)) = 0;
 
   // Depth 1
-  model.layers[1].W(s.W(1, 0, 0, 1)) = 0;
-  model.layers[1].W(s.W(1, 0, 1, 1)) = -1;
-  model.layers[1].W(s.W(1, 0, 2, 1)) = -1;
+  model.layers[1].W(s.WeightNumber(1, 0, 0, 1)) = 0;
+  model.layers[1].W(s.WeightNumber(1, 0, 1, 1)) = -1;
+  model.layers[1].W(s.WeightNumber(1, 0, 2, 1)) = -1;
 
-  model.layers[1].W(s.W(1, 1, 0, 1)) = 0;
-  model.layers[1].W(s.W(1, 1, 1, 1)) = 0;
-  model.layers[1].W(s.W(1, 1, 2, 1)) = 0;
+  model.layers[1].W(s.WeightNumber(1, 1, 0, 1)) = 0;
+  model.layers[1].W(s.WeightNumber(1, 1, 1, 1)) = 0;
+  model.layers[1].W(s.WeightNumber(1, 1, 2, 1)) = 0;
 
-  model.layers[1].W(s.W(1, 2, 0, 1)) = 1;
-  model.layers[1].W(s.W(1, 2, 1, 1)) = 0;
-  model.layers[1].W(s.W(1, 2, 2, 1)) = -1;
+  model.layers[1].W(s.WeightNumber(1, 2, 0, 1)) = 1;
+  model.layers[1].W(s.WeightNumber(1, 2, 1, 1)) = 0;
+  model.layers[1].W(s.WeightNumber(1, 2, 2, 1)) = -1;
 
   // Depth 3
-  model.layers[1].W(s.W(1, 0, 0, 1)) = 1;
-  model.layers[1].W(s.W(1, 0, 1, 1)) = 1;
-  model.layers[1].W(s.W(1, 0, 2, 1)) = -1;
+  model.layers[1].W(s.WeightNumber(1, 0, 0, 2)) = 1;
+  model.layers[1].W(s.WeightNumber(1, 0, 1, 2)) = 1;
+  model.layers[1].W(s.WeightNumber(1, 0, 2, 2)) = -1;
 
-  model.layers[1].W(s.W(1, 1, 0, 1)) = 1;
-  model.layers[1].W(s.W(1, 1, 1, 1)) = 1;
-  model.layers[1].W(s.W(1, 1, 2, 1)) = 0;
+  model.layers[1].W(s.WeightNumber(1, 1, 0, 2)) = 1;
+  model.layers[1].W(s.WeightNumber(1, 1, 1, 2)) = 1;
+  model.layers[1].W(s.WeightNumber(1, 1, 2, 2)) = 0;
 
-  model.layers[1].W(s.W(1, 2, 0, 1)) = 1;
-  model.layers[1].W(s.W(1, 2, 1, 1)) = 0;
-  model.layers[1].W(s.W(1, 2, 2, 1)) = 0;
+  model.layers[1].W(s.WeightNumber(1, 2, 0, 2)) = 1;
+  model.layers[1].W(s.WeightNumber(1, 2, 1, 2)) = 0;
+  model.layers[1].W(s.WeightNumber(1, 2, 2, 2)) = 0;
 
   // Bias
-  model.layers[1].W(s.W(1)) = 0;
+  model.layers[1].W(s.WeightNumber(1)) = 0;
 
-
+  // Use the model to generate a neural network.
+  Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
 
   // input is a 3D 5x5x3 image.
   Input example = {
@@ -581,14 +676,14 @@ TEST_CASE("Convolution layer test", "[convnet]") {
 
   auto actual = test_net.Evaluate(example);
 
-  SECTION("forward pass", "[maxpool]") {
+  SECTION("forward pass", "[convnet]") {
     for (size_t i = 0; i < expected.dimensions().rows; ++i) {
       for (size_t j = 0; j < expected.dimensions().cols; ++j) {
         CAPTURE(i);
         CAPTURE(j);
         CAPTURE(expected.at(i, j));
         CAPTURE(actual.at(i, j));
-        REQUIRE(expected.at(i, j) == Approx(actual.at(i, j)));
+        CHECK(expected.at(i, j) == Approx(actual.at(i, j)));
       }
     }
   }

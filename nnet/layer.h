@@ -64,28 +64,12 @@ class Layer {
   stats::Normal XavierInitializer() const;
   void XavierInitializeWeights();
 
-  double& W(symbolic::Expression weight) {
-    // This is such a hack. Just for testing.
-    std::string weight_string = weight.to_string();
-    if (weight_string.substr(0, 2) != "W[" || weight_string[weight_string.size() -1] != ']') {
-      std::cerr << "Invalid weight passed to Layer::W: " << weight.to_string()
-                << ", must be in form W[n]." << std::endl;
+  double& W(size_t index) {
+    if (index >= weights_.size()) {
+      std::cerr << "Too large weight index: " << index << std::endl;
       std::exit(1);
     }
-    std::string weight_index = weight_string.substr(2, weight_string.size() - 3);
-    symbolic::Expression index = symbolic::CreateExpression(weight_index);
-    auto result = index.Evaluate();
-    if (!result) {
-      std::cerr << "Invalid weight index: " << index.to_string() << std::endl;
-      // std::cerr << "Evaluates to: " << result->to_string() << std::endl;
-      std::exit(1);
-    }
-    size_t index_val = static_cast<int>(result->real());
-    if (index_val >= weights_.size()) {
-      std::cerr << "Too large weight index: " << index_val << std::endl;
-      std::exit(1);
-    }
-    return weights_[index_val];
+    return weights_[index];
   }
 
   std::vector<double>& weight_buffer() { return weights_; }

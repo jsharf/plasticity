@@ -134,17 +134,25 @@ public:
   }
 
   Expression W(size_t node_idx, size_t edge_idx) const {
-    size_t index = internal::Flatten2d(
-        dimensions_.num_inputs + 1, dimensions_.num_outputs, node_idx, edge_idx);
-    return Expression::CreateNumericValue("W[" + std::to_string(index) + "]");
+    return Expression::CreateNumericValue(
+        "W[" + std::to_string(WeightNumber(node_idx, edge_idx)) + "]");
+  }
+
+  size_t WeightNumber(size_t node_idx, size_t edge_idx) const {
+    return internal::Flatten2d(dimensions_.num_inputs + 1,
+                               dimensions_.num_outputs, node_idx, edge_idx);
   }
 
   // Used for bias weight for a given output node.
   Expression W(size_t node) const {
-    size_t index =
-        internal::Flatten2d(dimensions_.num_inputs + 1, dimensions_.num_outputs,
-                            node, dimensions_.num_inputs);
-    return Expression::CreateNumericValue("W[" + std::to_string(index) + "]");
+    return Expression::CreateNumericValue(
+        "W[" + std::to_string(WeightNumber(node)) + "]");
+  }
+
+  size_t WeightNumber(size_t node) const {
+    return internal::Flatten2d(dimensions_.num_inputs + 1,
+                               dimensions_.num_outputs, node,
+                               dimensions_.num_inputs);
   }
 
   // Residual gradients for back propagation.
@@ -324,23 +332,31 @@ public:
 
   // Convolution layer weights.
   Expression W(size_t filter, size_t row, size_t col, size_t z) const {
+    return Expression::CreateNumericValue(
+        "W[" + std::to_string(WeightNumber(filter, row, col, z)) + "]");
+  }
+
+  size_t WeightNumber(size_t filter, size_t row, size_t col, size_t z) const {
     size_t filter_size =
         params_.width * params_.height * params_.depth + 1; // +1 for bias.
     size_t filter_offset = filter * filter_size;
-    size_t index =
-        filter_offset + internal::Flatten3d(params_.width, params_.height,
-                                            params_.depth, row, col, z);
-    return Expression::CreateNumericValue("W[" + std::to_string(index) + "]");
+    return filter_offset + internal::Flatten3d(params_.width, params_.height,
+                                               params_.depth, row, col, z);
   }
 
-  // Convolution layer bias weights.
-  Expression W(size_t filter) const {
+  // Bias weight.
+  size_t WeightNumber(size_t filter) const {
     size_t filter_size =
         params_.width * params_.height * params_.depth + 1; // +1 for bias.
     size_t filter_offset = filter * filter_size;
     // Bias weight is stored in the final slot of the filter weights.
-    size_t index = filter_offset + (filter_size - 1);
-    return Expression::CreateNumericValue("W[" + std::to_string(index) + "]");
+    return filter_offset + (filter_size - 1);
+  }
+
+  // Convolution layer bias weights.
+  Expression W(size_t filter) const {
+    return Expression::CreateNumericValue(
+        "W[" + std::to_string(WeightNumber(filter)) + "]");
   }
 
   const std::vector<std::string> &weights() const { return weights_; }
@@ -349,79 +365,6 @@ private:
   InputVolumeSymbolGenerator input_generator_;
   FilterParams params_;
   std::vector<std::string> weights_;
-};
-
-// This class generates symbol names for neural network values. Since these
-// will be used for codegen for opencl, the symbols are all one-dimensional
-// indices into arrays.
-class FlatWeightSymbolGenerator {
-public:
-  // Fully connected layer weights.
-  virtual std::string W(size_t layer, size_t node, size_t edge) {
-    auto tuple = std::make_tuple(layer, node, edge);
-    if (ff_weight_index_.count(tuple) == 0) {
-      ff_weight_index_[tuple] = weight_count_;
-      ff_rev_weight_index_[weight_count_] = tuple;
-      weight_count_++;
-    }
-    return "W[" + std::to_string(ff_weight_index_[tuple]) + "]";
-  }
-
-  // Convolution layer weights.
-  virtual std::string W(size_t layer, size_t filter, size_t x, size_t y,
-                        size_t z) {
-    auto tuple = std::make_tuple(layer, filter, x, y, z);
-    if (conv_weight_index_.count(tuple) == 0) {
-      conv_weight_index_[tuple] = weight_count_;
-      conv_rev_weight_index_[weight_count_] = tuple;
-      weight_count_++;
-    }
-    return "W[" + std::to_string(conv_weight_index_[tuple]) + "]";
-  }
-
-  // Convolution layer bias weights.
-  virtual std::string W(size_t layer, size_t filter) {
-    auto tuple = std::make_tuple(layer, filter);
-    if (conv_bias_weight_index_.count(tuple) == 0) {
-      conv_bias_weight_index_[tuple] = weight_count_;
-      conv_bias_rev_weight_index_[weight_count_] = tuple;
-      weight_count_++;
-    }
-    return "W[" + std::to_string(conv_bias_weight_index_[tuple]) + "]";
-  }
-
-  virtual std::string W(size_t i) const {
-    return "W[" + std::to_string(i) + "]";
-  }
-  virtual std::string I(size_t i) const {
-    return "I[" + std::to_string(i) + "]";
-  }
-  virtual std::string O(size_t i) const {
-    return "O[" + std::to_string(i) + "]";
-  }
-
-  size_t NumberWeights() const { return weight_count_; }
-
-private:
-  // Mapping from <layer, node, edge> -> int. This lets each weight have a
-  // single unique index.
-  std::map<std::tuple<int, int, int>, int> ff_weight_index_;
-  // Reverse mapping.
-  std::map<int, std::tuple<int, int, int>> ff_rev_weight_index_;
-
-  // Mapping from <layer, filter, x, y, z> -> int. This lets each weight have
-  // a single unique index.
-  std::map<std::tuple<int, int, int, int, int>, int> conv_weight_index_;
-  // Reverse mapping.
-  std::map<int, std::tuple<int, int, int, int, int>> conv_rev_weight_index_;
-
-  // Mapping from <layer, filter> -> int. This lets each weight have a
-  // single unique index.
-  std::map<std::tuple<int, int>, int> conv_bias_weight_index_;
-  // Reverse mapping.
-  std::map<int, std::tuple<int, int>> conv_bias_rev_weight_index_;
-
-  size_t weight_count_ = 0;
 };
 
 } // namespace nnet

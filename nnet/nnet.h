@@ -157,6 +157,7 @@ class Nnet {
     for (size_t i = 0; i < input_size(); ++i) {
       inputs_buf[i] = in.at(i, 0);
     }
+
     cl_int result = queue.enqueueWriteBuffer(inputs, CL_TRUE, 0, sizeof(Number) * input_size(),
                              inputs_buf);
     if (result != CL_SUCCESS) {
@@ -237,8 +238,8 @@ class Nnet {
     }
 
     Number output_buf[output_size()];
-    result = queue.enqueueReadBuffer(outputs, CL_TRUE, 0, sizeof(Number) * output_size(),
-                            output_buf);
+    result = queue.enqueueReadBuffer(
+        outputs, CL_TRUE, 0, sizeof(Number) * output_size(), output_buf);
     if (result != CL_SUCCESS) {
       std::cerr << "Failed to read new weight values from gpu. Error code: "
                 << result << std::endl;
