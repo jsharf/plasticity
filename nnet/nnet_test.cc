@@ -688,6 +688,32 @@ TEST_CASE("Convolution layer test", "[convnet]") {
     }
   }
 
+  SECTION("training pass", "[convnet]") {
+    Input expected_altered = {
+      // Layer 1
+      {4}, {4}, {1},
+      {8}, {0}, {-2},
+      {2}, {-1}, {2},
+      // Layer 2
+      {2}, {4}, {6},
+      {-5}, {5}, {-1},
+      {1}, {3}, {2},
+    };
+
+    nnet::Nnet::LearningParameters params{.learning_rate = 1};
+    std::unique_ptr<Matrix<double>> gradients = std::make_unique<Matrix<double>>();
+    test_net.Train(example, expected_altered, params, gradients);
+
+    REQUIRE(gradients->dimensions().rows == 75);
+    REQUIRE(example.dimensions().rows == 75);
+
+    // Layer 1
+    CHECK(gradients->at(0, 0) == Approx(-1.0/18));
+    for (size_t i = 1; i < 75; ++i) {
+      CHECK(gradients->at(i, 0) == Approx(0.0));
+    }
+
+  }
 
 }
 

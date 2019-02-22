@@ -138,6 +138,9 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
   symbolic::Expression neighbor_output_flat_index =
       symbolic::Flatten3d(output_width, output_height, output_depth,
                           output_row + d, output_col + k, filter);
+  // I need to revise this. This actual rounds incorrectly for cases with stride
+  // != 1. Ugh, the number is actually different depending on whether the input
+  // is the center of a convolution or in between two neighboring convolutions.
   symbolic::Expression self_in_neighbor_row = (d * -1) + output_net_width / 2;
   symbolic::Expression self_in_neighbor_col = (k * -1) + output_net_height / 2;
   // When looking at the gradient component propagated from a neighbor
@@ -178,6 +181,8 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
       "d <= " + std::to_string(output_net_width / 2), "++d", for_loop_kfz);
   cg->AppendLineOfCode(for_loop_dkfz);
   cg->AppendLineOfCode("return gradient" + cg->linesep());
+  std::cout << "Input Gradient Kernel: " << std::endl;
+  std::cout << cg->code() << std::endl;
 }
 
 void ConvolutionLayer::WeightGradientCode(const symbolic::Expression &index,
@@ -202,6 +207,10 @@ void ConvolutionLayer::WeightGradientCode(const symbolic::Expression &index,
       (out_x * filters_.stride) - filters_.padding + filters_.width / 2;
   symbolic::Expression input_y =
       (out_y * filters_.stride) - filters_.padding + filters_.height / 2;
+  // OH NO I NEED TO FIX THE BIAS WEIGHT UPDATE HERE!!!!
+  // Just do something like oh, if this is the bias weight (weight_index %
+  // filter_size == filter_size - 1), then it's just gradient_factor =
+  // generator_.GRADIENT(output_flat_index);
   symbolic::Expression gradient_factor =
       generator_.GRADIENT(output_flat_index) *
       generator_.BoundsCheckedI(input_y + weight_y - filters_.height / 2,

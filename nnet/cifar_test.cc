@@ -184,7 +184,7 @@ int main() {
   std::cout << "Training...";
 
   for (size_t epoch = 1; epoch <= 100; ++epoch) {
-    nnet::Nnet::LearningParameters params{.learning_rate = 0.0003 / epoch};
+    nnet::Nnet::LearningParameters params{.learning_rate = 0.00003 / epoch};
     for (const auto& sample : samples) {
       std::cout << ".";
       test_net.Train(sample.OneHotEncodedInput(), sample.OneHotEncodedOutput(),
