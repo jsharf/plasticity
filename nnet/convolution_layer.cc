@@ -97,6 +97,26 @@ void ConvolutionLayer::GenerateOutputCode(const symbolic::Expression &index,
   cg->AppendLineOfCode("return output" + cg->linesep());
 }
 
+// Returns Row, Col symbolic.
+std::tuple<symbolic::Expression, symbolic::Expression>
+ConvolutionLayer::GetInputCoordinates(
+    const symbolic::Expression &output_row,
+    const symbolic::Expression &output_col) const {
+  return std::make_tuple<symbolic::Expression, symbolic::Expression>(
+      output_row * filters_.stride - filters_.padding + (filters_.height / 2),
+      output_col * filters_.stride - filters_.padding + (filters_.width / 2));
+}
+
+// Returns Row, Col symbolic.
+std::tuple<symbolic::Expression, symbolic::Expression>
+ConvolutionLayer::GetOutputCoordinates(
+    const symbolic::Expression &input_row,
+    const symbolic::Expression &input_col) const {
+  return std::make_tuple<symbolic::Expression, symbolic::Expression>(
+      (input_row + filters_.padding - (filters_.height / 2)) / filters_.stride,
+      (input_col + filters_.padding - (filters_.width / 2)) / filters_.stride);
+}
+
 void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
                                          codegen::Generator *cg) const {
   std::tuple<size_t, size_t, size_t> output_dims =
@@ -117,32 +137,53 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
   symbolic::Expression input_plane =
       symbolic::Unflatten3dPlane(input_width, input_height, input_depth, index);
 
-  symbolic::Expression output_row =
-      (input_row + filters_.padding - filters_.width / 2) / filters_.stride;
-  symbolic::Expression output_col =
-      (input_col + filters_.padding - filters_.height / 2) / filters_.stride;
+  symbolic::Expression output_row, output_col;
+  std::tie(output_row, output_col) = GetOutputCoordinates(input_row, input_col);
 
   // The "net" includes all outputs which depend on this input. This is
-  // determined by the filter size and stride length. If the stride is 2, for
-  // instance, then inputs are skipped during the convolution, decreasing the
-  // number of outputs reliant on this input. The best way to illustrate this
-  // is by visualizing the convolution.
-  int output_net_width = filters_.width / (filters_.stride);
-  int output_net_height = filters_.height / (filters_.stride);
+  // determined in the input coordinate domain by the filter size. After finding
+  // the farthest points in the input domain for which the convolution filter
+  // would include this input, those farthest points are converted to the output
+  // domain to create the output net.
+  int input_net_width = filters_.width / 2;
+  int input_net_height = filters_.height / 2;
+
+  // The two farthest points are referred to as "a" and "b" (a being closer to
+  // (0, 0) and b being closer to (width, height)). These are opposite corners
+  // of a rectangle containing all points which, if used as the center of a
+  // convolution, would include the currently selected input.
+  symbolic::Expression input_a_row = input_row - input_net_height;
+  symbolic::Expression input_a_col = input_col - input_net_width;
+  symbolic::Expression input_b_row = input_row + input_net_height;
+  symbolic::Expression input_b_col = input_col + input_net_width;
+  
+  // Convert the net endpoints from the input domain to the output domain.
+  // This may result in the rectangle not perfectly covering the same points, as
+  // input->output is a many to one relationship. However, in the case where a
+  // point is covered which does not include this input in its convolution,
+  // bounds checking will result in the gradient for that point to be zero (see
+  // BoundsCheckedW()) and in the case where a point is not covered, it is
+  // because there exists no output centered on that input point (in cases where
+  // stride > 1), so rounding down will give us the furthest point in that
+  // direction which might cover this input in its convolution.
+  symbolic::Expression output_a_row, output_a_col, output_b_row, output_b_col;
+  std::tie(output_a_row, output_a_col) = GetOutputCoordinates(input_a_row, input_a_col);
+  std::tie(output_b_row, output_b_col) = GetOutputCoordinates(input_b_row, input_b_col);
+
   // Sum up the convolution, adding it to the output.
   cg->AppendLineOfCode(cg->assign("double gradient", "0") + cg->linesep());
+  // d iterates from output_a_row to output_b_row.
   symbolic::Expression d = symbolic::Expression::CreateInteger("d");
+  // k iterates from output_a_col to output_b_col.
   symbolic::Expression k = symbolic::Expression::CreateInteger("k");
   symbolic::Expression filter = symbolic::Expression::CreateInteger("filter");
   symbolic::Expression z = symbolic::Expression::CreateInteger("z");
   symbolic::Expression neighbor_output_flat_index =
       symbolic::Flatten3d(output_width, output_height, output_depth,
-                          output_row + d, output_col + k, filter);
-  // I need to revise this. This actual rounds incorrectly for cases with stride
-  // != 1. Ugh, the number is actually different depending on whether the input
-  // is the center of a convolution or in between two neighboring convolutions.
-  symbolic::Expression self_in_neighbor_row = (d * -1) + output_net_width / 2;
-  symbolic::Expression self_in_neighbor_col = (k * -1) + output_net_height / 2;
+                          d, k, filter);
+
+  symbolic::Expression self_in_neighbor_row = input_row - d + (filters_.height / 2);
+  symbolic::Expression self_in_neighbor_col = input_col - k + (filters_.width / 2);
   // When looking at the gradient component propagated from a neighbor
   // output, we want to consider which weight this input is multiplied by
   // to generate that output (this is the derivative wrt ourselves). So to
@@ -163,7 +204,7 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
   // weights (w1 in this case) multiplied by this input in order to
   // generate all neighboring outputs.
   symbolic::Expression gradient_factor =
-      generator_.W(filter, self_in_neighbor_row, self_in_neighbor_col, z) *
+      generator_.BoundsCheckedW(filter, self_in_neighbor_row, self_in_neighbor_col, z) *
       generator_.GRADIENT(neighbor_output_flat_index);
   string output_sum =
       cg->add_assign("gradient", gradient_factor.to_string() + cg->linesep());
@@ -173,12 +214,12 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
   string for_loop_fz = cg->for_loop(
       "size_t filter = 0", "filter < " + std::to_string(filters_.num_filters),
       "++filter", for_loop_z);
-  string for_loop_kfz = cg->for_loop(
-      "size_t k = " + std::to_string(-output_net_height / 2),
-      "k <= " + std::to_string(output_net_height / 2), "++k", for_loop_fz);
-  string for_loop_dkfz = cg->for_loop(
-      "size_t d = " + std::to_string(-output_net_width / 2),
-      "d <= " + std::to_string(output_net_width / 2), "++d", for_loop_kfz);
+  string for_loop_kfz =
+      cg->for_loop("size_t k = " + output_a_col.to_string(),
+                   "k <= " + output_b_col.to_string(), "++k", for_loop_fz);
+  string for_loop_dkfz =
+      cg->for_loop("size_t d = " + output_a_row.to_string(),
+                   "d <= " + output_b_row.to_string(), "++d", for_loop_kfz);
   cg->AppendLineOfCode(for_loop_dkfz);
   cg->AppendLineOfCode("return gradient" + cg->linesep());
   std::cout << "Input Gradient Kernel: " << std::endl;
@@ -203,19 +244,20 @@ void ConvolutionLayer::WeightGradientCode(const symbolic::Expression &index,
   symbolic::Expression out_y = symbolic::Expression::CreateInteger("out_y");
   symbolic::Expression output_flat_index = symbolic::Flatten3d(
       output_width, output_height, output_depth, out_x, out_y, filter);
-  symbolic::Expression input_x =
-      (out_x * filters_.stride) - filters_.padding + filters_.width / 2;
-  symbolic::Expression input_y =
-      (out_y * filters_.stride) - filters_.padding + filters_.height / 2;
-  // OH NO I NEED TO FIX THE BIAS WEIGHT UPDATE HERE!!!!
-  // Just do something like oh, if this is the bias weight (weight_index %
-  // filter_size == filter_size - 1), then it's just gradient_factor =
-  // generator_.GRADIENT(output_flat_index);
-  symbolic::Expression gradient_factor =
-      generator_.GRADIENT(output_flat_index) *
-      generator_.BoundsCheckedI(input_y + weight_y - filters_.height / 2,
+  symbolic::Expression input_y, input_x;
+  std::tie(input_y, input_x) = GetInputCoordinates(out_x, out_y);
+  // Correctly handle the input for bias weight indices.
+  size_t filter_size = filters_.width * filters_.height * filters_.depth + 1;
+  symbolic::Expression input = symbolic::IfInRange(
+      index % filter_size, filter_size - 1, filter_size, 1.0,
+      // input_y is the center of the convolution, but weight coordinates use
+      // (0, 0) as the top-left, so subtract filters_.(height or width)/2 to
+      // translate coordinates.
+      generator_.BoundsCheckedI(input_y + weight_y - (filters_.height / 2),
                                 input_x + weight_x - filters_.width / 2,
-                                weight_z);
+                                weight_z));
+  symbolic::Expression gradient_factor =
+      generator_.GRADIENT(output_flat_index) * input;
   string output_sum =
       cg->add_assign("gradient", gradient_factor.to_string() + cg->linesep());
   string for_loop_y = cg->for_loop("size_t out_y = 0",

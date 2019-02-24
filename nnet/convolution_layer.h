@@ -47,9 +47,15 @@ class ConvolutionLayer : public LayerImpl {
   }
 
  private:
-  ConvSymbolGenerator generator_;
-  FilterParams filters_;
-  VolumeDimensions imdim_;
+   std::tuple<symbolic::Expression, symbolic::Expression>
+   GetOutputCoordinates(const symbolic::Expression &input_row,
+                        const symbolic::Expression &input_col) const;
+   std::tuple<symbolic::Expression, symbolic::Expression>
+   GetInputCoordinates(const symbolic::Expression &output_row,
+                       const symbolic::Expression &output_col) const;
+   ConvSymbolGenerator generator_;
+   FilterParams filters_;
+   VolumeDimensions imdim_;
 };
 
 }  // namespace nnet

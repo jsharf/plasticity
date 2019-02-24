@@ -1,6 +1,9 @@
 cc_library(
     name = "architecture",
     hdrs = ["architecture.h"],
+    copts = [
+        "--std=c++1z",
+    ],
     visibility = ["//math"],
     deps = [
         ":layer",
@@ -13,6 +16,9 @@ cc_library(
 cc_library(
     name = "nnet",
     hdrs = ["nnet.h"],
+    copts = [
+        "--std=c++1z",
+    ],
     data = glob(["kernels/*"]),
     linkopts = [
         "-pthread",
