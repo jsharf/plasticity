@@ -64,10 +64,8 @@ void ConvolutionLayer::GenerateOutputCode(const symbolic::Expression &index,
   symbolic::Expression output_filter = symbolic::Unflatten3dPlane(
       output_width, output_height, output_depth, index);
 
-  symbolic::Expression conv_start_row =
-      (output_row * filters_.stride) - filters_.padding + filters_.width / 2;
-  symbolic::Expression conv_start_col =
-      (output_col * filters_.stride) - filters_.padding + filters_.height / 2;
+  symbolic::Expression conv_row, conv_col;
+  std::tie(conv_row, conv_col) = GetInputCoordinates(output_row, output_col);
 
   // Sum up the convolution, adding it to the output.
   cg->AppendLineOfCode(
@@ -76,12 +74,12 @@ void ConvolutionLayer::GenerateOutputCode(const symbolic::Expression &index,
   symbolic::Expression f_x = symbolic::Expression::CreateInteger("f_x");
   symbolic::Expression f_y = symbolic::Expression::CreateInteger("f_y");
   symbolic::Expression f_z = symbolic::Expression::CreateInteger("f_z");
-  symbolic::Expression input_x = conv_start_row + f_x - filters_.width/2;
-  symbolic::Expression input_y = conv_start_col + f_y - filters_.height/2;
+  symbolic::Expression input_x = conv_col + f_x - filters_.width/2;
+  symbolic::Expression input_y = conv_row + f_y - filters_.height/2;
   symbolic::Expression input_z = f_z;
   symbolic::Expression output_factor =
-      generator_.W(output_filter, f_x, f_y, f_z) *
-      generator_.BoundsCheckedI(input_x, input_y, input_z);
+      generator_.W(output_filter, f_y, f_x, f_z) *
+      generator_.BoundsCheckedI(input_y, input_x, input_z);
   string output_sum =
       cg->add_assign("output", output_factor.to_string() + cg->linesep());
   string for_loop_z =
@@ -182,8 +180,10 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
       symbolic::Flatten3d(output_width, output_height, output_depth,
                           d, k, filter);
 
-  symbolic::Expression self_in_neighbor_row = input_row - d + (filters_.height / 2);
-  symbolic::Expression self_in_neighbor_col = input_col - k + (filters_.width / 2);
+  symbolic::Expression input_d, input_k;
+  std::tie(input_d, input_k) = GetInputCoordinates(d, k);
+  symbolic::Expression self_in_neighbor_row = input_row - input_d + (filters_.height / 2);
+  symbolic::Expression self_in_neighbor_col = input_col - input_k + (filters_.width / 2);
   // When looking at the gradient component propagated from a neighbor
   // output, we want to consider which weight this input is multiplied by
   // to generate that output (this is the derivative wrt ourselves). So to
@@ -203,6 +203,8 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
   // So for all partial derivatives wrt to some input, we need to find the
   // weights (w1 in this case) multiplied by this input in order to
   // generate all neighboring outputs.
+  std::cout << "self in neighbor row: " << self_in_neighbor_row << std::endl;
+  std::cout << "self in neighbor col: " << self_in_neighbor_col << std::endl;
   symbolic::Expression gradient_factor =
       generator_.BoundsCheckedW(filter, self_in_neighbor_row, self_in_neighbor_col, z) *
       generator_.GRADIENT(neighbor_output_flat_index);
@@ -222,8 +224,6 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
                    "d <= " + output_b_row.to_string(), "++d", for_loop_kfz);
   cg->AppendLineOfCode(for_loop_dkfz);
   cg->AppendLineOfCode("return gradient" + cg->linesep());
-  std::cout << "Input Gradient Kernel: " << std::endl;
-  std::cout << cg->code() << std::endl;
 }
 
 void ConvolutionLayer::WeightGradientCode(const symbolic::Expression &index,

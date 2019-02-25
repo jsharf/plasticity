@@ -326,6 +326,10 @@ class Nnet {
     for (size_t i = 0; i < output_size(); ++i) {
       output_gradients_symbolic.at(i, 0) =
           error.Derive(output_symbolic.at(i, 0).to_string());
+      //////////////////////// DEBUG
+      //std::cout << "########Partial error output " << i << ": " << std::endl
+      //          << output_gradients_symbolic.at(i, 0) << std::endl;
+      ////////////////////////
 
       env[generator_.O(i)] = symbolic::NumericValue(actual_output.at(i, 0));
     }
@@ -350,6 +354,10 @@ class Nnet {
     // Generate output gradients (first part of backprop).
     Matrix<Number> gradients =
         symbolic::MapBindAndEvaluate(output_gradients_symbolic, env);
+
+    ///////////// DEBUG
+    // std::cout << "============== Grads: \n" << gradients.to_string() << std::endl;
+    ///////////// DEBUG
 
     cl::Buffer gpu_gradients =
           ColumnVectorToGpuBuffer(context, &queue, gradients);
@@ -389,6 +397,19 @@ class Nnet {
                                         sizeof(Number), &params.learning_rate));
 
       if (number_weights > 0) {
+
+        ////////// debug gradients.
+        //double gradients[layer.GetDimensions().num_outputs];
+        //queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
+        //                        sizeof(Number) * layer.GetDimensions().num_outputs,
+        //                        gradients);
+        //std::cout << "============== Layer " << i << " Grads: " << std::endl;
+        //for (size_t i = 0; i < layer.GetDimensions().num_outputs; i+=2) {
+        //  std::cout << gradients[i] << ", " << gradients[i+1] << std::endl;
+        //}
+        ////////// debug
+
+
         cl::Buffer gpu_new_weights(context, CL_MEM_READ_WRITE,
                                    number_weights * sizeof(Number));
         // Backprop layer weight updates.
