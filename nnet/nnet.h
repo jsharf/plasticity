@@ -335,7 +335,9 @@ class Nnet {
     }
 
     double error_value = error.Bind(env).Evaluate()->real();
-    std::cout << "Error (loss): " << error_value << std::endl;
+    ///////////////////// DEBUG
+    // std::cout << "Error (loss): " << error_value << std::endl;
+    ///////////////////// DEBUG
     if (std::isnan(error_value)) {
       std::cerr << "The error has diverged to NaN" << std::endl;
       std::cerr << "Training value input\n=========\n " << in.to_string() << std::endl;
@@ -399,14 +401,14 @@ class Nnet {
       if (number_weights > 0) {
 
         ////////// debug gradients.
-        //double gradients[layer.GetDimensions().num_outputs];
-        //queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
-        //                        sizeof(Number) * layer.GetDimensions().num_outputs,
-        //                        gradients);
-        //std::cout << "============== Layer " << i << " Grads: " << std::endl;
-        //for (size_t i = 0; i < layer.GetDimensions().num_outputs; i+=2) {
-        //  std::cout << gradients[i] << ", " << gradients[i+1] << std::endl;
-        //}
+         double gradients[layer.GetDimensions().num_outputs];
+         queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
+                                 sizeof(Number) * layer.GetDimensions().num_outputs,
+                                 gradients);
+         std::cout << "============== Layer " << i << "input Grads: " << std::endl;
+         for (size_t i = 0; i < layer.GetDimensions().num_outputs; i+=2) {
+           std::cout << gradients[i] << ", " << gradients[i+1] << std::endl;
+         }
         ////////// debug
 
 
@@ -462,6 +464,17 @@ class Nnet {
                     << layer.InputGradientKernelName() << std::endl;
           std::exit(1);
         }
+
+        ////////// debug gradients.
+        double gradients[layer.GetDimensions().num_inputs];
+        queue.enqueueReadBuffer(gpu_new_gradients, CL_TRUE, 0,
+                                sizeof(Number) * layer.GetDimensions().num_inputs,
+                                gradients);
+        std::cout << "============== Layer " << i << "backpropped Grads: " << std::endl;
+        for (size_t i = 0; i < layer.GetDimensions().num_outputs; i+=2) {
+          std::cout << gradients[i] << ", " << gradients[i+1] << std::endl;
+        }
+        ////////// debug
       }
 
       // Use the new input gradients for the next layer backwards (the one

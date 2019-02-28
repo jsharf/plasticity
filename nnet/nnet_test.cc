@@ -7,6 +7,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <set>
 
 namespace nnet {
 
@@ -690,7 +691,7 @@ TEST_CASE("Convolution layer test", "[convnet]") {
   SECTION("training pass", "[convnet]") {
     Input expected_altered = {
       // Layer 1
-      {3}, {4}, {1},
+      {4}, {4}, {1},
       {8}, {0}, {-2},
       {2}, {-1}, {2},
       // Layer 2
@@ -703,14 +704,28 @@ TEST_CASE("Convolution layer test", "[convnet]") {
     std::unique_ptr<Matrix<double>> gradients = std::make_unique<Matrix<double>>();
     test_net.Train(example, expected_altered, params, gradients);
 
+    std::cout << gradients->to_string() << std::endl;
+
     REQUIRE(gradients->dimensions().rows == 75);
     REQUIRE(example.dimensions().rows == 75);
 
-    // Layer 1
-    //CHECK(gradients->at(0, 0) == Approx(-1.0/18));
-    //for (size_t i = 1; i < 75; ++i) {
-    //  CHECK(gradients->at(i, 0) == Approx(0.0));
-    //}
+    // Expected non-zero gradients.
+    std::set<int> expected_changed_gradients = {
+      // Layer 1.
+      0, 1, 5, 6,
+      // Layer 2.
+      25, 26, 30, 31,
+      // Layer 3.
+      50, 51, 55, 56,
+    };
+
+    for (size_t i = 0; i < 75; ++i) {
+      if (expected_changed_gradients.count(i) == 1) {
+        CHECK(gradients->at(i, 0) != (0.0));
+      } else {
+        CHECK(gradients->at(i, 0) == Approx(0.0));
+      }
+    }
 
   }
 
