@@ -704,8 +704,6 @@ TEST_CASE("Convolution layer test", "[convnet]") {
     std::unique_ptr<Matrix<double>> gradients = std::make_unique<Matrix<double>>();
     test_net.Train(example, expected_altered, params, gradients);
 
-    std::cout << gradients->to_string() << std::endl;
-
     REQUIRE(gradients->dimensions().rows == 75);
     REQUIRE(example.dimensions().rows == 75);
 
@@ -721,9 +719,10 @@ TEST_CASE("Convolution layer test", "[convnet]") {
 
     for (size_t i = 0; i < 75; ++i) {
       if (expected_changed_gradients.count(i) == 1) {
-        CHECK(gradients->at(i, 0) != (0.0));
+        CAPTURE(i);
+        REQUIRE(gradients->at(i, 0) != (0.0));
       } else {
-        CHECK(gradients->at(i, 0) == Approx(0.0));
+        REQUIRE(gradients->at(i, 0) == Approx(0.0));
       }
     }
 

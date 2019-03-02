@@ -83,13 +83,13 @@ void ConvolutionLayer::GenerateOutputCode(const symbolic::Expression &index,
   string output_sum =
       cg->add_assign("output", output_factor.to_string() + cg->linesep());
   string for_loop_z =
-      cg->for_loop("size_t f_z = 0", "f_z < " + std::to_string(filters_.depth),
+      cg->for_loop("int f_z = 0", "f_z < " + std::to_string(filters_.depth),
                    "++f_z", output_sum);
   string for_loop_yz =
-      cg->for_loop("size_t f_y = 0", "f_y < " + std::to_string(filters_.height),
+      cg->for_loop("int f_y = 0", "f_y < " + std::to_string(filters_.height),
                    "++f_y", for_loop_z);
   string for_loop_xyz =
-      cg->for_loop("size_t f_x = 0", "f_x < " + std::to_string(filters_.width),
+      cg->for_loop("int f_x = 0", "f_x < " + std::to_string(filters_.width),
                    "++f_x", for_loop_yz);
   cg->AppendLineOfCode(for_loop_xyz);
   cg->AppendLineOfCode("return output" + cg->linesep());
@@ -168,6 +168,11 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
   std::tie(output_a_row, output_a_col) = GetOutputCoordinates(input_a_row, input_a_col);
   std::tie(output_b_row, output_b_col) = GetOutputCoordinates(input_b_row, input_b_col);
 
+  std::cout << "\nout row a: " << output_a_row << std::endl;
+  std::cout << "out row b: " << output_b_row << std::endl;
+  std::cout << "out col a: " << output_a_col << std::endl;
+  std::cout << "out col b: " << output_b_col << std::endl;
+
   // Sum up the convolution, adding it to the output.
   cg->AppendLineOfCode(cg->assign("double gradient", "0") + cg->linesep());
   // d iterates from output_a_row to output_b_row.
@@ -203,24 +208,23 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
   // So for all partial derivatives wrt to some input, we need to find the
   // weights (w1 in this case) multiplied by this input in order to
   // generate all neighboring outputs.
-  std::cout << "self in neighbor row: " << self_in_neighbor_row << std::endl;
-  std::cout << "self in neighbor col: " << self_in_neighbor_col << std::endl;
   symbolic::Expression gradient_factor =
       generator_.BoundsCheckedW(filter, self_in_neighbor_row, self_in_neighbor_col, z) *
       generator_.GRADIENT(neighbor_output_flat_index);
+  std::cout << "Gradient factor: " << gradient_factor.to_string() << std::endl;
   string output_sum =
       cg->add_assign("gradient", gradient_factor.to_string() + cg->linesep());
   string for_loop_z =
-      cg->for_loop("size_t z = 0", "z < " + std::to_string(filters_.depth),
+      cg->for_loop("int z = 0", "z < " + std::to_string(filters_.depth),
                    "++z", output_sum);
   string for_loop_fz = cg->for_loop(
-      "size_t filter = 0", "filter < " + std::to_string(filters_.num_filters),
+      "int filter = 0", "filter < " + std::to_string(filters_.num_filters),
       "++filter", for_loop_z);
   string for_loop_kfz =
-      cg->for_loop("size_t k = " + output_a_col.to_string(),
+      cg->for_loop("int k = " + output_a_col.to_string(),
                    "k <= " + output_b_col.to_string(), "++k", for_loop_fz);
   string for_loop_dkfz =
-      cg->for_loop("size_t d = " + output_a_row.to_string(),
+      cg->for_loop("int d = " + output_a_row.to_string(),
                    "d <= " + output_b_row.to_string(), "++d", for_loop_kfz);
   cg->AppendLineOfCode(for_loop_dkfz);
   cg->AppendLineOfCode("return gradient" + cg->linesep());
@@ -260,10 +264,10 @@ void ConvolutionLayer::WeightGradientCode(const symbolic::Expression &index,
       generator_.GRADIENT(output_flat_index) * input;
   string output_sum =
       cg->add_assign("gradient", gradient_factor.to_string() + cg->linesep());
-  string for_loop_y = cg->for_loop("size_t out_y = 0",
+  string for_loop_y = cg->for_loop("int out_y = 0",
                                    "out_y < " + std::to_string(output_width),
                                    "++out_y", output_sum);
-  string for_loop_xy = cg->for_loop("size_t out_x = 0",
+  string for_loop_xy = cg->for_loop("int out_x = 0",
                                     "out_x < " + std::to_string(output_height),
                                     "++out_x", for_loop_y);
   cg->AppendLineOfCode(for_loop_xy);

@@ -401,14 +401,14 @@ class Nnet {
       if (number_weights > 0) {
 
         ////////// debug gradients.
-         double gradients[layer.GetDimensions().num_outputs];
-         queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
-                                 sizeof(Number) * layer.GetDimensions().num_outputs,
-                                 gradients);
-         std::cout << "============== Layer " << i << "input Grads: " << std::endl;
-         for (size_t i = 0; i < layer.GetDimensions().num_outputs; i+=2) {
-           std::cout << gradients[i] << ", " << gradients[i+1] << std::endl;
-         }
+        // double gradients[layer.GetDimensions().num_outputs];
+        // queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
+        //                         sizeof(Number) * layer.GetDimensions().num_outputs,
+        //                         gradients);
+        // std::cout << "============== Layer " << i << "input Grads: " << std::endl;
+        // for (size_t i = 0; i < layer.GetDimensions().num_outputs; i+=2) {
+        //   std::cout << gradients[i] << ", " << gradients[i+1] << std::endl;
+        // }
         ////////// debug
 
 
@@ -466,14 +466,14 @@ class Nnet {
         }
 
         ////////// debug gradients.
-        double gradients[layer.GetDimensions().num_inputs];
-        queue.enqueueReadBuffer(gpu_new_gradients, CL_TRUE, 0,
-                                sizeof(Number) * layer.GetDimensions().num_inputs,
-                                gradients);
-        std::cout << "============== Layer " << i << "backpropped Grads: " << std::endl;
-        for (size_t i = 0; i < layer.GetDimensions().num_outputs; i+=2) {
-          std::cout << gradients[i] << ", " << gradients[i+1] << std::endl;
-        }
+        //double gradients[layer.GetDimensions().num_inputs];
+        //queue.enqueueReadBuffer(gpu_new_gradients, CL_TRUE, 0,
+        //                        sizeof(Number) * layer.GetDimensions().num_inputs,
+        //                        gradients);
+        //std::cout << "============== Layer " << i << "backpropped Grads: " << std::endl;
+        //for (size_t i = 0; i < layer.GetDimensions().num_outputs; i+=2) {
+        //  std::cout << gradients[i] << ", " << gradients[i+1] << std::endl;
+        //}
         ////////// debug
       }
 
