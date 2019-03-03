@@ -326,18 +326,11 @@ class Nnet {
     for (size_t i = 0; i < output_size(); ++i) {
       output_gradients_symbolic.at(i, 0) =
           error.Derive(output_symbolic.at(i, 0).to_string());
-      //////////////////////// DEBUG
-      //std::cout << "########Partial error output " << i << ": " << std::endl
-      //          << output_gradients_symbolic.at(i, 0) << std::endl;
-      ////////////////////////
 
       env[generator_.O(i)] = symbolic::NumericValue(actual_output.at(i, 0));
     }
 
     double error_value = error.Bind(env).Evaluate()->real();
-    ///////////////////// DEBUG
-    // std::cout << "Error (loss): " << error_value << std::endl;
-    ///////////////////// DEBUG
     if (std::isnan(error_value)) {
       std::cerr << "The error has diverged to NaN" << std::endl;
       std::cerr << "Training value input\n=========\n " << in.to_string() << std::endl;
@@ -356,10 +349,6 @@ class Nnet {
     // Generate output gradients (first part of backprop).
     Matrix<Number> gradients =
         symbolic::MapBindAndEvaluate(output_gradients_symbolic, env);
-
-    ///////////// DEBUG
-    // std::cout << "============== Grads: \n" << gradients.to_string() << std::endl;
-    ///////////// DEBUG
 
     cl::Buffer gpu_gradients =
           ColumnVectorToGpuBuffer(context, &queue, gradients);

@@ -168,11 +168,6 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
   std::tie(output_a_row, output_a_col) = GetOutputCoordinates(input_a_row, input_a_col);
   std::tie(output_b_row, output_b_col) = GetOutputCoordinates(input_b_row, input_b_col);
 
-  std::cout << "\nout row a: " << output_a_row << std::endl;
-  std::cout << "out row b: " << output_b_row << std::endl;
-  std::cout << "out col a: " << output_a_col << std::endl;
-  std::cout << "out col b: " << output_b_col << std::endl;
-
   // Sum up the convolution, adding it to the output.
   cg->AppendLineOfCode(cg->assign("double gradient", "0") + cg->linesep());
   // d iterates from output_a_row to output_b_row.
@@ -180,7 +175,7 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
   // k iterates from output_a_col to output_b_col.
   symbolic::Expression k = symbolic::Expression::CreateInteger("k");
   symbolic::Expression filter = symbolic::Expression::CreateInteger("filter");
-  symbolic::Expression z = symbolic::Expression::CreateInteger("z");
+  symbolic::Expression z = input_plane;
   symbolic::Expression neighbor_output_flat_index =
       symbolic::Flatten3d(output_width, output_height, output_depth,
                           d, k, filter);
@@ -211,22 +206,18 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
   symbolic::Expression gradient_factor =
       generator_.BoundsCheckedW(filter, self_in_neighbor_row, self_in_neighbor_col, z) *
       generator_.GRADIENT(neighbor_output_flat_index);
-  std::cout << "Gradient factor: " << gradient_factor.to_string() << std::endl;
   string output_sum =
       cg->add_assign("gradient", gradient_factor.to_string() + cg->linesep());
-  string for_loop_z =
-      cg->for_loop("int z = 0", "z < " + std::to_string(filters_.depth),
-                   "++z", output_sum);
-  string for_loop_fz = cg->for_loop(
+  string for_loop_f = cg->for_loop(
       "int filter = 0", "filter < " + std::to_string(filters_.num_filters),
-      "++filter", for_loop_z);
-  string for_loop_kfz =
+      "++filter", output_sum);
+  string for_loop_kf =
       cg->for_loop("int k = " + output_a_col.to_string(),
-                   "k <= " + output_b_col.to_string(), "++k", for_loop_fz);
-  string for_loop_dkfz =
+                   "k <= " + output_b_col.to_string(), "++k", for_loop_f);
+  string for_loop_dkf =
       cg->for_loop("int d = " + output_a_row.to_string(),
-                   "d <= " + output_b_row.to_string(), "++d", for_loop_kfz);
-  cg->AppendLineOfCode(for_loop_dkfz);
+                   "d <= " + output_b_row.to_string(), "++d", for_loop_kf);
+  cg->AppendLineOfCode(for_loop_dkf);
   cg->AppendLineOfCode("return gradient" + cg->linesep());
 }
 

@@ -9,7 +9,7 @@
 // output: adjustment for the requested weight_index.
 double CalculateWeightGradient_LAYERID(global double* I, global double* W,
                                        const global double* GRADIENT,
-                                       size_t weight_index) {
+                                       int weight_index) {
   WEIGHT_GRADIENTS_HERE
 }
 
@@ -21,7 +21,7 @@ double CalculateWeightGradient_LAYERID(global double* I, global double* W,
 // output: gradient for the requested input_index.
 double CalculateInputGradient_LAYERID(global double* I, global double* W,
                                       const global double* GRADIENT,
-                                      size_t input_index) {
+                                      int input_index) {
   INPUT_GRADIENTS_HERE
 }
 

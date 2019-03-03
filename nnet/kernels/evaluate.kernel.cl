@@ -1,7 +1,7 @@
 // THIS FILE IS A TEMPLATE. The files in //math/nnet parse this to generate an OpenCl kernel.
 
 // This function is generated automatically, do not edit.
-double Calculate_LAYERID(global double* I, global double* W, size_t output_index) {
+double Calculate_LAYERID(global double* I, global double* W, int output_index) {
   EXPRESSION_HERE
 }
 
