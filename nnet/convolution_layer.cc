@@ -249,7 +249,7 @@ void ConvolutionLayer::WeightGradientCode(const symbolic::Expression &index,
       // (0, 0) as the top-left, so subtract filters_.(height or width)/2 to
       // translate coordinates.
       generator_.BoundsCheckedI(input_y + weight_y - (filters_.height / 2),
-                                input_x + weight_x - filters_.width / 2,
+                                input_x + weight_x - (filters_.width / 2),
                                 weight_z));
   symbolic::Expression gradient_factor =
       generator_.GRADIENT(output_flat_index) * input;

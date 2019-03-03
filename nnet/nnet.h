@@ -339,6 +339,7 @@ class Nnet {
     }
 
     double error_value = error_->Bind(env).Evaluate()->real();
+    std::cout << "Error: " << error_value << std::endl;
     if (std::isnan(error_value)) {
       std::cerr << "The error has diverged to NaN" << std::endl;
       std::cerr << "Training value input\n=========\n " << in.to_string() << std::endl;
@@ -431,6 +432,14 @@ class Nnet {
           context, CL_MEM_READ_WRITE,
           sizeof(Number) * layer.GetDimensions().num_inputs);
 
+      ////////// debug gradients.
+      double test_input_gradients[layer.GetDimensions().num_outputs];
+      queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
+                              sizeof(Number) * layer.GetDimensions().num_outputs,
+                              test_input_gradients);
+      ////////// debug
+
+
       if (layer.GetDimensions().num_inputs > 0) {
 
         // Backprop gradient calculation.
@@ -448,11 +457,46 @@ class Nnet {
                     << layer.InputGradientKernelName() << std::endl;
           std::exit(1);
         }
+      } else {
+        std::cerr
+            << "Error, incorrect model config. Layer with zero inputs found: "
+            << layer.LayerSuffix() << std::endl;
       }
-
       // Use the new input gradients for the next layer backwards (the one
       // before this one, we're iterating backwards).
       gpu_gradients = gpu_new_gradients;
+
+      ////////// debug
+      bool nans_polluted = false;
+      double test_output_gradients[layer.GetDimensions().num_outputs];
+      queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
+                              sizeof(Number) * layer.GetDimensions().num_outputs,
+                              test_output_gradients);
+      for (size_t i = 0; i < layer.GetDimensions().num_outputs; ++i) {
+        if (std::isnan(test_output_gradients[i])) {
+          nans_polluted = true;
+          break;
+        }
+      }
+      if (nans_polluted)
+      {
+      std::cout << "============== Layer " << i << layer.LayerSuffix()
+                << " input Grads: " << std::endl;
+      for (size_t i = 0; i < layer.GetDimensions().num_outputs; i+=2) {
+        std::cout << test_input_gradients[i] << ", "
+                  << test_input_gradients[i + 1] << std::endl;
+      }
+
+      std::cout << "============== Layer " << i << layer.LayerSuffix()
+                << "backpropped Grads: " << std::endl;
+      for (size_t i = 0; i < layer.GetDimensions().num_outputs; i+=2) {
+        std::cout << test_output_gradients[i] << ", "
+                  << test_output_gradients[i + 1] << std::endl;
+      }
+      std::cerr << "Nans polluted the gradient!" << std::endl;
+      std::exit(1);
+      }
+      ////////// debug
     }
     if (input_gradients) {
       size_t num_inputs = in.dimensions().rows;
