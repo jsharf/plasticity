@@ -311,26 +311,34 @@ class Nnet {
     Matrix<symbolic::Expression> output_symbolic =
         GenerateOutputLayer(output_size());
 
-    Matrix<symbolic::Expression> expected_symbolic(o.dimensions().rows, 1);
-    for (size_t i = 0; i < o.dimensions().rows; ++i) {
-      expected_symbolic.at(i, 0) = symbolic::Expression(o.at(i, 0));
+    // If the initial error expressions haven't been generated yet, derive and
+    // generate them now.
+    if (!output_gradients_symbolic_) {
+      Matrix<symbolic::Expression> expected_symbolic(o.dimensions().rows, 1);
+      for (size_t i = 0; i < o.dimensions().rows; ++i) {
+        expected_symbolic.at(i, 0) =
+            symbolic::NumericValue("E[" + std::to_string(i) + "]");
+      }
+
+      error_ = std::make_unique<symbolic::Expression>(
+          GenerateErrorExpression(output_symbolic, expected_symbolic));
+
+      // Generate symbolic expressions for output gradients.
+      output_gradients_symbolic_ = std::make_unique<Matrix<symbolic::Expression>>(output_size(), 1);
+      for (size_t i = 0; i < output_size(); ++i) {
+        output_gradients_symbolic_->at(i, 0) =
+            error_->Derive(output_symbolic.at(i, 0).to_string());
+      }
     }
 
-    symbolic::Expression error =
-        GenerateErrorExpression(output_symbolic, expected_symbolic);
-
-    // Simultaneously generate symbolic expressions for output gradients and
-    // build environment for evaluating them.
-    Matrix<symbolic::Expression> output_gradients_symbolic(output_size(), 1);
+    // Build environment for evaluating output gradients.
     symbolic::Environment env;
     for (size_t i = 0; i < output_size(); ++i) {
-      output_gradients_symbolic.at(i, 0) =
-          error.Derive(output_symbolic.at(i, 0).to_string());
-
-      env[generator_.O(i)] = symbolic::NumericValue(actual_output.at(i, 0));
+        env[generator_.O(i)] = symbolic::NumericValue(actual_output.at(i, 0));
+        env["E[" + std::to_string(i) + "]"] = symbolic::NumericValue(o.at(i, 0));
     }
 
-    double error_value = error.Bind(env).Evaluate()->real();
+    double error_value = error_->Bind(env).Evaluate()->real();
     if (std::isnan(error_value)) {
       std::cerr << "The error has diverged to NaN" << std::endl;
       std::cerr << "Training value input\n=========\n " << in.to_string() << std::endl;
@@ -348,7 +356,7 @@ class Nnet {
 
     // Generate output gradients (first part of backprop).
     Matrix<Number> gradients =
-        symbolic::MapBindAndEvaluate(output_gradients_symbolic, env);
+        symbolic::MapBindAndEvaluate(*output_gradients_symbolic_, env);
 
     cl::Buffer gpu_gradients =
           ColumnVectorToGpuBuffer(context, &queue, gradients);
@@ -388,19 +396,6 @@ class Nnet {
                                         sizeof(Number), &params.learning_rate));
 
       if (number_weights > 0) {
-
-        ////////// debug gradients.
-        // double gradients[layer.GetDimensions().num_outputs];
-        // queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
-        //                         sizeof(Number) * layer.GetDimensions().num_outputs,
-        //                         gradients);
-        // std::cout << "============== Layer " << i << "input Grads: " << std::endl;
-        // for (size_t i = 0; i < layer.GetDimensions().num_outputs; i+=2) {
-        //   std::cout << gradients[i] << ", " << gradients[i+1] << std::endl;
-        // }
-        ////////// debug
-
-
         cl::Buffer gpu_new_weights(context, CL_MEM_READ_WRITE,
                                    number_weights * sizeof(Number));
         // Backprop layer weight updates.
@@ -453,23 +448,11 @@ class Nnet {
                     << layer.InputGradientKernelName() << std::endl;
           std::exit(1);
         }
-
-        ////////// debug gradients.
-        //double gradients[layer.GetDimensions().num_inputs];
-        //queue.enqueueReadBuffer(gpu_new_gradients, CL_TRUE, 0,
-        //                        sizeof(Number) * layer.GetDimensions().num_inputs,
-        //                        gradients);
-        //std::cout << "============== Layer " << i << "backpropped Grads: " << std::endl;
-        //for (size_t i = 0; i < layer.GetDimensions().num_outputs; i+=2) {
-        //  std::cout << gradients[i] << ", " << gradients[i+1] << std::endl;
-        //}
-        ////////// debug
       }
 
       // Use the new input gradients for the next layer backwards (the one
       // before this one, we're iterating backwards).
       gpu_gradients = gpu_new_gradients;
-
     }
     if (input_gradients) {
       size_t num_inputs = in.dimensions().rows;
@@ -597,6 +580,10 @@ class Nnet {
 
   SymbolGenerator generator_;
   LossFunction loss_function_;
+
+  // Generated error gradient expressions.
+  std::unique_ptr<Matrix<symbolic::Expression>> output_gradients_symbolic_;
+  std::unique_ptr<symbolic::Expression> error_;
 
   // OpenCL state variables.
   struct OpenClState {
