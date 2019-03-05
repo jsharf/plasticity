@@ -468,11 +468,11 @@ class Nnet {
 
       ////////// debug
       bool nans_polluted = false;
-      double test_output_gradients[layer.GetDimensions().num_outputs];
-      queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
-                              sizeof(Number) * layer.GetDimensions().num_outputs,
+      double test_output_gradients[layer.GetDimensions().num_inputs];
+      queue.enqueueReadBuffer(gpu_new_gradients, CL_TRUE, 0,
+                              sizeof(Number) * layer.GetDimensions().num_inputs,
                               test_output_gradients);
-      for (size_t i = 0; i < layer.GetDimensions().num_outputs; ++i) {
+      for (size_t i = 0; i < layer.GetDimensions().num_inputs; ++i) {
         if (std::isnan(test_output_gradients[i])) {
           nans_polluted = true;
           break;
@@ -480,6 +480,8 @@ class Nnet {
       }
       if (nans_polluted)
       {
+      std::cout << "Nans found from the input gradients @ layer " << i
+                << layer.LayerSuffix() << std::endl;
       std::cout << "============== Layer " << i << layer.LayerSuffix()
                 << " input Grads: " << std::endl;
       for (size_t i = 0; i < layer.GetDimensions().num_outputs; i+=2) {
@@ -489,9 +491,18 @@ class Nnet {
 
       std::cout << "============== Layer " << i << layer.LayerSuffix()
                 << "backpropped Grads: " << std::endl;
-      for (size_t i = 0; i < layer.GetDimensions().num_outputs; i+=2) {
+      for (size_t i = 0; i < layer.GetDimensions().num_inputs; i+=2) {
         std::cout << test_output_gradients[i] << ", "
                   << test_output_gradients[i + 1] << std::endl;
+      }
+      double layer_inputs[layer.GetDimensions().num_inputs];
+      queue.enqueueReadBuffer(gpu_layer_input, CL_TRUE, 0,
+                              sizeof(Number) * layer.GetDimensions().num_inputs,
+                              layer_inputs);
+      std::cout << "============== Layer eval inputs " << i << layer.LayerSuffix() << std::endl;
+      for (size_t i = 0; i < layer.GetDimensions().num_inputs; i+=2) {
+        std::cout << layer_inputs[i] << ", " << layer_inputs[i + 1]
+                  << std::endl;
       }
       std::cerr << "Nans polluted the gradient!" << std::endl;
       std::exit(1);

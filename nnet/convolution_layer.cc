@@ -206,8 +206,13 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
   symbolic::Expression gradient_factor =
       generator_.BoundsCheckedW(filter, self_in_neighbor_row, self_in_neighbor_col, z) *
       generator_.GRADIENT(neighbor_output_flat_index);
-  string output_sum =
-      cg->add_assign("gradient", gradient_factor.to_string() + cg->linesep());
+  symbolic::Expression bounds_checked_gradient_factor = IfInRange(input_d, 0, imdim_.height, IfInRange(input_k, 0, imdim_.width, gradient_factor, 0.0), 0.0);
+  string output_sum = cg->add_assign(
+      "gradient", bounds_checked_gradient_factor.to_string() + cg->linesep());
+  //// DEBUG
+  output_sum += "\n\t if (isnan(gradient)) { printf(\"NONONO nan encountered @ r,c %i, %i!\\n\", " + input_row.to_string() + ", " + input_col.to_string() + "); return NAN;} \n";
+  //// DEBUG
+
   string for_loop_f = cg->for_loop(
       "int filter = 0", "filter < " + std::to_string(filters_.num_filters),
       "++filter", output_sum);

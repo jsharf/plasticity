@@ -95,6 +95,25 @@ int main() {
 
   // This model taken from:
   // http://cs231n.github.io/convolutional-networks/
+  //
+  // This is just for debugging reference. It may become stale if not kept up to
+  // date. These are the internal layer numbers created in the model below
+  // (output on top, input on bottom).
+  //
+  // Layer 12 softmax_layer_12
+	// Layer 11 activation_layer_11
+	// Layer 10 dense_layer_10
+	// Layer 9 max_pool_layer_9
+	// Layer 8 activation_layer_8
+	// Layer 7 convolution_layer_7
+	// Layer 6 max_pool_layer_6
+	// Layer 5 activation_layer_5
+	// Layer 4 convolution_layer_4
+	// Layer 3 max_pool_layer_3
+	// Layer 2 activation_layer_2
+	// Layer 1 convolution_layer_1
+	// Layer 0 activation_layer_0
+
   nnet::Architecture model(kInputSize);
   model
       .AddConvolutionLayer(
@@ -184,12 +203,13 @@ int main() {
   std::cout << "Training...";
 
   for (size_t epoch = 1; epoch <= 100; ++epoch) {
-    nnet::Nnet::LearningParameters params{.learning_rate = 0.00003 / epoch};
+    nnet::Nnet::LearningParameters params{.learning_rate = 0.0003 / epoch};
     for (const auto& sample : samples) {
       std::cout << ".";
       test_net.Train(sample.OneHotEncodedInput(), sample.OneHotEncodedOutput(),
                        params);
     }
+    std::cout << "Epoch " << epoch << " completed." << std::endl;
   }
 
   std::cout << std::endl;

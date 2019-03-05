@@ -34,10 +34,12 @@ class SoftmaxLayer : public LayerImpl {
   }
 
  private:
-   symbolic::Expression
-   GenerateOutputSymbol(const symbolic::Expression &index) const;
+  symbolic::Expression GenerateOutputSymbol(
+      const symbolic::Expression &index, const symbolic::Expression &max) const;
 
-   SymbolGenerator generator_;
+  symbolic::Expression AppendMaxCode(codegen::Generator* cg) const;
+
+  SymbolGenerator generator_;
 };
 
 }  // namespace nnet
