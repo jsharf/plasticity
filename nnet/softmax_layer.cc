@@ -30,7 +30,7 @@ void SoftmaxLayer::GenerateOutputCode(const symbolic::Expression &index,
 
 symbolic::Expression SoftmaxLayer::AppendMaxCode(codegen::Generator* cg) const {
   symbolic::Expression max = symbolic::Expression::CreateNumericValue("max");
-  cg->AppendLineOfCode(cg->assign("double max", "0.0") + cg->linesep());
+  cg->AppendLineOfCode(cg->assign("double max", "-INFINITY") + cg->linesep());
 
   std::string check_max_expression =
       cg->if_expr(generator_.I("i") + " > " + max.to_string()) + " {\n\t " +
@@ -60,22 +60,18 @@ void SoftmaxLayer::InputGradientCode(const symbolic::Expression &input_index,
 
   std::cout << "deriv: " <<  deriv.to_string() << std::endl;
 
-  cg->AppendLineOfCode(";double expsum = " + expsum.to_string() + ";\nif ((expsum == 0) && (isnan(" + deriv.to_string() +
-                       "))) { "
+  cg->AppendLineOfCode(";double expsum = " + expsum.to_string() + ";\nif (isnan(" + deriv.to_string() +
+                       ")) { "
                        "for (int i = 0; i < " +
                        std::to_string(dimensions_.num_inputs) +
                        "; ++i) {"
-                       "if (pow(2.71828, I[i]) < 0) {"
-                       "printf(\"weird input causes neg pow: %f, res: %f\\n\", "
-                       "I[i], pow(2.71828, I[i]));"
-                       "} else if (fabs(pow(2.71828, I[i]) - 1) <= 0.01) {"
-                         "printf(\"found zero, exp(zero) ->1\\n\");"
-                       "}"
+                       "printf(\"weird input - max causes zero pow. max: %f, I[i]: %f, I[i] - max: %f res: %f\\n\", "
+                       "max, I[i], I[i] - max, pow(2.71828, I[i] - max));"
                        "}}");
 
   cg->AppendLineOfCode(
-      "printf(\"exp(Max): %.10f, Denom: %.10f, Deriv: %.10f, Grad: "
-      "%.10f\\n\", exp(max), " +
+      "printf(\"exp(Max - Max): %.10f, Denom: %.10f, Deriv: %.10f, Grad: "
+      "%.10f\\n\", exp(max-max), " +
       expsum.to_string() + ", " + deriv.to_string() + ", " +
       generator_.GRADIENT(input_index).to_string() + ");");
   /// DEBUG
