@@ -229,6 +229,35 @@ class Nnet {
         std::exit(1);
       }
 
+      /// DEBUG
+      double outputs_test[layer.GetDimensions().num_outputs];
+      CL_CHECK(queue.enqueueReadBuffer(
+        outputs, CL_TRUE, 0, sizeof(outputs_test), outputs_test));
+      bool non_finites_polluted = false;
+      for (size_t i = 0; i < layer.GetDimensions().num_outputs; ++i) {
+        if (!std::isfinite(outputs_test[i])) {
+          non_finites_polluted = true;
+        }
+      }
+
+      if (non_finites_polluted) {
+        std::cout << "non-finites detected in output of layer " << layer.LayerSuffix() << std::endl;
+        double inputs_test[layer.GetDimensions().num_inputs];
+        CL_CHECK(queue.enqueueReadBuffer(
+        inputs, CL_TRUE, 0, sizeof(inputs_test), inputs_test));
+        std::cout << "======== Layer inputs: " << std::endl;
+        for (size_t i = 0; i < layer.GetDimensions().num_inputs; ++i) {
+          std::cout << "I[" << i << "]: " << inputs_test[i] << std::endl;
+        }
+        std::cout << "======== Layer outputs: " << std::endl;
+        for (size_t i = 0; i < layer.GetDimensions().num_outputs; ++i) {
+          std::cout << "O[" << i << "]: " << outputs_test[i] << std::endl;
+        }
+        std::exit(1);
+      }
+
+      /// DEBUG
+
       if (out_layer_outputs) {
         out_layer_outputs->push_back(outputs);
       }

@@ -65,18 +65,20 @@ void MaxPoolLayer::GenerateOutputCode(const symbolic::Expression &index,
   symbolic::Expression group_c = symbolic::Expression::CreateInteger("group_c");
   symbolic::Expression depth = symbolic::Expression::CreateInteger("depth");
   symbolic::Expression max = symbolic::Expression::CreateNumericValue("max");
-  cg->AppendLineOfCode("float " + max.to_string() + " = -INFINITY" + cg->linesep());
+  cg->AppendLineOfCode("double " + max.to_string() + " = -INFINITY" + cg->linesep());
   cg->AppendLineOfCode("for (size_t group_r = 0; group_r < " +
                        std::to_string(group_height) + "; ++group_r)");
   cg->PushScope();
   cg->AppendLineOfCode("for (size_t group_c = 0; group_c < " +
                        std::to_string(group_width) + "; ++group_c)");
   cg->PushScope();
-  symbolic::Expression current_input = generator_.I(group_r_start + group_r, group_c_start + group_c, output_z);
+  symbolic::Expression current_input = generator_.BoundsCheckedI(group_r_start + group_r, group_c_start + group_c, output_z);
   cg->AppendLineOfCode(
       cg->if_expr(cg->gt(current_input.to_string(), max.to_string())));
   cg->PushScope();
   cg->AppendLineOfCode(cg->assign(max.to_string(), current_input.to_string()) + cg->linesep()); 
+  cg->AppendLineOfCode("if (isinf(max)) {"
+      "printf(\"inf found near row %i col %i of input\\n\", " + group_r_start.to_string() + ", " + group_c_start.to_string() + ");}");
   cg->PopScope();
   cg->PopScope();
   cg->PopScope();

@@ -132,7 +132,7 @@ int main() {
           })
       .AddMaxPoolLayer(
           /* Input size */ nnet::VolumeDimensions{32, 32, 16},
-          /* output size */ nnet::AreaDimensions{16, 16})
+          /* Output size */ nnet::AreaDimensions{16, 16})
       .AddConvolutionLayer(
           {
               16, // width

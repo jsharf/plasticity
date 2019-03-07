@@ -25,6 +25,31 @@ void SoftmaxLayer::GenerateOutputCode(const symbolic::Expression &index,
 
   symbolic::Expression max = AppendMaxCode(cg);
   symbolic::Expression retval = GenerateOutputSymbol(index, max);
+
+  /// DEBUG
+//  symbolic::Expression expsum = symbolic::NumericValue(0.0);
+//
+//  for (size_t i = 0; i < dimensions_.num_inputs; ++i) {
+//    expsum =
+//        expsum + symbolic::Exp(Expression::CreateNumericValue(generator_.I(i)) - max);
+//  }
+//
+//  cg->AppendLineOfCode(";double expsum = " + expsum.to_string() + ";\nif (!isfinite(1.0/" + expsum.to_string() +
+//                       ")) { "
+//                       "for (int i = 0; i < " +
+//                       std::to_string(dimensions_.num_inputs) +
+//                       "; ++i) {"
+//                       "printf(\"weird input - max causes zero pow. max: %f, I[i]: %f, I[i] - max: %f res: %f\\n\", "
+//                       "max, I[i], I[i] - max, pow(2.71828, I[i] - max));"
+//                       "}}");
+//
+  //cg->AppendLineOfCode(
+  //    "printf(\"exp(Max - Max): %.10f, Denom: %.10f, Deriv: %.10f, Grad: "
+  //    "%.10f\\n\", exp(max-max), " +
+  //    expsum.to_string() + ", " + deriv.to_string() + ", " +
+  //    generator_.GRADIENT(input_index).to_string() + ");");
+  /// DEBUG
+
   cg->AppendLineOfCode("return " + retval.to_string() + cg->linesep());
 }
 
@@ -50,31 +75,6 @@ void SoftmaxLayer::InputGradientCode(const symbolic::Expression &input_index,
       output.Derive(generator_.I(input_index).to_string());
   symbolic::Expression retval = generator_.GRADIENT(input_index) * deriv;
 
-  /// DEBUG
-  symbolic::Expression expsum = symbolic::NumericValue(0.0); 
-
-  for (size_t i = 0; i < dimensions_.num_inputs; ++i) {
-    expsum =
-        expsum + symbolic::Exp(Expression::CreateNumericValue(generator_.I(i)) - max);
-  }
-
-  std::cout << "deriv: " <<  deriv.to_string() << std::endl;
-
-  cg->AppendLineOfCode(";double expsum = " + expsum.to_string() + ";\nif (isnan(" + deriv.to_string() +
-                       ")) { "
-                       "for (int i = 0; i < " +
-                       std::to_string(dimensions_.num_inputs) +
-                       "; ++i) {"
-                       "printf(\"weird input - max causes zero pow. max: %f, I[i]: %f, I[i] - max: %f res: %f\\n\", "
-                       "max, I[i], I[i] - max, pow(2.71828, I[i] - max));"
-                       "}}");
-
-  cg->AppendLineOfCode(
-      "printf(\"exp(Max - Max): %.10f, Denom: %.10f, Deriv: %.10f, Grad: "
-      "%.10f\\n\", exp(max-max), " +
-      expsum.to_string() + ", " + deriv.to_string() + ", " +
-      generator_.GRADIENT(input_index).to_string() + ");");
-  /// DEBUG
   cg->AppendLineOfCode("return " + retval.to_string() + cg->linesep());
 }
 
