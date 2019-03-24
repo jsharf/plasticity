@@ -739,4 +739,58 @@ TEST_CASE("Convolution layer test", "[convnet]") {
 
 }
 
+TEST_CASE("Gradient checking", "[densenet]") {
+  constexpr double EPSILON = 0.001;
+
+  constexpr size_t kInputSize = 3;
+  constexpr size_t kLayerSize = 3;
+
+  Architecture model(kInputSize);
+  model.AddDenseLayer(kLayerSize, symbolic::Sigmoid);
+
+  auto expected = MakeInput(0.2, 0.2, 0.2);
+
+  SECTION("Verify input gradient") {
+    // Use the model to generate a neural network.
+    Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+
+    nnet::Nnet::LearningParameters params{.learning_rate = 1};
+    double output_left = test_net.Error(MakeInput(0.1 - EPSILON, 0.2, 0.7), expected);
+    double output_right = test_net.Error(MakeInput(0.1 + EPSILON, 0.2, 0.7), expected);
+
+    double approx_gradient = (output_right - output_left) / 2*EPSILON;
+    std::unique_ptr<Matrix<double>> gradients = std::make_unique<Matrix<double>>();
+    test_net.Train(MakeInput(0.1, 0.2, 0.7), expected, params, gradients);
+    double actual_gradient = gradients->at(0, 0);
+
+    REQUIRE(actual_gradient == Approx(approx_gradient).epsilon(EPSILON));
+  }
+
+  SECTION("Verify weight gradient") {
+    DenseSymbolGenerator s(Dimensions{3, 3});
+    nnet::Nnet::LearningParameters params{.learning_rate = 1};
+
+    // A neural network with the weight tweaked left.
+    model.layers[1].W(s.WeightNumber(0, 0)) = -EPSILON;
+    Nnet test_net_tweak_left(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+
+    double output_left = test_net_tweak_left.Error(MakeInput(0.1, 0.2, 0.7), expected);
+
+    // A neural network with the weight tweaked right.
+    model.layers[1].W(s.WeightNumber(0, 0)) = EPSILON;
+    Nnet test_net_tweak_right(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+
+    double output_right = test_net_tweak_right.Error(MakeInput(0.1, 0.2, 0.7), expected);
+
+    double approx_gradient = (output_right - output_left) / 2*EPSILON;
+
+    model.layers[1].W(s.WeightNumber(0, 0)) = 0;
+    Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+    test_net.Train(MakeInput(0.1, 0.2, 0.7), expected, params);
+    double weight_gradient = - test_net.GetWeight(1, 0);
+
+    REQUIRE(weight_gradient == Approx(approx_gradient).epsilon(EPSILON));
+  }
+}
+
 }  // namespace nnet

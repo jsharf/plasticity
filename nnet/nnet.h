@@ -125,6 +125,10 @@ class Nnet {
     return devices[0];
   }
 
+  double GetWeight(size_t layer, size_t weight_index) const {
+    return model_.layers[layer].weight_buffer()[weight_index];
+  }
+
   Matrix<Number> Evaluate(Matrix<Number> in) {
     std::unique_ptr<std::vector<cl::Buffer>> _(nullptr);
     return Evaluate(in, _);
@@ -309,6 +313,35 @@ class Nnet {
       std::exit(1);
     }
     return gpu_buffer;
+  }
+
+  double Error(Matrix<Number> in, Matrix<Number> o) {
+    Matrix<symbolic::Expression> output_symbolic =
+        GenerateOutputLayer(output_size());
+
+    Matrix<Number> actual_output = Evaluate(in);
+
+    // If the initial error expressions haven't been generated yet, derive and
+    // generate them now.
+    if (!output_gradients_symbolic_) {
+      Matrix<symbolic::Expression> expected_symbolic(o.dimensions().rows, 1);
+      for (size_t i = 0; i < o.dimensions().rows; ++i) {
+        expected_symbolic.at(i, 0) =
+            symbolic::NumericValue("E[" + std::to_string(i) + "]");
+      }
+
+      error_ = std::make_unique<symbolic::Expression>(
+          GenerateErrorExpression(output_symbolic, expected_symbolic));
+    }
+
+    // Build environment for evaluating output gradients.
+    symbolic::Environment env;
+    for (size_t i = 0; i < output_size(); ++i) {
+      env[generator_.O(i)] = symbolic::NumericValue(actual_output.at(i, 0));
+      env["E[" + std::to_string(i) + "]"] = symbolic::NumericValue(o.at(i, 0));
+    }
+
+    return error_->Bind(env).Evaluate()->real();
   }
 
   void Train(Matrix<Number> in, Matrix<Number> o,

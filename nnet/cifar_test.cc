@@ -26,8 +26,13 @@ struct Sample {
 
   Matrix<double> OneHotEncodedInput() const {
     Matrix<double> input(kSampleSize, 1, 0);
+    double norm = 0;
     for (size_t i = 0; i < kSampleSize; ++i) {
-      input.at(i, 0) = static_cast<double>(pixels[i]);
+      norm += static_cast<double>(pixels[i]) * pixels[i];
+    }
+    norm = sqrt(norm);
+    for (size_t i = 0; i < kSampleSize; ++i) {
+      input.at(i, 0) = static_cast<double>(pixels[i] / norm);
     }
     return input;
   }
