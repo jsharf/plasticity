@@ -24,6 +24,7 @@ struct Sample {
     memcpy(&pixels[0], &data[1], kSampleSize);
   }
 
+  // This isn't one-hot input, it's just a column vector input.
   Matrix<double> OneHotEncodedInput() const {
     Matrix<double> input(kSampleSize, 1, 0);
     double norm = 0;
@@ -31,8 +32,11 @@ struct Sample {
       norm += static_cast<double>(pixels[i]) * pixels[i];
     }
     norm = sqrt(norm);
+    if (norm == 0) {
+      norm = 1;
+    }
     for (size_t i = 0; i < kSampleSize; ++i) {
-      input.at(i, 0) = static_cast<double>(pixels[i] / norm);
+      input.at(i, 0) = static_cast<double>(pixels[i]) / norm;
     }
     return input;
   }
@@ -40,6 +44,11 @@ struct Sample {
   Matrix<double> OneHotEncodedOutput() const {
     // Initialize kOutputSizex1 blank column vector.
     Matrix<double> output(kOutputSize, 1, 0);
+
+    // Zero the inputs.
+    for (size_t i = 0; i < kOutputSize; ++i) {
+      output.at(i, 0) = 0;
+    }
 
     output.at(label, 0) = 1;
 
@@ -207,14 +216,26 @@ int main() {
 
   std::cout << "Training...";
 
-  for (size_t epoch = 1; epoch <= 100; ++epoch) {
-    nnet::Nnet::LearningParameters params{.learning_rate = 0.0003 / epoch};
+  for (size_t epoch = 1; epoch <= 10; ++epoch) {
+    nnet::Nnet::LearningParameters params{.learning_rate = 0.03 / epoch};
     for (const auto& sample : samples) {
       std::cout << ".";
       test_net.Train(sample.OneHotEncodedInput(), sample.OneHotEncodedOutput(),
                        params);
     }
     std::cout << "Epoch " << epoch << " completed." << std::endl;
+  }
+
+  srand(time(nullptr));
+  for (size_t examples = 0; examples < 10; ++examples) {
+    const auto& sample = samples[rand() % samples.size()];
+    std::cout << "================================" << std::endl;
+    std::cout << "Prediction: " << std::endl;
+    std::string result = test_net.Evaluate(sample.OneHotEncodedInput()).to_string();
+    std::cout << result << std::endl;
+    std::cout << "Actual: " << std::endl;
+    std::string expected = sample.OneHotEncodedOutput().to_string();
+    std::cout << expected << std::endl;
   }
 
   std::cout << std::endl;

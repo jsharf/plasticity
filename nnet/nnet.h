@@ -656,8 +656,12 @@ class Nnet {
   std::string WeightsToString() const {
     std::stringstream output;
     output << "{";
-    for (const auto& layer : model_.layers) {
-      output << layer.WeightsToString() << "," << std::endl;
+    for (size_t i = 0; i < model_.layers.size(); ++i) {
+      output << model_.layers[i].WeightsToString();
+      if (i != model_.layers.size() - 1) {
+       output << ",";
+      }
+      output << std::endl;
     }
     output << "}";
     return output.str();

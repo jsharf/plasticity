@@ -218,8 +218,8 @@ cc_binary(
     ],
     linkopts = select({
         "//clutil:osx": ["-framework OpenCL"],
-        "//clutil:linux": ["-lOpenCL"],
-        "//conditions:default": ["-lOpenCL"],
+        "//clutil:linux": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
+        "//conditions:default": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
     }),
     visibility = ["//math"],
     deps = [
@@ -237,8 +237,8 @@ cc_binary(
     ],
     linkopts = select({
         "//clutil:osx": ["-framework OpenCL"],
-        "//clutil:linux": ["-lOpenCL"],
-        "//conditions:default": ["-lOpenCL"],
+        "//clutil:linux": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
+        "//conditions:default": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
     }),
     visibility = ["//math"],
     deps = [
@@ -260,8 +260,8 @@ cc_binary(
     ],
     linkopts = select({
         "//clutil:osx": ["-framework OpenCL"],
-        "//clutil:linux": ["-lOpenCL"],
-        "//conditions:default": ["-lOpenCL"],
+        "//clutil:linux": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
+        "//conditions:default": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
     }),
     visibility = ["//math"],
     deps = [
@@ -281,8 +281,8 @@ cc_test(
     ],
     linkopts = select({
         "//clutil:osx": ["-framework OpenCL"],
-        "//clutil:linux": ["-lOpenCL"],
-        "//conditions:default": ["-lOpenCL"],
+        "//clutil:linux": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
+        "//conditions:default": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
     }),
     deps = [
         ":layer",

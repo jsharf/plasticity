@@ -156,11 +156,15 @@ std::string Layer::GenerateEvaluationKernel() const {
 
 std::string Layer::WeightsToString() const {
   std::stringstream output;
-  output << "layer_" << LayerSuffix() << ": {" << std::endl;
+  output << "\"layer_" << LayerSuffix() << "\": [" << std::endl;
   for (size_t i = 0; i < weights_.size(); ++i) {
-    output << "W[" << i << "]:" << weights_[i] << "," << std::endl;
+    output << weights_[i];
+    if (i != weights_.size() - 1) {
+     output << ",";
+    }
+    output << std::endl;
   }
-  output << "}" << std::endl;
+  output << "]" << std::endl;
   return output.str();
 }
 
