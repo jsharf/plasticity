@@ -49,6 +49,7 @@ void DenseLayer::WeightGradientCode(
       symbolic::IfInRange(edge, 0, dimensions_.num_inputs,
                           generator_.GRADIENT(node) * generator_.I(edge),
                           generator_.GRADIENT(node));
+
   cg->AppendLineOfCode("return " + retval.to_string() + cg->linesep());
 }
 

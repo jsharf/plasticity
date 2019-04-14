@@ -72,6 +72,10 @@ class Nnet {
     return model_;
   }
 
+  const Layer& layer(size_t layer) const {
+    return model_.layers[layer];
+  }
+
   void CompileKernelsIfRequired(cl::Device device) {
     if (opencl_.compiled &&
         ClDevicesAreEqual(opencl_.device, SelectDevice())) {
@@ -454,6 +458,13 @@ class Nnet {
         weights = std::make_unique<cl::Buffer>(context, CL_MEM_READ_WRITE, sizeof(Number));
       }
 
+      ////////// debug gradients.
+      double test_input_gradients[layer.GetDimensions().num_outputs];
+      queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
+                              sizeof(Number) * layer.GetDimensions().num_outputs,
+                              test_input_gradients);
+      ////////// debug
+
       cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
       CL_CHECK(queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0,
                                         sizeof(Number), &params.learning_rate));
@@ -493,13 +504,6 @@ class Nnet {
       cl::Buffer gpu_new_gradients(
           context, CL_MEM_READ_WRITE,
           sizeof(Number) * layer.GetDimensions().num_inputs);
-
-      ////////// debug gradients.
-      double test_input_gradients[layer.GetDimensions().num_outputs];
-      queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
-                              sizeof(Number) * layer.GetDimensions().num_outputs,
-                              test_input_gradients);
-      ////////// debug
 
 
       if (layer.GetDimensions().num_inputs > 0) {
@@ -613,15 +617,13 @@ class Nnet {
       std::exit(1);
     }
 
-    size_t n = actual.dimensions().rows;
-
     symbolic::Expression error;
     for (size_t row = 0; row < actual.dimensions().rows; ++row) {
       symbolic::Expression output_error =
           (expected.at(row, 0) - actual.at(row, 0));
       error = error + (output_error * output_error);
     }
-    return error / n;
+    return error / 2;
   }
 
   // TODO(sharf): oops, I think N might be the number of examples (1 here) in

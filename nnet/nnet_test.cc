@@ -782,11 +782,13 @@ TEST_CASE("Gradient checking", "[densenet]") {
 
     double output_right = test_net_tweak_right.Error(MakeInput(0.1, 0.2, 0.7), expected);
 
-    double approx_gradient = (output_right - output_left) / 2*EPSILON;
+    double approx_gradient = (output_right - output_left) / (2*EPSILON);
 
     model.layers[1].W(s.WeightNumber(0, 0)) = 0;
     Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
-    test_net.Train(MakeInput(0.1, 0.2, 0.7), expected, params);
+
+    std::unique_ptr<Matrix<double>> gradients = std::make_unique<Matrix<double>>();
+    test_net.Train(MakeInput(0.1, 0.2, 0.7), expected, params, gradients);
     double weight_gradient = - test_net.GetWeight(1, 0);
 
     REQUIRE(weight_gradient == Approx(approx_gradient).epsilon(EPSILON));
