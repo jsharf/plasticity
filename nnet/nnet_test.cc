@@ -739,7 +739,7 @@ TEST_CASE("Convolution layer test", "[convnet]") {
 
 }
 
-TEST_CASE("Gradient checking", "[densenet]") {
+TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
   constexpr double EPSILON = 0.001;
 
   constexpr size_t kInputSize = 3;
@@ -758,7 +758,7 @@ TEST_CASE("Gradient checking", "[densenet]") {
     double output_left = test_net.Error(MakeInput(0.1 - EPSILON, 0.2, 0.7), expected);
     double output_right = test_net.Error(MakeInput(0.1 + EPSILON, 0.2, 0.7), expected);
 
-    double approx_gradient = (output_right - output_left) / 2*EPSILON;
+    double approx_gradient = (output_right - output_left) / (2*EPSILON);
     std::unique_ptr<Matrix<double>> gradients = std::make_unique<Matrix<double>>();
     test_net.Train(MakeInput(0.1, 0.2, 0.7), expected, params, gradients);
     double actual_gradient = gradients->at(0, 0);
@@ -789,6 +789,86 @@ TEST_CASE("Gradient checking", "[densenet]") {
 
     std::unique_ptr<Matrix<double>> gradients = std::make_unique<Matrix<double>>();
     test_net.Train(MakeInput(0.1, 0.2, 0.7), expected, params, gradients);
+    double weight_gradient = - test_net.GetWeight(1, 0);
+
+    REQUIRE(weight_gradient == Approx(approx_gradient).epsilon(EPSILON));
+  }
+}
+
+TEST_CASE("Convolution Layer Gradient checking", "[convnet]") {
+  constexpr double EPSILON = 0.001;
+
+  constexpr size_t kInputSize = 9;
+
+  Architecture model(kInputSize);
+  model.AddConvolutionLayer({3, 3, 1}, {3, 3, 1, 1, 1, 1}, symbolic::Sigmoid);
+
+  Input input = {
+    // Layer 1
+    {0}, {0}, {0},
+    {0}, {0}, {0},
+    {0}, {0}, {0},
+  };
+
+  Input expected = {
+    {0.2}, {0.2}, {0.2},
+    {0.2}, {0.2}, {0.2},
+    {0.2}, {0.2}, {0.2},
+  };
+
+  SECTION("Verify input gradient") {
+    // Use the model to generate a neural network.
+    Nnet test_net(model, Nnet::Xavier, Nnet::MeanSquared);
+
+    Input input_tweaked_right = {
+      // Layer 1
+      {EPSILON}, {0}, {0},
+      {0}, {0}, {0},
+      {0}, {0}, {0},
+    };
+
+    Input input_tweaked_left = {
+      // Layer 1
+      {-EPSILON}, {0}, {0},
+      {0}, {0}, {0},
+      {0}, {0}, {0},
+    };
+
+    nnet::Nnet::LearningParameters params{.learning_rate = 1};
+    double output_left = test_net.Error(input_tweaked_left, expected);
+    double output_right = test_net.Error(input_tweaked_right, expected);
+
+    double approx_gradient = (output_right - output_left) / (2*EPSILON);
+    std::unique_ptr<Matrix<double>> gradients = std::make_unique<Matrix<double>>();
+    test_net.Train(input, expected, params, gradients);
+    double actual_gradient = gradients->at(0, 0);
+
+    REQUIRE(actual_gradient == Approx(approx_gradient).epsilon(EPSILON));
+  }
+
+  SECTION("Verify weight gradient") {
+    ConvSymbolGenerator s({3, 3, 1}, {3, 3, 1, 1, 1, 1});
+    nnet::Nnet::LearningParameters params{.learning_rate = 1};
+
+    // A neural network with the weight tweaked left.
+    model.layers[1].W(s.WeightNumber(0, 0, 0, 0)) = -EPSILON;
+    Nnet test_net_tweak_left(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+
+    double output_left = test_net_tweak_left.Error(input, expected);
+
+    // A neural network with the weight tweaked right.
+    model.layers[1].W(s.WeightNumber(0, 0, 0, 0)) = EPSILON;
+    Nnet test_net_tweak_right(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+
+    double output_right = test_net_tweak_right.Error(input, expected);
+
+    double approx_gradient = (output_right - output_left) / (2*EPSILON);
+
+    model.layers[1].W(s.WeightNumber(0, 0, 0, 0)) = 0;
+    Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+
+    std::unique_ptr<Matrix<double>> gradients = std::make_unique<Matrix<double>>();
+    test_net.Train(input, expected, params, gradients);
     double weight_gradient = - test_net.GetWeight(1, 0);
 
     REQUIRE(weight_gradient == Approx(approx_gradient).epsilon(EPSILON));

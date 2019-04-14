@@ -70,7 +70,7 @@ struct Architecture {
     return *this;
   }
 
-  // Adds an implicit
+  // Adds an implicit activation layer afterwards.
   Architecture &AddConvolutionLayer(
       const VolumeDimensions &dimensions, const FilterParams &params,
       const ActivationFunctionType &activation_function = symbolic::Relu) {

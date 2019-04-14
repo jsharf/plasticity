@@ -113,15 +113,14 @@ std::string Layer::GenerateEvaluationKernel() const {
   std::string evaluate_source =
       FileToString("math/nnet/kernels/evaluate.kernel.cl");
 
-  Matrix<Expression> input = InputExpression();
-  size_t rows = std::get<0>(input.size());
-  size_t cols = std::get<1>(input.size());
-
   // Validate input dimensions.
-  if ((rows != impl_->GetDimensions().num_inputs) || (cols != 1)) {
-    std::cerr << "Error: Layer::GenerateEvaluationKernel() called on input "
-                 "of incorrect size: "
-              << "(" << rows << ", " << cols << ")" << std::endl;
+  if ((GetDimensions().num_inputs == 0) || (GetDimensions().num_outputs == 0)) {
+    std::cerr
+        << "Error: Layer::GenerateEvaluationKernel() called on dimensions "
+           "of incorrect size: "
+        << "(inputs: " << GetDimensions().num_inputs
+        << ", outputs: " << GetDimensions().num_outputs << ")" << std::endl;
+    std::cerr << "Layer: " << LayerSuffix() << std::endl;
     std::exit(1);
   }
 
