@@ -147,7 +147,6 @@ class Nnet {
     CompileKernelsIfRequired();
 
     cl::Context& context = std::get<0>(opencl_.compilation_units);
-    cl::Program& program = std::get<1>(opencl_.compilation_units);
 
     // Create a queue (a queue of commands that the GPU will execute)
     // Assumes that all kernels compiled for same device.
@@ -223,7 +222,7 @@ class Nnet {
 
       // Evaluate.
       std::string kernel_name = layer.EvaluateKernelName();
-      cl::Kernel evaluate(program, kernel_name.c_str());
+      cl::Kernel& evaluate = CacheFetchKernel(kernel_name);
       CL_CHECK(evaluate.setArg(0, inputs));
       CL_CHECK(evaluate.setArg(1, *weights));
       CL_CHECK(evaluate.setArg(2, outputs));
@@ -346,13 +345,13 @@ class Nnet {
     return error_->Bind(env).Evaluate()->real();
   }
 
-  void Train(Matrix<Number> in, Matrix<Number> o,
+  void Train(const Matrix<Number>& in, const Matrix<Number>& o,
              const LearningParameters& params) {
     std::unique_ptr<Matrix<Number>> _(nullptr);
     return Train(in, o, params,  _);
   }
 
-  void Train(Matrix<Number> in, Matrix<Number> o,
+  void Train(const Matrix<Number>& in, const Matrix<Number>& o,
              const LearningParameters& params,
              std::unique_ptr<Matrix<Number>>& input_gradients) {
     cl::Device device = SelectDevice();
@@ -360,7 +359,6 @@ class Nnet {
     CompileKernelsIfRequired();
 
     cl::Context& context = std::get<0>(opencl_.compilation_units);
-    cl::Program& program = std::get<1>(opencl_.compilation_units);
 
     // Create a queue (a queue of commands that the GPU will execute)
     // Assumes that all kernels compiled for same device.
@@ -472,7 +470,7 @@ class Nnet {
                                    number_weights * sizeof(Number));
         // Backprop layer weight updates.
         std::string weight_kernel_name = layer.WeightGradientKernelName();
-        cl::Kernel weight_update(program, weight_kernel_name.c_str());
+        cl::Kernel& weight_update = CacheFetchKernel(weight_kernel_name);
         CL_CHECK(weight_update.setArg(0, gpu_layer_input));
         CL_CHECK(weight_update.setArg(1, *weights));
         CL_CHECK(weight_update.setArg(2, gpu_gradients));
@@ -508,7 +506,7 @@ class Nnet {
 
         // Backprop gradient calculation.
         std::string input_kernel_name = layer.InputGradientKernelName();
-        cl::Kernel input_update(program, input_kernel_name.c_str());
+        cl::Kernel& input_update = CacheFetchKernel(input_kernel_name);
         CL_CHECK(input_update.setArg(0, gpu_layer_input));
         CL_CHECK(input_update.setArg(1, *weights));
         CL_CHECK(input_update.setArg(2, gpu_gradients));
@@ -705,23 +703,31 @@ class Nnet {
   std::unique_ptr<Matrix<symbolic::Expression>> output_gradients_symbolic_;
   std::unique_ptr<symbolic::Expression> error_;
 
+  cl::Kernel& CacheFetchKernel(const std::string& kernel_name) {
+    if (opencl_.kernels.find(kernel_name) == opencl_.kernels.end()) {
+      opencl_.kernels[kernel_name] = cl::Kernel(std::get<1>(opencl_.compilation_units), kernel_name.c_str());
+    }
+    return opencl_.kernels[kernel_name];
+  }
+
   // OpenCL state variables.
   struct OpenClState {
     bool compiled = false;
     std::tuple<cl::Context, cl::Program> compilation_units;
     cl::Device device;
     cl::CommandQueue queue;
+    std::unordered_map<std::string, cl::Kernel> kernels;
   };
 
   OpenClState CompileCl(const std::vector<std::string>& kernel_source,
                         const cl::Device& device) {
-    OpenClState kernel;
-    kernel.device = device;
-    kernel.compiled = true;
-    kernel.compilation_units = clutil::Compile(device, kernel_source);
-    kernel.queue =
-        cl::CommandQueue(std::get<0>(kernel.compilation_units), device);
-    return kernel;
+    OpenClState cl_state;
+    cl_state.device = device;
+    cl_state.compiled = true;
+    cl_state.compilation_units = clutil::Compile(device, kernel_source);
+    cl_state.queue =
+        cl::CommandQueue(std::get<0>(cl_state.compilation_units), device);
+    return cl_state;
   }
 
   OpenClState opencl_;

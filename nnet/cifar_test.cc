@@ -222,7 +222,7 @@ int main() {
   std::cout << "Training...";
 
   for (size_t epoch = 1; epoch <= 2; ++epoch) {
-    nnet::Nnet::LearningParameters params{.learning_rate = 1 / epoch};
+    nnet::Nnet::LearningParameters params{.learning_rate = 1.0 / epoch};
     int samples_so_far = 0;
     for (const auto& sample : samples) {
       if (samples_so_far++ % 500 == 0) {
