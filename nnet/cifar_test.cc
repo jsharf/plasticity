@@ -11,6 +11,7 @@
 
 constexpr size_t kSampleSize = 32 * 32 * 3;
 constexpr size_t kOutputSize = 10;
+constexpr size_t kNumExamples = 20;
 // Each record in the training files is one label byte and kSampleSize sample
 // bytes.
 constexpr size_t kRecordSize = kSampleSize + 1;
@@ -56,7 +57,7 @@ struct Sample {
   }
 };
 
-enum Label {
+enum Label : uint8_t {
   AIRPLANE = 0,
   AUTOMOBILE,
   BIRD,
@@ -69,38 +70,42 @@ enum Label {
   TRUCK
 };
 
+std::string LabelToString(uint8_t label) {
+  switch (label) {
+  case AIRPLANE:
+    return "Airplane";
+  case AUTOMOBILE:
+    return "Automobile";
+  case BIRD:
+    return "Bird";
+  case CAT:
+    return "Cat";
+  case DEER:
+    return "Deer";
+  case DOG:
+    return "Dog";
+  case FROG:
+    return "Frog";
+  case HORSE:
+    return "Horse";
+  case SHIP:
+    return "Ship";
+  case TRUCK:
+    return "Truck";
+  default:
+    return "Unknown?!?";
+  }
+}
+
 std::string OneHotEncodedOutputToString(Matrix<double> output) {
-  size_t max_index = 0;
+  uint8_t max_index = 0;
   for (size_t index = 0; index < std::get<0>(output.size()); ++index) {
     if (output.at(index, 0) > output.at(max_index, 0)) {
       max_index = index;
     }
   }
 
-  switch (max_index) {
-    case AIRPLANE:
-      return "Airplane";
-    case AUTOMOBILE:
-      return "Automobile";
-    case BIRD:
-      return "Bird";
-    case CAT:
-      return "Cat";
-    case DEER:
-      return "Deer";
-    case DOG:
-      return "Dog";
-    case FROG:
-      return "Frog";
-    case HORSE:
-      return "Horse";
-    case SHIP:
-      return "Ship";
-    case TRUCK:
-      return "Truck";
-    default:
-      return "Unknown?!?";
-  }
+  return LabelToString(max_index);
 }
 
 // Trains a neural network to learn if given point is in unit circle.
@@ -216,10 +221,13 @@ int main() {
 
   std::cout << "Training...";
 
-  for (size_t epoch = 1; epoch <= 10; ++epoch) {
-    nnet::Nnet::LearningParameters params{.learning_rate = 0.03 / epoch};
+  for (size_t epoch = 1; epoch <= 2; ++epoch) {
+    nnet::Nnet::LearningParameters params{.learning_rate = 1 / epoch};
+    int samples_so_far = 0;
     for (const auto& sample : samples) {
-      std::cout << ".";
+      if (samples_so_far++ % 500 == 0) {
+        std::cout << "Progress: " << samples_so_far << " / " << samples.size() << std::endl;
+      }
       test_net.Train(sample.OneHotEncodedInput(), sample.OneHotEncodedOutput(),
                        params);
     }
@@ -243,6 +251,17 @@ int main() {
   std::cout << "Network Weights: " << std::endl;
   std::cout << test_net.WeightsToString() << std::endl;
   std::cout << "Trained over " << samples.size() << " Samples!" << std::endl;
+
+  std::cout << "Example network outputs: " << std::endl;
+  for (size_t i = 0; i < kNumExamples; ++i) {
+    size_t example_index = std::rand() % samples.size();
+    std::cout << "=====" << std::endl;
+    std::cout << "Actual Answer: "
+              << LabelToString(samples[example_index].label) << "\nnnet output: "
+              << OneHotEncodedOutputToString(test_net.Evaluate(
+                     samples[example_index].OneHotEncodedOutput()))
+              << std::endl;
+  }
 
   std::cout << std::endl;
   return 0;

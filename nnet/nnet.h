@@ -76,11 +76,11 @@ class Nnet {
     return model_.layers[layer];
   }
 
-  void CompileKernelsIfRequired(cl::Device device) {
-    if (opencl_.compiled &&
-        ClDevicesAreEqual(opencl_.device, SelectDevice())) {
+  void CompileKernelsIfRequired() {
+    if (opencl_.compiled) {
       return;
     }
+    opencl_.device = SelectDevice();
     std::cout << "Generating and compiling OpenCl kernels. This takes a while"
               << " the first time..." << std::endl;
     std::vector<std::future<std::string>> kernel_futures;
@@ -99,7 +99,7 @@ class Nnet {
       kernel_sources.push_back(kernel_future.get());
     }
     std::cout << "Kernels generated. Compiling..." << std::endl;
-    opencl_ = CompileCl(kernel_sources, device);
+    opencl_ = CompileCl(kernel_sources, opencl_.device);
     std::cout << "Done!" << std::endl;
   }
 
@@ -144,8 +144,7 @@ class Nnet {
   Matrix<Number> Evaluate(
       Matrix<Number> in,
       std::unique_ptr<std::vector<cl::Buffer>>& out_layer_outputs) {
-    cl::Device device = SelectDevice();
-    CompileKernelsIfRequired(device);
+    CompileKernelsIfRequired();
 
     cl::Context& context = std::get<0>(opencl_.compilation_units);
     cl::Program& program = std::get<1>(opencl_.compilation_units);
@@ -237,7 +236,7 @@ class Nnet {
         std::exit(1);
       }
 
-      /// DEBUG
+      /// debug
       double outputs_test[layer.GetDimensions().num_outputs];
       CL_CHECK(queue.enqueueReadBuffer(
         outputs, CL_TRUE, 0, sizeof(outputs_test), outputs_test));
@@ -263,8 +262,7 @@ class Nnet {
         }
         std::exit(1);
       }
-
-      /// DEBUG
+      /// debug
 
       if (out_layer_outputs) {
         out_layer_outputs->push_back(outputs);
@@ -359,7 +357,7 @@ class Nnet {
              std::unique_ptr<Matrix<Number>>& input_gradients) {
     cl::Device device = SelectDevice();
 
-    CompileKernelsIfRequired(device);
+    CompileKernelsIfRequired();
 
     cl::Context& context = std::get<0>(opencl_.compilation_units);
     cl::Program& program = std::get<1>(opencl_.compilation_units);
@@ -550,10 +548,9 @@ class Nnet {
                 << layer.LayerSuffix() << std::endl;
       std::cout << "============== Layer " << i << layer.LayerSuffix()
                 << " input Grads: " << std::endl;
-      for (size_t i = 0; i < layer.GetDimensions().num_outputs; i+=2) {
-        std::cout << test_input_gradients[i] << ", "
-                  << test_input_gradients[i + 1] << std::endl;
-      }
+      for (size_t i = 0; i < layer.GetDimensions().num_outputs; i++) {
+        std::cout << test_input_gradients[i] << std::endl;
+      } 
 
       std::cout << "============== Layer " << i << layer.LayerSuffix()
                 << "backpropped Grads: " << std::endl;
@@ -717,7 +714,7 @@ class Nnet {
   };
 
   OpenClState CompileCl(const std::vector<std::string>& kernel_source,
-                        cl::Device device) {
+                        const cl::Device& device) {
     OpenClState kernel;
     kernel.device = device;
     kernel.compiled = true;
