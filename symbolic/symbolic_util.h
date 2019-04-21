@@ -67,6 +67,9 @@ symbolic::Expression IfInRange(const symbolic::Expression& index,
                                const symbolic::Expression& then,
                                const symbolic::Expression& ifnot);
 
+// https://en.wikipedia.org/wiki/Kronecker_delta
+Expression KroneckerDelta(const Expression &a, const Expression &b);
+
 }  // namespace symbolic
 
 #endif /* SYMBOLIC_UTIL_H */

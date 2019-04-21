@@ -67,14 +67,18 @@ symbolic::Expression SoftmaxLayer::AppendMaxCode(codegen::Generator* cg) const {
   return max;
 }
 
+// Taken from the derivation here:
+// https://stats.stackexchange.com/questions/235528/backpropagation-with-softmax-cross-entropy
 void SoftmaxLayer::InputGradientCode(const symbolic::Expression &input_index,
                                      codegen::Generator *cg) const {
   symbolic::Expression max = AppendMaxCode(cg);
-  symbolic::Expression output = GenerateOutputSymbol(input_index, max);
-  symbolic::Expression deriv =
-      output.Derive(generator_.I(input_index).to_string());
-  symbolic::Expression retval = generator_.GRADIENT(input_index) * deriv;
-
+  symbolic::Expression output_k = GenerateOutputSymbol(input_index, max);
+  symbolic::Expression retval(0.0);
+  for (size_t i = 0; i < dimensions_.num_inputs; ++i) {
+    symbolic::Expression output_i = GenerateOutputSymbol(i, max);
+    symbolic::Expression kronecker = symbolic::KroneckerDelta(i, input_index);
+    retval += ((output_i * (kronecker - output_k)) * Expression::CreateNumericValue(generator_.GRADIENT(i)));
+  }
   cg->AppendLineOfCode("return " + retval.to_string() + cg->linesep());
 }
 

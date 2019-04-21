@@ -206,6 +206,8 @@ symbolic::Expression IfInRange(const symbolic::Expression& index,
       std::make_shared<symbolic::IfExpression>(gtea_and_ltb, then, ifnot));
 }
 
-
+Expression KroneckerDelta(const Expression &a, const Expression &b) {
+  return a == b;
+}
 
 }  // namespace symbolic

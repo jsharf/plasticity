@@ -875,4 +875,44 @@ TEST_CASE("Convolution Layer Gradient checking", "[convnet]") {
   }
 }
 
+TEST_CASE("Softmax Layer unit tests", "[softmaxnet]") {
+  constexpr double EPSILON = 0.001;
+
+  constexpr size_t kInputSize = 3;
+  constexpr size_t kLayerSize = 3;
+
+  Architecture model(kInputSize);
+  model.AddSoftmaxLayer(kLayerSize);
+
+  auto expected = MakeInput(0.2, 0.2, 0.2);
+  
+  SECTION("Check softmax output") {
+    // Error function and weight initialization do not matter as we are running
+    // Evaluate() with a single weightless layer.
+    Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+    auto example = MakeInput(-2.85, 0.86, 0.28);
+    auto expected = MakeInput(0.0154, 0.631, 0.353);
+    auto actual = test_net.Evaluate(example);
+    for (size_t i = 0; i < 3; ++i) {
+      REQUIRE(expected.at(i, 0) == Approx(actual.at(i, 0)).epsilon(0.01));
+    }
+  }
+
+  SECTION("Verify input gradient (cross-checked with approximation)") {
+    // Use the model to generate a neural network.
+    Nnet test_net(model, Nnet::NoWeightInit, Nnet::CrossEntropy);
+
+    nnet::Nnet::LearningParameters params{.learning_rate = 1};
+    double output_left = test_net.Error(MakeInput(0.1 - EPSILON, 0.2, 0.7), expected);
+    double output_right = test_net.Error(MakeInput(0.1 + EPSILON, 0.2, 0.7), expected);
+
+    double approx_gradient = (output_right - output_left) / (2*EPSILON);
+    std::unique_ptr<Matrix<double>> gradients = std::make_unique<Matrix<double>>();
+    test_net.Train(MakeInput(0.1, 0.2, 0.7), expected, params, gradients);
+    double actual_gradient = gradients->at(0, 0);
+
+    REQUIRE(actual_gradient == Approx(approx_gradient).epsilon(EPSILON));
+  }
+}
+
 }  // namespace nnet

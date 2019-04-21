@@ -123,6 +123,11 @@ Expression Expression::operator%(const Expression& rhs) const {
                                                         rhs.expression_root_));
 }
 
+Expression Expression::operator==(const Expression& rhs) const {
+  return Expression(
+      std::make_shared<EqExpression>(expression_root_, rhs.expression_root_));
+}
+
 Expression& Expression::operator=(const Expression& rhs) {
   expression_root_ = std::shared_ptr<const ExpressionNode>(
       rhs.expression_root_->Clone().release());
@@ -440,11 +445,11 @@ std::shared_ptr<const ExpressionNode> EqExpression::Derive(
 }
 
 std::string EqExpression::to_string() const {
-  std::string result = "(";
+  std::string result = "((";
   result += a_.to_string();
   result += ") == (";
   result += b_.to_string();
-  result += ")";
+  result += ") ? 1.0 : 0.0)";
   return result;
 }
 

@@ -56,6 +56,8 @@ class Expression {
   Expression operator/(const Expression& rhs) const;
   Expression operator%(const Expression& rhs) const;
 
+  Expression operator==(const Expression& rhs) const;
+
   // TODO(sharf): make this immutable, remove these.
   Expression& operator=(const Expression& rhs);
   Expression& operator=(Expression&& rhs);
