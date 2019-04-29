@@ -19,6 +19,12 @@ Expression Relu(const Expression& a) {
       CreateExpression("0")));
 }
 
+Expression LeakyRelu(const Expression& a) {
+  return Expression(std::make_shared<IfExpression>(
+      Expression(std::make_shared<GteExpression>(a, CreateExpression("0"))), a,
+      a/10));
+}
+
 Expression Identity(const Expression& a) { return a; }
 
 Expression Log(NumericValue base, const Expression& exp) {

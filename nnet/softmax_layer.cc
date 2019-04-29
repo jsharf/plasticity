@@ -3,7 +3,7 @@
 
 namespace nnet {
 
-// Max is subtracted from numerator and denominator in order to max softmax
+// Max is subtracted from numerator and denominator in order to make softmax
 // numerically stable (No positive values, so no worry of exp(x) overflowing.
 // Also, one zero value means that there's no worry of vanishing denominator)
 symbolic::Expression SoftmaxLayer::GenerateOutputSymbol(
@@ -25,30 +25,6 @@ void SoftmaxLayer::GenerateOutputCode(const symbolic::Expression &index,
 
   symbolic::Expression max = AppendMaxCode(cg);
   symbolic::Expression retval = GenerateOutputSymbol(index, max);
-
-  /// DEBUG
-//  symbolic::Expression expsum = symbolic::NumericValue(0.0);
-//
-//  for (size_t i = 0; i < dimensions_.num_inputs; ++i) {
-//    expsum =
-//        expsum + symbolic::Exp(Expression::CreateNumericValue(generator_.I(i)) - max);
-//  }
-//
-//  cg->AppendLineOfCode(";double expsum = " + expsum.to_string() + ";\nif (!isfinite(1.0/" + expsum.to_string() +
-//                       ")) { "
-//                       "for (int i = 0; i < " +
-//                       std::to_string(dimensions_.num_inputs) +
-//                       "; ++i) {"
-//                       "printf(\"weird input - max causes zero pow. max: %f, I[i]: %f, I[i] - max: %f res: %f\\n\", "
-//                       "max, I[i], I[i] - max, pow(2.71828, I[i] - max));"
-//                       "}}");
-//
-  //cg->AppendLineOfCode(
-  //    "printf(\"exp(Max - Max): %.10f, Denom: %.10f, Deriv: %.10f, Grad: "
-  //    "%.10f\\n\", exp(max-max), " +
-  //    expsum.to_string() + ", " + deriv.to_string() + ", " +
-  //    generator_.GRADIENT(input_index).to_string() + ");");
-  /// DEBUG
 
   cg->AppendLineOfCode("return " + retval.to_string() + cg->linesep());
 }

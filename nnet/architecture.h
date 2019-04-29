@@ -73,7 +73,7 @@ struct Architecture {
   // Adds an implicit activation layer afterwards.
   Architecture &AddConvolutionLayer(
       const VolumeDimensions &dimensions, const FilterParams &params,
-      const ActivationFunctionType &activation_function = symbolic::Relu) {
+      const ActivationFunctionType &activation_function = symbolic::LeakyRelu) {
     layers.push_back(
         Layer::MakeConvolutionLayer(layers.size(), dimensions, params));
     size_t conv_outputs = layers[layers.size() - 1].GetDimensions().num_outputs;

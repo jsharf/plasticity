@@ -45,7 +45,10 @@ class Nnet {
     Xavier = 0,
     // none init strategy is made available for testing only (to manually set
     // weights).
-    NoWeightInit
+    NoWeightInit,
+    // This is useful for debugging, and that's basically it. Initializes all
+    // weights to 1.0.
+    InitToOne,
   };
 
   enum LossFunction {
@@ -235,34 +238,6 @@ class Nnet {
         std::exit(1);
       }
 
-      /// debug
-      double outputs_test[layer.GetDimensions().num_outputs];
-      CL_CHECK(queue.enqueueReadBuffer(
-        outputs, CL_TRUE, 0, sizeof(outputs_test), outputs_test));
-      bool non_finites_polluted = false;
-      for (size_t i = 0; i < layer.GetDimensions().num_outputs; ++i) {
-        if (!std::isfinite(outputs_test[i])) {
-          non_finites_polluted = true;
-        }
-      }
-
-      if (non_finites_polluted) {
-        std::cout << "non-finites detected in output of layer " << layer.LayerSuffix() << std::endl;
-        double inputs_test[layer.GetDimensions().num_inputs];
-        CL_CHECK(queue.enqueueReadBuffer(
-        inputs, CL_TRUE, 0, sizeof(inputs_test), inputs_test));
-        std::cout << "======== Layer inputs: " << std::endl;
-        for (size_t i = 0; i < layer.GetDimensions().num_inputs; ++i) {
-          std::cout << "I[" << i << "]: " << inputs_test[i] << std::endl;
-        }
-        std::cout << "======== Layer outputs: " << std::endl;
-        for (size_t i = 0; i < layer.GetDimensions().num_outputs; ++i) {
-          std::cout << "O[" << i << "]: " << outputs_test[i] << std::endl;
-        }
-        std::exit(1);
-      }
-      /// debug
-
       if (out_layer_outputs) {
         out_layer_outputs->push_back(outputs);
       }
@@ -401,7 +376,6 @@ class Nnet {
     }
 
     double error_value = error_->Bind(env).Evaluate()->real();
-    std::cout << "Error: " << error_value << std::endl;
     if (std::isnan(error_value)) {
       std::cerr << "The error has diverged to NaN" << std::endl;
       std::cerr << "Training value input\n=========\n " << in.to_string() << std::endl;
@@ -429,8 +403,6 @@ class Nnet {
     // variable Matrix<Number> gradients) and pass it to the weight gradient
     // kernel to calculate weight updates. Then pass it to the input gradient
     // kernel to calculate the gradient for the next layer.
-    static int iter = 0;
-    iter++;
     for (int i = model_.layers.size() - 1; i >= 0; --i) {
       auto& layer = model_.layers[i];
       const cl::Buffer& gpu_layer_input =
@@ -453,13 +425,6 @@ class Nnet {
         // argument.
         weights = std::make_unique<cl::Buffer>(context, CL_MEM_READ_WRITE, sizeof(Number));
       }
-
-      ////////// debug gradients.
-      double test_input_gradients[layer.GetDimensions().num_outputs];
-      queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
-                              sizeof(Number) * layer.GetDimensions().num_outputs,
-                              test_input_gradients);
-      ////////// debug
 
       cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
       CL_CHECK(queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0,
@@ -528,47 +493,6 @@ class Nnet {
       // before this one, we're iterating backwards).
       gpu_gradients = gpu_new_gradients;
 
-      ////////// debug
-      bool nans_polluted = false;
-      double test_output_gradients[layer.GetDimensions().num_inputs];
-      queue.enqueueReadBuffer(gpu_new_gradients, CL_TRUE, 0,
-                              sizeof(Number) * layer.GetDimensions().num_inputs,
-                              test_output_gradients);
-      for (size_t i = 0; i < layer.GetDimensions().num_inputs; ++i) {
-        if (std::isnan(test_output_gradients[i])) {
-          nans_polluted = true;
-          break;
-        }
-      }
-      if (nans_polluted)
-      {
-      std::cout << "Nans found from the input gradients @ layer " << i
-                << layer.LayerSuffix() << std::endl;
-      std::cout << "============== Layer " << i << layer.LayerSuffix()
-                << " input Grads: " << std::endl;
-      for (size_t i = 0; i < layer.GetDimensions().num_outputs; i++) {
-        std::cout << test_input_gradients[i] << std::endl;
-      } 
-
-      std::cout << "============== Layer " << i << layer.LayerSuffix()
-                << "backpropped Grads: " << std::endl;
-      for (size_t i = 0; i < layer.GetDimensions().num_inputs; i+=2) {
-        std::cout << test_output_gradients[i] << ", "
-                  << test_output_gradients[i + 1] << std::endl;
-      }
-      double layer_inputs[layer.GetDimensions().num_inputs];
-      queue.enqueueReadBuffer(gpu_layer_input, CL_TRUE, 0,
-                              sizeof(Number) * layer.GetDimensions().num_inputs,
-                              layer_inputs);
-      std::cout << "============== Layer eval inputs " << i << layer.LayerSuffix() << std::endl;
-      for (size_t i = 0; i < layer.GetDimensions().num_inputs; i+=2) {
-        std::cout << layer_inputs[i] << ", " << layer_inputs[i + 1]
-                  << std::endl;
-      }
-      std::cerr << "Nans polluted the gradient!" << std::endl;
-      std::exit(1);
-      }
-      ////////// debug
     }
     if (input_gradients) {
       size_t num_inputs = in.dimensions().rows;
@@ -635,19 +559,17 @@ class Nnet {
       std::exit(1);
     }
 
-    size_t n = actual.dimensions().rows;
-
     symbolic::Expression error(0.0);
     for (size_t row = 0; row < actual.dimensions().rows; ++row) {
       symbolic::Expression e = expected.at(row, 0);
       symbolic::Expression a = actual.at(row, 0);
-      symbolic::Expression output_error =
-          (e * symbolic::Log(a)) +
-          ((symbolic::Expression(1.0) - e) *
-           symbolic::Log(symbolic::Expression(1.0) - a));
+      // Should be SafeLog?
+      symbolic::Expression output_error = (e * symbolic::SafeLog(a));
       error = error + output_error;
     }
-    return ((symbolic::Expression(-1.0) / n) * error);
+
+    // The error formula above is actually negative...
+    return (symbolic::Expression(-1.0) * error);
   }
 
   std::string WeightsToString() const {
@@ -669,6 +591,9 @@ class Nnet {
     switch (weight_initialization) {
       case NoWeightInit:
         break;
+      case InitToOne:
+        InitializeWeights(1.0);
+        break;
       case Xavier:
         XavierInitializeWeights();
         break;
@@ -683,6 +608,12 @@ class Nnet {
   void XavierInitializeWeights() {
     for (size_t layer = 0; layer < model_.layers.size(); ++layer) {
       model_.layers[layer].XavierInitializeWeights();
+    }
+  }
+
+  void InitializeWeights(double value) {
+    for (size_t layer = 0; layer < model_.layers.size(); ++layer) {
+      model_.layers[layer].InitializeWeights(value);
     }
   }
 

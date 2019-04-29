@@ -33,7 +33,8 @@ void DenseLayer::InputGradientCode(const symbolic::Expression &input_index,
                                    codegen::Generator *cg) const {
   symbolic::Expression retval = 0.0;
   for (size_t out_index = 0; out_index < dimensions_.num_outputs; ++out_index) {
-    retval += generator_.GRADIENT(out_index) * generator_.W(symbolic::Expression(out_index), input_index);
+    symbolic::Expression grad_component = generator_.GRADIENT(out_index) * generator_.W(symbolic::Expression(out_index), input_index);
+    retval += grad_component;
   }
   cg->AppendLineOfCode("return " + retval.to_string() + cg->linesep());
 }

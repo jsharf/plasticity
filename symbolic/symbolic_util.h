@@ -10,6 +10,7 @@ namespace symbolic {
 Expression Sigmoid(const Expression& a);
 
 Expression Relu(const Expression& a);
+Expression LeakyRelu(const Expression& a);
 
 Expression Identity(const Expression& a);
 

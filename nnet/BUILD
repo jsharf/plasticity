@@ -289,6 +289,7 @@ cc_test(
         ":nnet",
         ":symbol_generator",
         "//math/geometry:dynamic_matrix",
+        "//math/stats:normal",
         "//math/symbolic",
         "//math/symbolic:symbolic_util",
         "//math/third_party:catch2",

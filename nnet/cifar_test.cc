@@ -11,10 +11,12 @@
 
 constexpr size_t kSampleSize = 32 * 32 * 3;
 constexpr size_t kOutputSize = 10;
-constexpr size_t kNumExamples = 20;
+constexpr size_t kNumExamples = 100;
 // Each record in the training files is one label byte and kSampleSize sample
 // bytes.
 constexpr size_t kRecordSize = kSampleSize + 1;
+
+std::string LabelToString(uint8_t label);
 
 struct Sample {
   char label;
@@ -23,6 +25,10 @@ struct Sample {
   explicit Sample(char data[kRecordSize]) {
     label = data[0];
     memcpy(&pixels[0], &data[1], kSampleSize);
+  }
+
+  std::string Label() const {
+    return LabelToString(label);
   }
 
   // This isn't one-hot input, it's just a column vector input.
@@ -48,10 +54,10 @@ struct Sample {
 
     // Zero the inputs.
     for (size_t i = 0; i < kOutputSize; ++i) {
-      output.at(i, 0) = 0;
+      output.at(i, 0) = 0.0;
     }
 
-    output.at(label, 0) = 1;
+    output.at(label, 0) = 1.0;
 
     return output;
   }
@@ -190,7 +196,7 @@ int main() {
       .AddDenseLayer(10, symbolic::Identity)
       .AddSoftmaxLayer(10);
   std::cout << "Initializing network..." << std::endl;
-  nnet::Nnet test_net(model);
+  nnet::Nnet test_net(model, nnet::Nnet::Xavier, nnet::Nnet::CrossEntropy);
 
   // Read in the files.
   std::vector<string> training_files = {
@@ -219,49 +225,48 @@ int main() {
   }
   std::cout << "Loaded " << samples.size() << " Samples!" << std::endl;
 
-  std::cout << "Training...";
-
-  for (size_t epoch = 1; epoch <= 2; ++epoch) {
-    nnet::Nnet::LearningParameters params{.learning_rate = 1.0 / epoch};
-    int samples_so_far = 0;
+  int samples_so_far = 0;
+  double error_sum = 0;
+  const size_t kNumTrainingEpochs = 20;
+  for (size_t epoch = 1; epoch <= kNumTrainingEpochs; ++epoch) {
+    nnet::Nnet::LearningParameters params{.learning_rate = 0.01};
     for (const auto& sample : samples) {
       if (samples_so_far++ % 500 == 0) {
-        std::cout << "Progress: " << samples_so_far << " / " << samples.size() << std::endl;
+        std::cout << "Progress: " << samples_so_far - 1 << " / " << (kNumTrainingEpochs * samples.size()) << std::endl;
+        std::cout << "Error avg over past 500 samples: " << error_sum / 500.0
+                  << std::endl;
+        std::cout << "Epoch " << epoch << std::endl;
+        error_sum = 0;
       }
       test_net.Train(sample.OneHotEncodedInput(), sample.OneHotEncodedOutput(),
-                       params);
+                     params);
+      error_sum += test_net.Error(sample.OneHotEncodedInput(),
+                                  sample.OneHotEncodedOutput());
     }
-    std::cout << "Epoch " << epoch << " completed." << std::endl;
   }
-
-  srand(time(nullptr));
-  for (size_t examples = 0; examples < 10; ++examples) {
-    const auto& sample = samples[rand() % samples.size()];
-    std::cout << "================================" << std::endl;
-    std::cout << "Prediction: " << std::endl;
-    std::string result = test_net.Evaluate(sample.OneHotEncodedInput()).to_string();
-    std::cout << result << std::endl;
-    std::cout << "Actual: " << std::endl;
-    std::string expected = sample.OneHotEncodedOutput().to_string();
-    std::cout << expected << std::endl;
-  }
-
-  std::cout << std::endl;
 
   std::cout << "Network Weights: " << std::endl;
   std::cout << test_net.WeightsToString() << std::endl;
   std::cout << "Trained over " << samples.size() << " Samples!" << std::endl;
 
   std::cout << "Example network outputs: " << std::endl;
+  srand(time(nullptr));
+  int correct_count = 0;
   for (size_t i = 0; i < kNumExamples; ++i) {
     size_t example_index = std::rand() % samples.size();
-    std::cout << "=====" << std::endl;
-    std::cout << "Actual Answer: "
-              << LabelToString(samples[example_index].label) << "\nnnet output: "
-              << OneHotEncodedOutputToString(test_net.Evaluate(
-                     samples[example_index].OneHotEncodedOutput()))
+    std::string actual = samples[example_index].Label();
+    std::string nnet_output = OneHotEncodedOutputToString(
+        test_net.Evaluate(samples[example_index].OneHotEncodedInput()));
+    std::cout << "=================================" << std::endl;
+    std::cout << "Actual Answer: " << actual << "\nnnet output: " << nnet_output
               << std::endl;
+    if (actual == nnet_output) {
+      correct_count++;
+    }
   }
+  std::cout << "Examples correct: " << correct_count << " / " << kNumExamples
+            << " (" << 100.0 * static_cast<double>(correct_count) / kNumExamples
+            << "%)" << std::endl;
 
   std::cout << std::endl;
   return 0;

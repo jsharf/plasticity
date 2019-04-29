@@ -289,21 +289,21 @@ public:
 
   Expression GetWeightX(const Expression& flat_index) const {
     Expression filter_size = params_.width * params_.height * params_.depth + 1;
-    Expression weight_offset = flat_index - filter_size;
+    Expression weight_offset = flat_index % filter_size;
     return symbolic::Unflatten3dCol(params_.width, params_.height,
                                     params_.depth, weight_offset);
   }
 
   Expression GetWeightY(const Expression& flat_index) const {
     Expression filter_size = params_.width * params_.height * params_.depth + 1;
-    Expression weight_offset = flat_index - filter_size;
+    Expression weight_offset = flat_index % filter_size;
     return symbolic::Unflatten3dRow(params_.width, params_.height,
                                     params_.depth, weight_offset);
   }
 
   Expression GetWeightZ(const Expression& flat_index) const {
     Expression filter_size = params_.width * params_.height * params_.depth + 1;
-    Expression weight_offset = flat_index - filter_size;
+    Expression weight_offset = flat_index % filter_size;
     return symbolic::Unflatten3dPlane(params_.width, params_.height,
                                       params_.depth, weight_offset);
   }

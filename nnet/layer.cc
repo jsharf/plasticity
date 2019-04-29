@@ -32,18 +32,6 @@ Layer::Layer(Layer &&other)
 Layer::Layer(const Layer &other)
     : impl_(other.impl_->Clone()), weights_(other.weights_) {}
 
-// Boilerplate operator.
-//Layer &Layer::operator=(const Layer &rhs) {
-//  impl_ = rhs.impl_->Clone();
-//  weights_ = rhs.weights_;
-//  return *this;
-//}
-//Layer &Layer::operator=(Layer &&rhs) {
-//  impl_ = std::move(rhs.impl_);
-//  weights_ = std::move(rhs.weights_);
-//  return *this;
-//}
-
 // Dense layer static constructors.
 Layer Layer::MakeDenseLayer(size_t layer_index, const Dimensions &dimensions) {
   return Layer(std::make_unique<DenseLayer>(dimensions, layer_index));
@@ -85,6 +73,12 @@ void Layer::XavierInitializeWeights() {
   stats::Normal X = XavierInitializer();
   for (size_t i = 0; i < weights_.size(); ++i) {
     weights_[i] = X.sample();
+  }
+}
+
+void Layer::InitializeWeights(double value) {
+  for (size_t i = 0; i < weights_.size(); ++i) {
+    weights_[i] = value;
   }
 }
 

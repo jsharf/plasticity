@@ -63,6 +63,7 @@ class Layer {
 
   stats::Normal XavierInitializer() const;
   void XavierInitializeWeights();
+  void InitializeWeights(double value);
 
   double& W(size_t index) {
     if (index >= weights_.size()) {

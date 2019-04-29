@@ -209,9 +209,6 @@ void ConvolutionLayer::InputGradientCode(const symbolic::Expression &index,
   symbolic::Expression bounds_checked_gradient_factor = IfInRange(input_d, 0, imdim_.height, IfInRange(input_k, 0, imdim_.width, gradient_factor, 0.0), 0.0);
   string output_sum = cg->add_assign(
       "gradient", bounds_checked_gradient_factor.to_string() + cg->linesep());
-  //// DEBUG
-  output_sum += "\n\t if (isnan(gradient)) { printf(\"NONONO nan encountered @ r,c %i, %i!\\n\", " + input_row.to_string() + ", " + input_col.to_string() + "); return NAN;} \n";
-  //// DEBUG
 
   string for_loop_f = cg->for_loop(
       "int filter = 0", "filter < " + std::to_string(filters_.num_filters),
@@ -243,9 +240,9 @@ void ConvolutionLayer::WeightGradientCode(const symbolic::Expression &index,
   symbolic::Expression out_x = symbolic::Expression::CreateInteger("out_x");
   symbolic::Expression out_y = symbolic::Expression::CreateInteger("out_y");
   symbolic::Expression output_flat_index = symbolic::Flatten3d(
-      output_width, output_height, output_depth, out_x, out_y, filter);
+      output_width, output_height, output_depth, out_y, out_x, filter);
   symbolic::Expression input_y, input_x;
-  std::tie(input_y, input_x) = GetInputCoordinates(out_x, out_y);
+  std::tie(input_y, input_x) = GetInputCoordinates(out_y, out_x);
   // Correctly handle the input for bias weight indices.
   size_t filter_size = filters_.width * filters_.height * filters_.depth + 1;
   symbolic::Expression input = symbolic::IfInRange(
