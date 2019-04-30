@@ -13,9 +13,6 @@
 
 namespace nnet {
 
-// Parameter sharing is enforced. Each filter has its own weights, but the
-// weights are the same regardless of which part of the input is convolved with
-// the filter.
 class ConvolutionLayer : public LayerImpl {
  public:
   // Reference objects in superclass with Super::

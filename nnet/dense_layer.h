@@ -11,11 +11,10 @@
 
 namespace nnet {
 
-// NOTE: This class alone is a linear net sum. In other words, it's a dense
-// layer *without* an activation function. Architecture.h will pair DenseLayer
-// with activation functions when building models, however they're actually
-// separate layers behind the seems. This simplifies the backprop by adding
-// another step (application of the chain rule).
+// NOTE: This class alone is a dense layer *without* an activation function.
+// the Architecture class defined in architecture.h will pair DenseLayer with
+// activation functions when building models, however they're actually separate
+// layers behind the scene. This simplifies implementation a bit.
 class DenseLayer : public LayerImpl {
  public:
   // Reference objects in superclass with Super::

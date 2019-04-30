@@ -957,6 +957,7 @@ TEST_CASE("Softmax Layer unit tests", "[softmaxnet]") {
 
 TEST_CASE("Cifar model gradient test", "[cifar]") {
   constexpr double EPSILON = 0.0001;
+  constexpr double COMPARISON_EPSILON = 0.001;
   constexpr size_t kInputSize = 32 * 32 * 3;
   nnet::Architecture model(kInputSize);
   model
@@ -1052,7 +1053,7 @@ TEST_CASE("Cifar model gradient test", "[cifar]") {
       double actual_gradient = gradients->at(i, 0);
 
       CAPTURE(i);
-      REQUIRE(actual_gradient == Approx(approx_gradient).epsilon(EPSILON));
+      REQUIRE(actual_gradient == Approx(approx_gradient).epsilon(COMPARISON_EPSILON));
     }
   }
 }

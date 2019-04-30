@@ -188,9 +188,8 @@ class Nnet {
         std::exit(1);
       }
 
-      // Load weights. TODO optimize the shit out of this by not re-loading
-      // layers if their weights haven't changed and also caching weights_buf in
-      // Layer.
+      // Load weights. TODO optimize this by not re-loading layers if their
+      // weights haven't changed and also caching weights_buf in Layer.
       // Also, transfer all weights at once outside of this for-loop.
       const size_t number_weights = layer.weight_buffer().size();
       // This is a special case... if the layer has no weights, load one anyways
@@ -383,11 +382,6 @@ class Nnet {
       std::cerr << "Training value actual output\n==========\n "
                 << actual_output.to_string() << std::endl;
       std::cerr << "Weights\n==============\n" << WeightsToString() << std::endl;
-      //int layer_index = 1;
-      //for (auto& layer : *layer_outputs) {
-      //  std::cout << "layer_" << layer_index++ << ":" << std::endl;
-      //  std::cout << layer << std::endl;
-      //}
       std::exit(1);
     }
 
@@ -398,7 +392,7 @@ class Nnet {
     cl::Buffer gpu_gradients =
           ColumnVectorToGpuBuffer(context, &queue, gradients);
 
-    // Propagate the gradients backwards.
+    // Backpropagation algorithm.
     // For each layer, take the current backpropagated gradients (stored in
     // variable Matrix<Number> gradients) and pass it to the weight gradient
     // kernel to calculate weight updates. Then pass it to the input gradient
@@ -523,8 +517,6 @@ class Nnet {
     }
   }
 
-  // TODO(sharf): oops, I think N might be the number of examples (1 here) in
-  // the batch, not the number of rows...
   symbolic::Expression GenerateMseErrorExpression(
       const Matrix<symbolic::Expression>& actual,
       const Matrix<symbolic::Expression>& expected) const {
@@ -545,8 +537,6 @@ class Nnet {
     return error / 2;
   }
 
-  // TODO(sharf): oops, I think N might be the number of examples (1 here) in
-  // the batch, not the number of rows...
   symbolic::Expression GenerateCrossEntropyErrorExpression(
       const Matrix<symbolic::Expression>& actual,
       const Matrix<symbolic::Expression>& expected) const {

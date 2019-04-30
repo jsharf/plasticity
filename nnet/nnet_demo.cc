@@ -41,14 +41,15 @@ int main() {
   std::cout << "Starting... " << std::endl;
 
   constexpr int kLayerSize = 3;
-  constexpr int kOutputSize = 1;
+  constexpr int kOutputSize = 2;
   constexpr int kInputSize = kSampleSize;
 
   nnet::Architecture model(kInputSize);
   model.AddDenseLayer(kLayerSize);
   model.AddDenseLayer(kLayerSize);
-  model.AddDenseLayer(kOutputSize);
-  nnet::Nnet test_net(model);
+  model.AddDenseLayer(kOutputSize, symbolic::Identity);
+  model.AddSoftmaxLayer(kOutputSize);
+  nnet::Nnet test_net(model, nnet::Nnet::Xavier, nnet::Nnet::CrossEntropy);
 
   constexpr const char* dictionary_path = "/usr/share/dict/words";
   std::ifstream dictionary_obj(dictionary_path);
@@ -76,16 +77,24 @@ int main() {
   std::cout << "Samples generated: " << flw.size() << std::endl;
 
   nnet::Nnet::LearningParameters params {
-    .learning_rate = 0.1,
+    .learning_rate = 0.001,
   };
 
   std::cout << "Training" << std::endl;
-  for (const auto& example : flw) {
+  for (size_t i = 0; i < flw.size() * 15; ++i) {
     std::cout << "." << std::flush;
-    test_net.Train(ConvertToSample(example.first),
-                     Matrix<nnet::Number>({{example.second}}), params);
+    auto random_it = std::next(std::begin(flw), std::rand() % flw.size());
+    auto expected = Matrix<nnet::Number>(
+        {{random_it->second ? 1.0 : 0.0}, {random_it->second ? 0.0 : 1.0}});
+    test_net.Train(ConvertToSample(random_it->first),
+                     Matrix<nnet::Number>(expected), params);
   }
   std::cout << "Weights: " << std::endl;
   std::cout << test_net.WeightsToString();
+
+  for (size_t i = 0; i < 100; ++i) {
+    auto random_it = std::next(std::begin(flw), std::rand() % flw.size());
+    std::cout << "Word: " << random_it->first << " is valid english? " << random_it->second << " nnet classification: " << test_net.Evaluate(ConvertToSample(random_it->first)).to_string() << std::endl;
+  }
   std::cout << std::endl;
 }

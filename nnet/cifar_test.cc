@@ -31,8 +31,7 @@ struct Sample {
     return LabelToString(label);
   }
 
-  // This isn't one-hot input, it's just a column vector input.
-  Matrix<double> OneHotEncodedInput() const {
+  Matrix<double> NormalizedInput() const {
     Matrix<double> input(kSampleSize, 1, 0);
     double norm = 0;
     for (size_t i = 0; i < kSampleSize; ++i) {
@@ -227,9 +226,9 @@ int main() {
 
   int samples_so_far = 0;
   double error_sum = 0;
-  const size_t kNumTrainingEpochs = 20;
+  const size_t kNumTrainingEpochs = 1000;
   for (size_t epoch = 1; epoch <= kNumTrainingEpochs; ++epoch) {
-    nnet::Nnet::LearningParameters params{.learning_rate = 0.01};
+    nnet::Nnet::LearningParameters params{.learning_rate = 0.001};
     for (const auto& sample : samples) {
       if (samples_so_far++ % 500 == 0) {
         std::cout << "Progress: " << samples_so_far - 1 << " / " << (kNumTrainingEpochs * samples.size()) << std::endl;
@@ -238,9 +237,9 @@ int main() {
         std::cout << "Epoch " << epoch << std::endl;
         error_sum = 0;
       }
-      test_net.Train(sample.OneHotEncodedInput(), sample.OneHotEncodedOutput(),
+      test_net.Train(sample.NormalizedInput(), sample.OneHotEncodedOutput(),
                      params);
-      error_sum += test_net.Error(sample.OneHotEncodedInput(),
+      error_sum += test_net.Error(sample.NormalizedInput(),
                                   sample.OneHotEncodedOutput());
     }
   }
@@ -256,7 +255,7 @@ int main() {
     size_t example_index = std::rand() % samples.size();
     std::string actual = samples[example_index].Label();
     std::string nnet_output = OneHotEncodedOutputToString(
-        test_net.Evaluate(samples[example_index].OneHotEncodedInput()));
+        test_net.Evaluate(samples[example_index].NormalizedInput()));
     std::cout << "=================================" << std::endl;
     std::cout << "Actual Answer: " << actual << "\nnnet output: " << nnet_output
               << std::endl;
