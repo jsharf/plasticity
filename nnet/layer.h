@@ -10,6 +10,7 @@
 #include "math/stats/normal.h"
 #include "math/symbolic/expression.h"
 #include "math/symbolic/symbolic_util.h"
+#include "math/memory/cl_buffer.h"
 
 #include <array>
 #include <cassert>
@@ -36,6 +37,9 @@ class Layer {
   // Destructor.
   virtual ~Layer() {}
 
+  void set_cl_context(cl::Context* context) { context_ = context; }
+  void set_cl_command_queue(cl::CommandQueue* cq) { cq_ = cq; }
+
   // Assignment Operators.
   Layer& operator=(const Layer& rhs) = delete;
   Layer& operator=(Layer&& rhs) = delete;
@@ -59,7 +63,7 @@ class Layer {
                                 const VolumeDimensions& input,
                                 const AreaDimensions& output);
 
-  std::string WeightsToString() const;
+  std::string WeightsToString();
 
   stats::Normal XavierInitializer() const;
   void XavierInitializeWeights();
@@ -70,11 +74,11 @@ class Layer {
       std::cerr << "Too large weight index: " << index << std::endl;
       std::exit(1);
     }
+    weights_.MoveToCpu(cq_);
     return weights_[index];
   }
 
-  std::vector<double>& weight_buffer() { return weights_; }
-  const std::vector<double>& weight_buffer() const { return weights_; }
+  memory::ClBuffer& weight_buffer() { return weights_; }
   
   Dimensions GetDimensions() const { return impl_->GetDimensions(); }
 
@@ -109,7 +113,12 @@ class Layer {
  private:
   SymbolGenerator generator_;
   std::unique_ptr<LayerImpl> impl_;
-  std::vector<double> weights_;
+
+  cl::CommandQueue *cq_;
+  cl::Context *context_;
+
+  // Weights are cached in the GPU between training runs.
+  memory::ClBuffer weights_;
 };
 
 }  // namespace nnet

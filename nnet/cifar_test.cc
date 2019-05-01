@@ -113,6 +113,32 @@ std::string OneHotEncodedOutputToString(Matrix<double> output) {
   return LabelToString(max_index);
 }
 
+void PrintStatus(nnet::Nnet* test_net, const std::vector<Sample>& samples, size_t num_examples) {
+  std::cout << "Network Weights: " << std::endl;
+  std::cout << test_net->WeightsToString() << std::endl;
+  std::cout << "Trained over " << samples.size() << " Samples!" << std::endl;
+
+  std::cout << "Example network outputs: " << std::endl;
+  srand(time(nullptr));
+  int correct_count = 0;
+  for (size_t i = 0; i < num_examples; ++i) {
+    size_t example_index = std::rand() % samples.size();
+    std::string actual = samples[example_index].Label();
+    std::string nnet_output = OneHotEncodedOutputToString(
+        test_net->Evaluate(samples[example_index].NormalizedInput()));
+    std::cout << "=================================" << std::endl;
+    std::cout << "Actual Answer: " << actual << "\nnnet output: " << nnet_output
+              << std::endl;
+    if (actual == nnet_output) {
+      correct_count++;
+    }
+  }
+  std::cout << "Examples correct: " << correct_count << " / " << kNumExamples
+            << " (" << 100.0 * static_cast<double>(correct_count) / kNumExamples
+            << "%)" << std::endl;
+
+}
+
 // Trains a neural network to learn if given point is in unit circle.
 int main() {
   constexpr int kInputSize = kSampleSize;
@@ -237,35 +263,15 @@ int main() {
         std::cout << "Epoch " << epoch << std::endl;
         error_sum = 0;
       }
+      if (samples_so_far++ % 10000 == 0) {
+        PrintStatus(&test_net, samples, 100);
+      }
       test_net.Train(sample.NormalizedInput(), sample.OneHotEncodedOutput(),
                      params);
       error_sum += test_net.Error(sample.NormalizedInput(),
                                   sample.OneHotEncodedOutput());
     }
   }
-
-  std::cout << "Network Weights: " << std::endl;
-  std::cout << test_net.WeightsToString() << std::endl;
-  std::cout << "Trained over " << samples.size() << " Samples!" << std::endl;
-
-  std::cout << "Example network outputs: " << std::endl;
-  srand(time(nullptr));
-  int correct_count = 0;
-  for (size_t i = 0; i < kNumExamples; ++i) {
-    size_t example_index = std::rand() % samples.size();
-    std::string actual = samples[example_index].Label();
-    std::string nnet_output = OneHotEncodedOutputToString(
-        test_net.Evaluate(samples[example_index].NormalizedInput()));
-    std::cout << "=================================" << std::endl;
-    std::cout << "Actual Answer: " << actual << "\nnnet output: " << nnet_output
-              << std::endl;
-    if (actual == nnet_output) {
-      correct_count++;
-    }
-  }
-  std::cout << "Examples correct: " << correct_count << " / " << kNumExamples
-            << " (" << 100.0 * static_cast<double>(correct_count) / kNumExamples
-            << "%)" << std::endl;
 
   std::cout << std::endl;
   return 0;

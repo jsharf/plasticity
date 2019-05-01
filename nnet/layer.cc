@@ -23,9 +23,8 @@ constexpr char kWeightIndex[] = "weight_index";
 // Layer Class Implementation.
 
 // Boilerplate constructors.
-Layer::Layer(std::unique_ptr<LayerImpl> &&root) : impl_(std::move(root)) {
-  weights_.resize(impl_->weights().size(), 0);
-}
+Layer::Layer(std::unique_ptr<LayerImpl> &&root)
+    : impl_(std::move(root)), weights_(impl_->weights().size()) {}
 Layer::Layer(Layer &&other)
     : impl_(std::move(other.impl_)),
       weights_(std::move(other.weights_)) {}
@@ -70,6 +69,7 @@ void Layer::XavierInitializeWeights() {
     return;
   }
 
+  weights_.MoveToCpu(cq_);
   stats::Normal X = XavierInitializer();
   for (size_t i = 0; i < weights_.size(); ++i) {
     weights_[i] = X.sample();
@@ -77,6 +77,7 @@ void Layer::XavierInitializeWeights() {
 }
 
 void Layer::InitializeWeights(double value) {
+  weights_.MoveToCpu(cq_);
   for (size_t i = 0; i < weights_.size(); ++i) {
     weights_[i] = value;
   }
@@ -147,7 +148,8 @@ std::string Layer::GenerateEvaluationKernel() const {
   return evaluate_source;
 }
 
-std::string Layer::WeightsToString() const {
+std::string Layer::WeightsToString() {
+  weights_.MoveToCpu(cq_);
   std::stringstream output;
   output << "\"layer_" << LayerSuffix() << "\": [" << std::endl;
   for (size_t i = 0; i < weights_.size(); ++i) {

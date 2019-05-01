@@ -67,6 +67,11 @@ class Nnet {
       std::exit(1);
     }
 
+    CompileKernelsIfRequired();
+    for (size_t i = 0; i < model_.layers.size(); ++i) {
+      model_.layers[i].set_cl_context(&std::get<0>(opencl_.compilation_units));
+      model_.layers[i].set_cl_command_queue(&opencl_.queue);
+    }
     CalculateInitialWeights(weight_initialization);
   }
 
@@ -132,7 +137,8 @@ class Nnet {
     return devices[0];
   }
 
-  double GetWeight(size_t layer, size_t weight_index) const {
+  double GetWeight(size_t layer, size_t weight_index) {
+    model_.layers[layer].weight_buffer().MoveToCpu(&opencl_.queue);
     return model_.layers[layer].weight_buffer()[weight_index];
   }
 
@@ -176,7 +182,13 @@ class Nnet {
 
     cl::Buffer outputs;
 
-    // TODO Load invalidated layer weights. Skip ones which haven't changed.
+    // Load all weights into the GPU (weights which are already in the GPU will
+    // be skipped).
+    for (size_t i = 0; i < model_.layers.size(); ++i) {
+      model_.layers[i].weight_buffer().MoveToGpu(
+          &std::get<0>(opencl_.compilation_units), &opencl_.queue);
+    }
+
     for (size_t index = 0; index < model_.layers.size(); ++index) {
       Layer& layer = model_.layers[index];
       cl_int buffer_init;
@@ -188,45 +200,11 @@ class Nnet {
         std::exit(1);
       }
 
-      // Load weights. TODO optimize this by not re-loading layers if their
-      // weights haven't changed and also caching weights_buf in Layer.
-      // Also, transfer all weights at once outside of this for-loop.
-      const size_t number_weights = layer.weight_buffer().size();
-      // This is a special case... if the layer has no weights, load one anyways
-      // to prevent the system from giving an error (zero-size buffers aren't
-      // allowed in opencl, and we need to provide *something* to the kernel).
-      std::unique_ptr<cl::Buffer> weights;
-      if (number_weights > 0) {
-        cl_int buffer_init_result;
-        weights = std::make_unique<cl::Buffer>(context, CL_MEM_READ_WRITE,
-                                               number_weights * sizeof(Number),
-                                               nullptr, &buffer_init_result);
-        if (buffer_init_result != CL_SUCCESS) {
-          std::cerr << "Error creating weight buffer! " << buffer_init_result << std::endl;
-          std::exit(1);
-        }
-        result = queue.enqueueWriteBuffer(*weights, CL_TRUE, 0,
-                                          sizeof(Number) * number_weights,
-                                          layer.weight_buffer().data());
-        if (result != CL_SUCCESS) {
-          std::cerr << "Error enqueuing weights (Eval):  " << result << std::endl;
-          std::exit(1);
-        }
-      } else {
-        // Make a dummy buffer that won't be touched.
-        cl_int dummy_buffer_result;
-        weights = std::make_unique<cl::Buffer>(context, CL_MEM_READ_WRITE, sizeof(Number), nullptr, &dummy_buffer_result);
-        if (dummy_buffer_result != 0)  {
-          std::cerr << "Error initializing dummy buffer for no-weight layer." << std::endl;
-          std::exit(1);
-        }
-      }
-
       // Evaluate.
       std::string kernel_name = layer.EvaluateKernelName();
       cl::Kernel& evaluate = CacheFetchKernel(kernel_name);
       CL_CHECK(evaluate.setArg(0, inputs));
-      CL_CHECK(evaluate.setArg(1, *weights));
+      CL_CHECK(evaluate.setArg(1, *layer.weight_buffer().gpu_buffer()));
       CL_CHECK(evaluate.setArg(2, outputs));
       result = queue.enqueueNDRangeKernel(
           evaluate, cl::NullRange,
@@ -392,6 +370,13 @@ class Nnet {
     cl::Buffer gpu_gradients =
           ColumnVectorToGpuBuffer(context, &queue, gradients);
 
+    // Load all weights into the GPU (weights which are already in the GPU will
+    // be skipped).
+    for (size_t i = 0; i < model_.layers.size(); ++i) {
+      model_.layers[i].weight_buffer().MoveToGpu(
+          &std::get<0>(opencl_.compilation_units), &opencl_.queue);
+    }
+
     // Backpropagation algorithm.
     // For each layer, take the current backpropagated gradients (stored in
     // variable Matrix<Number> gradients) and pass it to the weight gradient
@@ -402,36 +387,18 @@ class Nnet {
       const cl::Buffer& gpu_layer_input =
           (i > 0) ? layer_outputs->at(i - 1) : ColumnVectorToGpuBuffer(context, &queue, in);
 
-      // Load weights. TODO(sharf) optimize the shit out of this by not
-      // re-loading layers if their weights haven't changed and also caching
-      // weights_buf in Layer.
-      // Also, transfer all weights at once outside of this for-loop.
-      const size_t number_weights = layer.weight_buffer().size();
-      std::unique_ptr<cl::Buffer> weights;
-      if (number_weights > 0) {
-        weights = std::make_unique<cl::Buffer>(context, CL_MEM_READ_WRITE,
-                                               number_weights * sizeof(Number));
-        CL_CHECK(queue.enqueueWriteBuffer(*weights, CL_TRUE, 0,
-                                          sizeof(Number) * number_weights,
-                                          layer.weight_buffer().data()));
-      } else {
-        // Make a dummy 1-weight buffer so openCL doesn't complain about null
-        // argument.
-        weights = std::make_unique<cl::Buffer>(context, CL_MEM_READ_WRITE, sizeof(Number));
-      }
-
       cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
       CL_CHECK(queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0,
                                         sizeof(Number), &params.learning_rate));
-
-      if (number_weights > 0) {
-        cl::Buffer gpu_new_weights(context, CL_MEM_READ_WRITE,
-                                   number_weights * sizeof(Number));
+  
+      cl::Buffer gpu_new_weights(context, CL_MEM_READ_WRITE,
+                                 layer.weight_buffer().size() * sizeof(Number));
+      if (layer.weight_buffer().size() > 0) {
         // Backprop layer weight updates.
         std::string weight_kernel_name = layer.WeightGradientKernelName();
         cl::Kernel& weight_update = CacheFetchKernel(weight_kernel_name);
         CL_CHECK(weight_update.setArg(0, gpu_layer_input));
-        CL_CHECK(weight_update.setArg(1, *weights));
+        CL_CHECK(weight_update.setArg(1, *layer.weight_buffer().gpu_buffer()));
         CL_CHECK(weight_update.setArg(2, gpu_gradients));
         CL_CHECK(weight_update.setArg(3, gpu_new_weights));
         CL_CHECK(weight_update.setArg(4, learning_rate_buff));
@@ -440,17 +407,8 @@ class Nnet {
             cl::NDRange(layer.weight_buffer().size()), cl::NullRange);
         if (result != CL_SUCCESS) {
           std::cerr << "Error enqueuing kernel "
-                    << layer.WeightGradientKernelName() << std::endl;
-          std::exit(1);
-        }
-
-        // Load in weight updates.
-        result = queue.enqueueReadBuffer(gpu_new_weights, CL_TRUE, 0,
-                                         sizeof(Number) * number_weights,
-                                         layer.weight_buffer().data());
-        if (result != CL_SUCCESS) {
-          std::cerr << "Failed to read new weight values from gpu. Error code: "
-                    << result << std::endl;
+                    << layer.WeightGradientKernelName()
+                    << " & error code: " << result << std::endl;
           std::exit(1);
         }
       }
@@ -460,14 +418,13 @@ class Nnet {
           context, CL_MEM_READ_WRITE,
           sizeof(Number) * layer.GetDimensions().num_inputs);
 
-
       if (layer.GetDimensions().num_inputs > 0) {
 
         // Backprop gradient calculation.
         std::string input_kernel_name = layer.InputGradientKernelName();
         cl::Kernel& input_update = CacheFetchKernel(input_kernel_name);
         CL_CHECK(input_update.setArg(0, gpu_layer_input));
-        CL_CHECK(input_update.setArg(1, *weights));
+        CL_CHECK(input_update.setArg(1, *layer.weight_buffer().gpu_buffer()));
         CL_CHECK(input_update.setArg(2, gpu_gradients));
         CL_CHECK(input_update.setArg(3, gpu_new_gradients));
         cl_int result = queue.enqueueNDRangeKernel(
@@ -475,7 +432,8 @@ class Nnet {
             cl::NDRange(layer.GetDimensions().num_inputs), cl::NullRange);
         if (result != CL_SUCCESS) {
           std::cerr << "Error enqueuing kernel "
-                    << layer.InputGradientKernelName() << std::endl;
+                    << layer.InputGradientKernelName()
+                    << " & error code: " << result << std::endl;
           std::exit(1);
         }
       } else {
@@ -487,6 +445,11 @@ class Nnet {
       // before this one, we're iterating backwards).
       gpu_gradients = gpu_new_gradients;
 
+      // Now that we've calculated the new GPU gradients, update weights for
+      // this layer with the values calculated in the previous step above.
+      if (layer.weight_buffer().size() > 0) {
+        *layer.weight_buffer().gpu_buffer() = gpu_new_weights;
+      }
     }
     if (input_gradients) {
       size_t num_inputs = in.dimensions().rows;
@@ -562,7 +525,7 @@ class Nnet {
     return (symbolic::Expression(-1.0) * error);
   }
 
-  std::string WeightsToString() const {
+  std::string WeightsToString() {
     std::stringstream output;
     output << "{";
     for (size_t i = 0; i < model_.layers.size(); ++i) {
