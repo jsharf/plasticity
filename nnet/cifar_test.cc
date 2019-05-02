@@ -133,8 +133,8 @@ void PrintStatus(nnet::Nnet* test_net, const std::vector<Sample>& samples, size_
       correct_count++;
     }
   }
-  std::cout << "Examples correct: " << correct_count << " / " << kNumExamples
-            << " (" << 100.0 * static_cast<double>(correct_count) / kNumExamples
+  std::cout << "Examples correct: " << correct_count << " / " << num_examples
+            << " (" << 100.0 * static_cast<double>(correct_count) / num_examples
             << "%)" << std::endl;
 
 }
