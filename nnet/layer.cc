@@ -27,9 +27,14 @@ Layer::Layer(std::unique_ptr<LayerImpl> &&root)
     : impl_(std::move(root)), weights_(impl_->weights().size()) {}
 Layer::Layer(Layer &&other)
     : impl_(std::move(other.impl_)),
+      cq_(other.cq_),
+      context_(other.context_),
       weights_(std::move(other.weights_)) {}
 Layer::Layer(const Layer &other)
-    : impl_(other.impl_->Clone()), weights_(other.weights_) {}
+    : impl_(other.impl_->Clone()),
+      cq_(other.cq_),
+      context_(other.context_),
+      weights_(other.weights_) {}
 
 // Dense layer static constructors.
 Layer Layer::MakeDenseLayer(size_t layer_index, const Dimensions &dimensions) {

@@ -256,15 +256,15 @@ int main() {
   for (size_t epoch = 1; epoch <= kNumTrainingEpochs; ++epoch) {
     nnet::Nnet::LearningParameters params{.learning_rate = 0.001};
     for (const auto& sample : samples) {
+      if (samples_so_far % 10000 == 0) {
+        PrintStatus(&test_net, samples, 100);
+      }
       if (samples_so_far++ % 500 == 0) {
         std::cout << "Progress: " << samples_so_far - 1 << " / " << (kNumTrainingEpochs * samples.size()) << std::endl;
         std::cout << "Error avg over past 500 samples: " << error_sum / 500.0
                   << std::endl;
         std::cout << "Epoch " << epoch << std::endl;
         error_sum = 0;
-      }
-      if (samples_so_far++ % 10000 == 0) {
-        PrintStatus(&test_net, samples, 100);
       }
       test_net.Train(sample.NormalizedInput(), sample.OneHotEncodedOutput(),
                      params);

@@ -30,8 +30,8 @@ namespace memory {
 class ClBuffer {
  public:
   enum Location {
-    GPU = 0,
-    CPU,
+    CPU = 0,
+    GPU,
   };
 
   ClBuffer(size_t size)
@@ -49,9 +49,9 @@ class ClBuffer {
         size_(other.size_),
         cpu_buffer_(std::move(other.cpu_buffer_)) {
     if (other.state_ == GPU) {
-      gpu_buffer_ = new cl::Buffer(*other.gpu_buffer_);
-      delete other.gpu_buffer_;
+      gpu_buffer_ = other.gpu_buffer_;
       other.gpu_buffer_ = nullptr;
+      other.state_ = CPU;
     }
   }
 
@@ -69,10 +69,16 @@ class ClBuffer {
 
   // Only use these after MoveToCpu!
   double& operator[](size_t index);
-  double operator[](size_t index) const;
+  const double& operator[](size_t index) const;
 
   // Only use this after MoveToGpu!
-  cl::Buffer *gpu_buffer() { return gpu_buffer_; }
+  cl::Buffer *gpu_buffer() { 
+    if (state_ == CPU) {
+      std::cerr << "Requested GPU buffer when in CPU state!" << std::endl;
+      std::exit(1);
+    }
+    return gpu_buffer_;
+  }
 
  private:
 

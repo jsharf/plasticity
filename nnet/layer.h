@@ -114,8 +114,8 @@ class Layer {
   SymbolGenerator generator_;
   std::unique_ptr<LayerImpl> impl_;
 
-  cl::CommandQueue *cq_;
-  cl::Context *context_;
+  cl::CommandQueue *cq_ = nullptr;
+  cl::Context *context_ = nullptr;
 
   // Weights are cached in the GPU between training runs.
   memory::ClBuffer weights_;

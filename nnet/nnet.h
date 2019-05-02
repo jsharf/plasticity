@@ -76,11 +76,15 @@ class Nnet {
   }
 
   // Intended mostly for testing or low-level hacks. Proceed with caution.
-  Architecture model() {
+  Architecture& model() {
+    for (size_t i = 0; i < model_.layers.size(); ++i) {
+      model_.layers[i].weight_buffer().MoveToCpu(&opencl_.queue);
+    }
     return model_;
   }
 
-  const Layer& layer(size_t layer) const {
+  const Layer& layer(size_t layer) {
+    model_.layers[layer].weight_buffer().MoveToCpu(&opencl_.queue);
     return model_.layers[layer];
   }
 
@@ -387,39 +391,12 @@ class Nnet {
       const cl::Buffer& gpu_layer_input =
           (i > 0) ? layer_outputs->at(i - 1) : ColumnVectorToGpuBuffer(context, &queue, in);
 
-      cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
-      CL_CHECK(queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0,
-                                        sizeof(Number), &params.learning_rate));
-  
-      cl::Buffer gpu_new_weights(context, CL_MEM_READ_WRITE,
-                                 layer.weight_buffer().size() * sizeof(Number));
-      if (layer.weight_buffer().size() > 0) {
-        // Backprop layer weight updates.
-        std::string weight_kernel_name = layer.WeightGradientKernelName();
-        cl::Kernel& weight_update = CacheFetchKernel(weight_kernel_name);
-        CL_CHECK(weight_update.setArg(0, gpu_layer_input));
-        CL_CHECK(weight_update.setArg(1, *layer.weight_buffer().gpu_buffer()));
-        CL_CHECK(weight_update.setArg(2, gpu_gradients));
-        CL_CHECK(weight_update.setArg(3, gpu_new_weights));
-        CL_CHECK(weight_update.setArg(4, learning_rate_buff));
-        cl_int result = queue.enqueueNDRangeKernel(
-            weight_update, cl::NullRange,
-            cl::NDRange(layer.weight_buffer().size()), cl::NullRange);
-        if (result != CL_SUCCESS) {
-          std::cerr << "Error enqueuing kernel "
-                    << layer.WeightGradientKernelName()
-                    << " & error code: " << result << std::endl;
-          std::exit(1);
-        }
-      }
-
       // Load in gradients
       cl::Buffer gpu_new_gradients(
           context, CL_MEM_READ_WRITE,
           sizeof(Number) * layer.GetDimensions().num_inputs);
 
       if (layer.GetDimensions().num_inputs > 0) {
-
         // Backprop gradient calculation.
         std::string input_kernel_name = layer.InputGradientKernelName();
         cl::Kernel& input_update = CacheFetchKernel(input_kernel_name);
@@ -441,15 +418,37 @@ class Nnet {
             << "Error, incorrect model config. Layer with zero inputs found: "
             << layer.LayerSuffix() << std::endl;
       }
+
+      cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
+      CL_CHECK(queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0,
+                                        sizeof(Number), &params.learning_rate));
+  
+      if (layer.weight_buffer().size() > 0) {
+        cl::Buffer gpu_new_weights(context, CL_MEM_READ_WRITE,
+                                   layer.weight_buffer().size() * sizeof(Number));
+        // Backprop layer weight updates.
+        std::string weight_kernel_name = layer.WeightGradientKernelName();
+        cl::Kernel& weight_update = CacheFetchKernel(weight_kernel_name);
+        CL_CHECK(weight_update.setArg(0, gpu_layer_input));
+        CL_CHECK(weight_update.setArg(1, *layer.weight_buffer().gpu_buffer()));
+        CL_CHECK(weight_update.setArg(2, gpu_gradients));
+        CL_CHECK(weight_update.setArg(3, gpu_new_weights));
+        CL_CHECK(weight_update.setArg(4, learning_rate_buff));
+        cl_int result = queue.enqueueNDRangeKernel(
+            weight_update, cl::NullRange,
+            cl::NDRange(layer.weight_buffer().size()), cl::NullRange);
+        if (result != CL_SUCCESS) {
+          std::cerr << "Error enqueuing kernel "
+                    << layer.WeightGradientKernelName()
+                    << " & error code: " << result << std::endl;
+          std::exit(1);
+        }
+        *layer.weight_buffer().gpu_buffer() = gpu_new_weights;
+      }
+
       // Use the new input gradients for the next layer backwards (the one
       // before this one, we're iterating backwards).
       gpu_gradients = gpu_new_gradients;
-
-      // Now that we've calculated the new GPU gradients, update weights for
-      // this layer with the values calculated in the previous step above.
-      if (layer.weight_buffer().size() > 0) {
-        *layer.weight_buffer().gpu_buffer() = gpu_new_weights;
-      }
     }
     if (input_gradients) {
       size_t num_inputs = in.dimensions().rows;

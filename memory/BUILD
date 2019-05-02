@@ -10,3 +10,21 @@ cc_library(
         "//clutil:util",
     ],
 )
+
+cc_binary(
+    name = "cl_buffer_test",
+    srcs = ["cl_buffer_test.cc"],
+    copts = [
+        "-std=c++1z",
+    ],
+    linkopts = select({
+        "//clutil:osx": ["-framework OpenCL"],
+        "//clutil:linux": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
+        "//conditions:default": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
+    }),
+    deps = [
+        ":cl_buffer",
+        "//clutil:util",
+        "//math/third_party:catch2",
+    ],
+)

@@ -42,6 +42,7 @@ cc_binary(
     deps = [
         ":symbolic",
         ":symbolic_util",
+        "//math/third_party:catch2",
     ],
 )
 

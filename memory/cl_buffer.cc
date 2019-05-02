@@ -6,9 +6,11 @@ void ClBuffer::MoveToCpu(cl::CommandQueue *cq) {
   if (state_ == CPU) { return; }
   CHECK_NOTNULL(cq);
   CHECK_NOTNULL(gpu_buffer_);
+  if (size_ != 0) {
   cpu_buffer_.resize(size_);
   CL_CHECK(cq->enqueueReadBuffer(*gpu_buffer_, CL_TRUE, 0,
                                  sizeof(double) * size_, &cpu_buffer_[0]));
+  }
   delete gpu_buffer_;
   gpu_buffer_ = nullptr;
   state_ = CPU;
@@ -47,7 +49,7 @@ double& ClBuffer::operator[](size_t index) {
   return cpu_buffer_[index];
 }
 
-double ClBuffer::operator[](size_t index) const {
+const double& ClBuffer::operator[](size_t index) const {
   if (state_ == GPU) {
     std::cerr << "Error: [] used while buffer is in GPU." << std::endl;
     std::exit(1);
