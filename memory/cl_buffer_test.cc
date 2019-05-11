@@ -56,7 +56,14 @@ OpenClState CompileCl(const std::vector<std::string>& kernel_source,
 }
 
 TEST_CASE("CPU-only test", "[cpu]") {
-  ClBuffer buf(5);
+  OpenClState cl_;
+  std::vector<std::string> sources = {
+    "",
+  };
+  cl_.device = SelectDevice();
+  cl_ = CompileCl(sources, cl_.device);
+
+  ClBuffer buf(5, &cl_.queue, &std::get<0>(cl_.compilation_units));
   for (size_t i = 0; i < 5; ++i) {
     buf[i] = i * 2 + 1;
   }
@@ -73,14 +80,14 @@ TEST_CASE("Opencl tests", "[cl]") {
   cl_.device = SelectDevice();
   cl_ = CompileCl(sources, cl_.device);
 
-  ClBuffer buf(5);
+  ClBuffer buf(5, &cl_.queue, &std::get<0>(cl_.compilation_units));
   for (size_t i = 0; i < 5; ++i) {
     buf[i] = i * 2 + 1;
   }
 
   SECTION("Moving to opencl and back doesnt kill values!") {
-    buf.MoveToGpu(&std::get<0>(cl_.compilation_units), &cl_.queue);
-    buf.MoveToCpu(&cl_.queue);
+    buf.MoveToGpu();
+    buf.MoveToCpu();
     for (size_t i = 0; i < 5; ++i) {
       REQUIRE(buf[i] == i * 2 + 1);
     }
@@ -106,11 +113,11 @@ TEST_CASE("Opencl tests", "[cl]") {
       std::exit(1);
     }
 
-    buf.MoveToGpu(&std::get<0>(cl_.compilation_units), &cl_.queue);
+    buf.MoveToGpu();
 
     *buf.gpu_buffer() = cl_buffer;
 
-    buf.MoveToCpu(&cl_.queue);
+    buf.MoveToCpu();
     
     for (size_t i = 0; i < 5; ++i) {
       REQUIRE(buf[i] == i * 10);
@@ -137,22 +144,22 @@ TEST_CASE("Opencl tests", "[cl]") {
       std::exit(1);
     }
 
-    buf.MoveToGpu(&std::get<0>(cl_.compilation_units), &cl_.queue);
+    buf.MoveToGpu();
 
     *buf.gpu_buffer() = cl_buffer;
 
     ClBuffer buf2(buf);
 
-    buf2.MoveToCpu(&cl_.queue);
+    buf2.MoveToCpu();
 
     for (size_t i = 0; i < 5; ++i) {
       REQUIRE(buf2[i] == i * 10);
       buf2[i] = i * 2 + 1;
     }
 
-    buf2.MoveToGpu(&std::get<0>(cl_.compilation_units), &cl_.queue);
+    buf2.MoveToGpu();
 
-    buf.MoveToCpu(&cl_.queue);
+    buf.MoveToCpu();
     for (size_t i = 0; i < 5; ++i) {
       REQUIRE(buf[i] == i * 10);
     }
@@ -178,22 +185,22 @@ TEST_CASE("Opencl tests", "[cl]") {
       std::exit(1);
     }
 
-    buf.MoveToGpu(&std::get<0>(cl_.compilation_units), &cl_.queue);
-    buf.MoveToGpu(&std::get<0>(cl_.compilation_units), &cl_.queue);
+    buf.MoveToGpu();
+    buf.MoveToGpu();
 
     *buf.gpu_buffer() = cl_buffer;
 
-    buf.MoveToCpu(&cl_.queue);
-    buf.MoveToGpu(&std::get<0>(cl_.compilation_units), &cl_.queue);
-    buf.MoveToCpu(&cl_.queue);
+    buf.MoveToCpu();
+    buf.MoveToGpu();
+    buf.MoveToCpu();
 
     for (size_t i = 0; i < 5; ++i) {
       buf[i] = i * 2 + 1;
     }
 
-    buf.MoveToCpu(&cl_.queue);
-    buf.MoveToGpu(&std::get<0>(cl_.compilation_units), &cl_.queue);
-    buf.MoveToCpu(&cl_.queue);
+    buf.MoveToCpu();
+    buf.MoveToGpu();
+    buf.MoveToCpu();
 
     for (size_t i = 0; i < 5; ++i) {
       REQUIRE(buf[i] == i * 2 + 1);

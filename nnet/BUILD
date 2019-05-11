@@ -40,7 +40,7 @@ cc_library(
 cc_library(
     name = "layer",
     srcs = ["layer.cc"],
-    hdrs = ["layer.h"],
+    hdrs = ["layer.h", "nnet.h", "architecture.h"],
     copts = [
         "--std=c++1z",
     ],

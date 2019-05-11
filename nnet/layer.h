@@ -1,6 +1,7 @@
 #ifndef LAYER_H
 #define LAYER_H
 #include "math/geometry/dynamic_matrix.h"
+#include "math/memory/cl_buffer.h"
 #include "math/nnet/activation_layer.h"
 #include "math/nnet/convolution_layer.h"
 #include "math/nnet/dense_layer.h"
@@ -10,7 +11,6 @@
 #include "math/stats/normal.h"
 #include "math/symbolic/expression.h"
 #include "math/symbolic/symbolic_util.h"
-#include "math/memory/cl_buffer.h"
 
 #include <array>
 #include <cassert>
@@ -21,6 +21,8 @@
 #include <vector>
 
 namespace nnet {
+
+class Nnet;
 
 // Holds a pointer to a Layer and manages the resources.
 class Layer {
@@ -37,8 +39,7 @@ class Layer {
   // Destructor.
   virtual ~Layer() {}
 
-  void set_cl_context(cl::Context* context) { context_ = context; }
-  void set_cl_command_queue(cl::CommandQueue* cq) { cq_ = cq; }
+  void RegisterToNetwork(nnet::Nnet *network);
 
   // Assignment Operators.
   Layer& operator=(const Layer& rhs) = delete;
@@ -70,16 +71,22 @@ class Layer {
   void InitializeWeights(double value);
 
   double& W(size_t index) {
-    if (index >= weights_.size()) {
+    if (!weights_) {
+      std::cerr
+          << "Layer not registered with network, cannot access weight values!"
+          << std::endl;
+      std::exit(1);
+    }
+    if (index >= weights_->size()) {
       std::cerr << "Too large weight index: " << index << std::endl;
       std::exit(1);
     }
-    weights_.MoveToCpu(cq_);
-    return weights_[index];
+    weights_->MoveToCpu();
+    return (*weights_)[index];
   }
 
-  memory::ClBuffer& weight_buffer() { return weights_; }
-  
+  std::unique_ptr<memory::ClBuffer>& weight_buffer() { return weights_; }
+
   Dimensions GetDimensions() const { return impl_->GetDimensions(); }
 
   // This function returns the source code of an OpenCL kernel which evaluates
@@ -111,14 +118,12 @@ class Layer {
   Matrix<symbolic::Expression> OutputExpression() const;
 
  private:
+  Nnet *nnet_;
   SymbolGenerator generator_;
   std::unique_ptr<LayerImpl> impl_;
 
-  cl::CommandQueue *cq_ = nullptr;
-  cl::Context *context_ = nullptr;
-
   // Weights are cached in the GPU between training runs.
-  memory::ClBuffer weights_;
+  std::unique_ptr<memory::ClBuffer> weights_;
 };
 
 }  // namespace nnet

@@ -1,7 +1,9 @@
 #include "math/nnet/layer.h"
+#include "math/nnet/nnet.h"
 
 #include <fstream>
 #include <future>
+#include <limits>
 #include <thread>
 
 namespace nnet {
@@ -24,17 +26,22 @@ constexpr char kWeightIndex[] = "weight_index";
 
 // Boilerplate constructors.
 Layer::Layer(std::unique_ptr<LayerImpl> &&root)
-    : impl_(std::move(root)), weights_(impl_->weights().size()) {}
+    : impl_(std::move(root)) {}
 Layer::Layer(Layer &&other)
     : impl_(std::move(other.impl_)),
-      cq_(other.cq_),
-      context_(other.context_),
       weights_(std::move(other.weights_)) {}
-Layer::Layer(const Layer &other)
-    : impl_(other.impl_->Clone()),
-      cq_(other.cq_),
-      context_(other.context_),
-      weights_(other.weights_) {}
+Layer::Layer(const Layer &other) : impl_(other.impl_->Clone()) {
+  if (other.weights_) {
+    weights_ = std::make_unique<memory::ClBuffer>(*other.weights_);
+  }
+}
+
+void Layer::RegisterToNetwork(nnet::Nnet *network) {
+  // Awesome, we have a network registered. Use it to allocate a buffer for the
+  // weights.
+  nnet_ = network;
+  weights_ = nnet_->MakeBuffer(impl_->weights().size());
+}
 
 // Dense layer static constructors.
 Layer Layer::MakeDenseLayer(size_t layer_index, const Dimensions &dimensions) {
@@ -70,21 +77,33 @@ stats::Normal Layer::XavierInitializer() const {
 }
 
 void Layer::XavierInitializeWeights() {
-  if (weights_.size() == 0) {
+  if (!weights_) {
+    std::cerr << "This layer hasn't been registered with a neural network yet, "
+                 "cannot initialize!!"
+              << std::endl;
+    std::exit(1);
+  }
+  if (weights_->size() == 0) {
     return;
   }
 
-  weights_.MoveToCpu(cq_);
+  weights_->MoveToCpu();
   stats::Normal X = XavierInitializer();
-  for (size_t i = 0; i < weights_.size(); ++i) {
-    weights_[i] = X.sample();
+  for (size_t i = 0; i < weights_->size(); ++i) {
+    (*weights_)[i] = X.sample();
   }
 }
 
 void Layer::InitializeWeights(double value) {
-  weights_.MoveToCpu(cq_);
-  for (size_t i = 0; i < weights_.size(); ++i) {
-    weights_[i] = value;
+  if (!weights_) {
+    std::cerr << "This layer hasn't been registered with a neural network yet, "
+                 "cannot initialize!!"
+              << std::endl;
+    std::exit(1);
+  }
+  weights_->MoveToCpu();
+  for (size_t i = 0; i < weights_->size(); ++i) {
+    (*weights_)[i] = value;
   }
 }
 
@@ -154,12 +173,19 @@ std::string Layer::GenerateEvaluationKernel() const {
 }
 
 std::string Layer::WeightsToString() {
-  weights_.MoveToCpu(cq_);
+  if (!weights_) {
+    std::cerr << "This layer hasn't been registered with a neural network yet, "
+                 "cannot print weight values to string!"
+              << std::endl;
+    std::exit(1);
+  }
+  weights_->MoveToCpu();
   std::stringstream output;
+  output.precision(std::numeric_limits<double>::max_digits10);
   output << "\"layer_" << LayerSuffix() << "\": [" << std::endl;
-  for (size_t i = 0; i < weights_.size(); ++i) {
-    output << weights_[i];
-    if (i != weights_.size() - 1) {
+  for (size_t i = 0; i < weights_->size(); ++i) {
+    output << (*weights_)[i];
+    if (i != weights_->size() - 1) {
      output << ",";
     }
     output << std::endl;

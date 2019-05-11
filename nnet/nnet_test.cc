@@ -29,8 +29,12 @@ TEST_CASE("One-layer RELU network output is validated", "[nnet]") {
   constexpr size_t kInputSize = 3;
   constexpr size_t kLayerSize = 3;
 
+
   Architecture model(kInputSize);
   model.AddDenseLayer(kLayerSize, symbolic::Relu);
+
+  // Use the model to generate a neural network.
+  Nnet test_net(model, Nnet::NoWeightInit, Nnet::CrossEntropy);
 
   DenseSymbolGenerator s(Dimensions{3, 3});
 
@@ -43,23 +47,20 @@ TEST_CASE("One-layer RELU network output is validated", "[nnet]") {
   // harmless (yet confusing) mistake.
   //
   // Node 1 edges.
-  model.layers[1].W(s.WeightNumber(0, 0)) = 0.1;
-  model.layers[1].W(s.WeightNumber(0, 1)) = 0.3;
-  model.layers[1].W(s.WeightNumber(0, 2)) = 0.4;
-  model.layers[1].W(s.WeightNumber(0)) = 1;  // bias.
+  test_net.GetWeight(1, s.WeightNumber(0, 0)) = 0.1;
+  test_net.GetWeight(1, s.WeightNumber(0, 1)) = 0.3;
+  test_net.GetWeight(1, s.WeightNumber(0, 2)) = 0.4;
+  test_net.GetWeight(1, s.WeightNumber(0)) = 1;  // bias.
   // Node 2 edges.
-  model.layers[1].W(s.WeightNumber(1, 0)) = 0.2;
-  model.layers[1].W(s.WeightNumber(1, 1)) = 0.2;
-  model.layers[1].W(s.WeightNumber(1, 2)) = 0.3;
-  model.layers[1].W(s.WeightNumber(1)) = 1;  // bias.
+  test_net.GetWeight(1, s.WeightNumber(1, 0)) = 0.2;
+  test_net.GetWeight(1, s.WeightNumber(1, 1)) = 0.2;
+  test_net.GetWeight(1, s.WeightNumber(1, 2)) = 0.3;
+  test_net.GetWeight(1, s.WeightNumber(1)) = 1;  // bias.
   // Node 3 edges.
-  model.layers[1].W(s.WeightNumber(2, 0)) = 0.3;
-  model.layers[1].W(s.WeightNumber(2, 1)) = 0.7;
-  model.layers[1].W(s.WeightNumber(2, 2)) = 0.9;
-  model.layers[1].W(s.WeightNumber(2)) = 1;  // bias.
-
-  // Use the model to generate a neural network.
-  Nnet test_net(model, Nnet::NoWeightInit, Nnet::CrossEntropy);
+  test_net.GetWeight(1, s.WeightNumber(2, 0)) = 0.3;
+  test_net.GetWeight(1, s.WeightNumber(2, 1)) = 0.7;
+  test_net.GetWeight(1, s.WeightNumber(2, 2)) = 0.9;
+  test_net.GetWeight(1, s.WeightNumber(2)) = 1;  // bias.
 
   SECTION("Verify output") {
     Matrix<Number> output = test_net.Evaluate(MakeInput(0.1, 0.2, 0.7));
@@ -786,28 +787,28 @@ TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
     nnet::Nnet::LearningParameters params{.learning_rate = 1};
 
     stats::Normal initializer(0, 5);
-    std::vector<double> weight_init_values(model.layers[1].weight_buffer().size());
-    for (size_t i = 0; i < model.layers[1].weight_buffer().size(); ++i) {
-      model.layers[1].weight_buffer()[i] = initializer.sample();
-      weight_init_values[i] = model.layers[1].weight_buffer()[i];
+    std::vector<double> weight_init_values(model.layers[1].weight_buffer()->size());
+    for (size_t i = 0; i < model.layers[1].weight_buffer()->size(); ++i) {
+      (*model.layers[1].weight_buffer())[i] = initializer.sample();
+      weight_init_values[i] = (*model.layers[1].weight_buffer())[i];
     }
 
-    for (size_t i = 0; i < model.layers[1].weight_buffer().size(); ++i) {
+    for (size_t i = 0; i < model.layers[1].weight_buffer()->size(); ++i) {
       // A neural network with the weight tweaked left.
-      model.layers[1].weight_buffer()[i] = weight_init_values[i] - EPSILON;
+      (*model.layers[1].weight_buffer())[i] = weight_init_values[i] - EPSILON;
       Nnet test_net_tweak_left(model, Nnet::NoWeightInit, Nnet::MeanSquared);
 
       double output_left = test_net_tweak_left.Error(input, expected);
 
       // A neural network with the weight tweaked right.
-      model.layers[1].weight_buffer()[i] = weight_init_values[i] + EPSILON;
+      (*model.layers[1].weight_buffer())[i] = weight_init_values[i] + EPSILON;
       Nnet test_net_tweak_right(model, Nnet::NoWeightInit, Nnet::MeanSquared);
 
       double output_right = test_net_tweak_right.Error(input, expected);
 
       double approx_gradient = (output_right - output_left) / (2*EPSILON);
 
-      model.layers[1].weight_buffer()[i] = weight_init_values[i];
+      (*model.layers[1].weight_buffer())[i] = weight_init_values[i];
       Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
 
       auto result = test_net.Evaluate(input);
@@ -871,28 +872,28 @@ TEST_CASE("Convolution Layer Gradient checking", "[convolution_gradient_check]")
     nnet::Nnet::LearningParameters params{.learning_rate = 1};
 
     stats::Normal initializer(0, 5);
-    std::vector<double> weight_init_values(model.layers[1].weight_buffer().size());
-    for (size_t i = 0; i < model.layers[1].weight_buffer().size(); ++i) {
-      model.layers[1].weight_buffer()[i] = initializer.sample();
-      weight_init_values[i] = model.layers[1].weight_buffer()[i];
+    std::vector<double> weight_init_values(model.layers[1].weight_buffer()->size());
+    for (size_t i = 0; i < model.layers[1].weight_buffer()->size(); ++i) {
+      (*model.layers[1].weight_buffer())[i] = initializer.sample();
+      weight_init_values[i] = (*model.layers[1].weight_buffer())[i];
     }
 
-    for (size_t i = 0; i < model.layers[1].weight_buffer().size(); ++i) {
+    for (size_t i = 0; i < model.layers[1].weight_buffer()->size(); ++i) {
       // A neural network with the weight tweaked left.
-      model.layers[1].weight_buffer()[i] = weight_init_values[i] - EPSILON;
+      (*model.layers[1].weight_buffer())[i] = weight_init_values[i] - EPSILON;
       Nnet test_net_tweak_left(model, Nnet::NoWeightInit, Nnet::MeanSquared);
 
       double output_left = test_net_tweak_left.Error(input, expected);
 
       // A neural network with the weight tweaked right.
-      model.layers[1].weight_buffer()[i] = weight_init_values[i] + EPSILON;
+      (*model.layers[1].weight_buffer())[i] = weight_init_values[i] + EPSILON;
       Nnet test_net_tweak_right(model, Nnet::NoWeightInit, Nnet::MeanSquared);
 
       double output_right = test_net_tweak_right.Error(input, expected);
 
       double approx_gradient = (output_right - output_left) / (2*EPSILON);
 
-      model.layers[1].weight_buffer()[i] = weight_init_values[i];
+      (*model.layers[1].weight_buffer())[i] = weight_init_values[i];
       Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
 
       auto result = test_net.Evaluate(input);
