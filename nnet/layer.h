@@ -71,21 +71,15 @@ class Layer {
   void InitializeWeights(double value);
 
   double& W(size_t index) {
-    if (!weights_) {
-      std::cerr
-          << "Layer not registered with network, cannot access weight values!"
-          << std::endl;
-      std::exit(1);
-    }
-    if (index >= weights_->size()) {
+    if (index >= weights_.size()) {
       std::cerr << "Too large weight index: " << index << std::endl;
       std::exit(1);
     }
-    weights_->MoveToCpu();
-    return (*weights_)[index];
+    weights_.MoveToCpu();
+    return weights_[index];
   }
 
-  std::unique_ptr<memory::ClBuffer>& weight_buffer() { return weights_; }
+  memory::ClBuffer& weight_buffer() { return weights_; }
 
   Dimensions GetDimensions() const { return impl_->GetDimensions(); }
 
@@ -123,7 +117,7 @@ class Layer {
   std::unique_ptr<LayerImpl> impl_;
 
   // Weights are cached in the GPU between training runs.
-  std::unique_ptr<memory::ClBuffer> weights_;
+  memory::ClBuffer weights_;
 };
 
 }  // namespace nnet

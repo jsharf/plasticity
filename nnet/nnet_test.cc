@@ -787,28 +787,28 @@ TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
     nnet::Nnet::LearningParameters params{.learning_rate = 1};
 
     stats::Normal initializer(0, 5);
-    std::vector<double> weight_init_values(model.layers[1].weight_buffer()->size());
-    for (size_t i = 0; i < model.layers[1].weight_buffer()->size(); ++i) {
-      (*model.layers[1].weight_buffer())[i] = initializer.sample();
-      weight_init_values[i] = (*model.layers[1].weight_buffer())[i];
+    std::vector<double> weight_init_values(model.layers[1].weight_buffer().size());
+    for (size_t i = 0; i < model.layers[1].weight_buffer().size(); ++i) {
+      model.layers[1].weight_buffer()[i] = initializer.sample();
+      weight_init_values[i] = model.layers[1].weight_buffer()[i];
     }
 
-    for (size_t i = 0; i < model.layers[1].weight_buffer()->size(); ++i) {
+    for (size_t i = 0; i < model.layers[1].weight_buffer().size(); ++i) {
       // A neural network with the weight tweaked left.
-      (*model.layers[1].weight_buffer())[i] = weight_init_values[i] - EPSILON;
+      model.layers[1].weight_buffer()[i] = weight_init_values[i] - EPSILON;
       Nnet test_net_tweak_left(model, Nnet::NoWeightInit, Nnet::MeanSquared);
 
       double output_left = test_net_tweak_left.Error(input, expected);
 
       // A neural network with the weight tweaked right.
-      (*model.layers[1].weight_buffer())[i] = weight_init_values[i] + EPSILON;
+      model.layers[1].weight_buffer()[i] = weight_init_values[i] + EPSILON;
       Nnet test_net_tweak_right(model, Nnet::NoWeightInit, Nnet::MeanSquared);
 
       double output_right = test_net_tweak_right.Error(input, expected);
 
       double approx_gradient = (output_right - output_left) / (2*EPSILON);
 
-      (*model.layers[1].weight_buffer())[i] = weight_init_values[i];
+      model.layers[1].weight_buffer()[i] = weight_init_values[i];
       Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
 
       auto result = test_net.Evaluate(input);
@@ -872,28 +872,28 @@ TEST_CASE("Convolution Layer Gradient checking", "[convolution_gradient_check]")
     nnet::Nnet::LearningParameters params{.learning_rate = 1};
 
     stats::Normal initializer(0, 5);
-    std::vector<double> weight_init_values(model.layers[1].weight_buffer()->size());
-    for (size_t i = 0; i < model.layers[1].weight_buffer()->size(); ++i) {
-      (*model.layers[1].weight_buffer())[i] = initializer.sample();
-      weight_init_values[i] = (*model.layers[1].weight_buffer())[i];
+    std::vector<double> weight_init_values(model.layers[1].weight_buffer().size());
+    for (size_t i = 0; i < model.layers[1].weight_buffer().size(); ++i) {
+      model.layers[1].weight_buffer()[i] = initializer.sample();
+      weight_init_values[i] = model.layers[1].weight_buffer()[i];
     }
 
-    for (size_t i = 0; i < model.layers[1].weight_buffer()->size(); ++i) {
+    for (size_t i = 0; i < model.layers[1].weight_buffer().size(); ++i) {
       // A neural network with the weight tweaked left.
-      (*model.layers[1].weight_buffer())[i] = weight_init_values[i] - EPSILON;
+      model.layers[1].weight_buffer()[i] = weight_init_values[i] - EPSILON;
       Nnet test_net_tweak_left(model, Nnet::NoWeightInit, Nnet::MeanSquared);
 
       double output_left = test_net_tweak_left.Error(input, expected);
 
       // A neural network with the weight tweaked right.
-      (*model.layers[1].weight_buffer())[i] = weight_init_values[i] + EPSILON;
+      model.layers[1].weight_buffer()[i] = weight_init_values[i] + EPSILON;
       Nnet test_net_tweak_right(model, Nnet::NoWeightInit, Nnet::MeanSquared);
 
       double output_right = test_net_tweak_right.Error(input, expected);
 
       double approx_gradient = (output_right - output_left) / (2*EPSILON);
 
-      (*model.layers[1].weight_buffer())[i] = weight_init_values[i];
+      model.layers[1].weight_buffer()[i] = weight_init_values[i];
       Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
 
       auto result = test_net.Evaluate(input);

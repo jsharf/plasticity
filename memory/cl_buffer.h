@@ -36,6 +36,9 @@ class ClBuffer {
     GPU,
   };
 
+  ClBuffer(size_t size)
+      : state_(CPU), size_(size), cpu_buffer_(size), cq_(nullptr),
+        context_(nullptr) {}
   ClBuffer(size_t size, cl::CommandQueue *cq, cl::Context* context)
       : state_(CPU), size_(size), cpu_buffer_(size), cq_(cq), context_(context) {
     CHECK_NOTNULL(context_);
@@ -50,8 +53,10 @@ class ClBuffer {
     if (other.state_ == GPU) {
       gpu_buffer_ = std::make_unique<cl::Buffer>(*other.gpu_buffer_);
     }
-    CHECK_NOTNULL(context_);
-    CHECK_NOTNULL(cq_);
+    if (other.gpu_buffer_) {
+      CHECK_NOTNULL(context_);
+      CHECK_NOTNULL(cq_);
+    }
   }
   ClBuffer(ClBuffer &&other)
       : state_(other.state_),
@@ -63,14 +68,21 @@ class ClBuffer {
       gpu_buffer_ = std::move(other.gpu_buffer_);
       other.state_ = CPU;
     }
-    CHECK_NOTNULL(context_);
-    CHECK_NOTNULL(cq_);
+    if (other.gpu_buffer_) {
+      CHECK_NOTNULL(context_);
+      CHECK_NOTNULL(cq_);
+    }
   }
 
   virtual ~ClBuffer() {
     if (state_ == GPU) {
       gpu_buffer_.reset();
     }
+  }
+
+  void RegisterBackend(cl::CommandQueue* queue, cl::Context* context) {
+    CHECK_NOTNULL(cq_ = queue);
+    CHECK_NOTNULL(context_ = context);
   }
 
   void MoveToCpu();

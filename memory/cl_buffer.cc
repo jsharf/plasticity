@@ -19,6 +19,8 @@ void ClBuffer::MoveToCpu() {
 
 void ClBuffer::MoveToGpu() {
   if (state_ == GPU) { return; }
+  CHECK_NOTNULL(cq_);
+  CHECK_NOTNULL(context_);
   if (gpu_buffer_) {
     gpu_buffer_.reset();
   }
