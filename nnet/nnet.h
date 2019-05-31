@@ -2,6 +2,7 @@
 #define NNET_H
 #include "clutil/util.h"
 #include "math/geometry/dynamic_matrix.h"
+#include "math/memory/buffer.h"
 #include "math/memory/cl_buffer.h"
 #include "math/nnet/architecture.h"
 #include "math/nnet/layer.h"
@@ -75,9 +76,18 @@ class Nnet {
     CalculateInitialWeights(weight_initialization);
   }
 
-  std::unique_ptr<memory::ClBuffer> MakeBuffer(size_t size) {
+  std::unique_ptr<memory::Buffer> MakeBuffer(size_t size) {
     return std::make_unique<memory::ClBuffer>(
         size, &opencl_.queue, &std::get<0>(opencl_.compilation_units));
+  }
+
+  std::unique_ptr<memory::Buffer> MakeBuffer(const std::vector<double>& values) {
+    return std::make_unique<memory::ClBuffer>(values, &opencl_.queue, &std::get<0>(opencl_.compilation_units));
+  }
+
+  std::unique_ptr<memory::Buffer> MakeBuffer() {
+    return std::make_unique<memory::ClBuffer>(
+        &opencl_.queue, &std::get<0>(opencl_.compilation_units));
   }
 
   void RegisterBuffer(memory::ClBuffer *buffer) {
@@ -156,7 +166,7 @@ class Nnet {
     return model_.layers[layer].weight_buffer()[weight_index];
   }
 
-  Matrix<Number> Evaluate(Matrix<Number> in) {
+  Matrix<Number> Evaluate(memory::ClBuffer& in) {
     std::unique_ptr<std::vector<cl::Buffer>> _(nullptr);
     return Evaluate(in, _);
   }
@@ -164,8 +174,8 @@ class Nnet {
   // (*out_layer_outputs)[i] is a GPU buffer containing the outputs of layer i.
   // Layer outputs will only be saved if out_layer_outputs is non-null.
   // Otherwise it will be ignored.
-  Matrix<Number> Evaluate(
-      Matrix<Number> in,
+  memory::ClBuffer Evaluate(
+      const std::unique_ptr<memory::ClBuffer>& inputs
       std::unique_ptr<std::vector<cl::Buffer>>& out_layer_outputs) {
     CompileKernelsIfRequired();
 
@@ -175,26 +185,10 @@ class Nnet {
     // Assumes that all kernels compiled for same device.
     cl::CommandQueue& queue = opencl_.queue;
 
-    // Load input.
-    cl_int buffer_init;
-    cl::Buffer inputs(context, CL_MEM_READ_ONLY, input_size() * sizeof(Number), nullptr, &buffer_init);
-    if (buffer_init != CL_SUCCESS) {
-      std::cerr << "Could not initialize input buffer" << std::endl;
-      std::exit(1);
-    }
-    Number inputs_buf[input_size()];
-    for (size_t i = 0; i < input_size(); ++i) {
-      inputs_buf[i] = in.at(i, 0);
-    }
+    memory::ClBuffer outputs = MakeBuffer();
+    outputs.MoveToGpu();
 
-    cl_int result = queue.enqueueWriteBuffer(inputs, CL_TRUE, 0, sizeof(Number) * input_size(),
-                             inputs_buf);
-    if (result != CL_SUCCESS) {
-      std::cerr << "Error enqueuing input write (Eval):  " << result << std::endl;
-      std::exit(1);
-    }
-
-    cl::Buffer outputs;
+    inputs->MoveToGpu();
 
     // Load all weights into the GPU (weights which are already in the GPU will
     // be skipped).
@@ -216,7 +210,7 @@ class Nnet {
       // Evaluate.
       std::string kernel_name = layer.EvaluateKernelName();
       cl::Kernel& evaluate = CacheFetchKernel(kernel_name);
-      CL_CHECK(evaluate.setArg(0, inputs));
+      CL_CHECK(evaluate.setArg(0, *inputs.gpu_buffer()));
       CL_CHECK(evaluate.setArg(1, *layer.weight_buffer().gpu_buffer()));
       CL_CHECK(evaluate.setArg(2, outputs));
       result = queue.enqueueNDRangeKernel(
@@ -233,7 +227,7 @@ class Nnet {
       }
 
       // inputs = outputs (output of this layer is input for next layer).
-      inputs = outputs;
+      *inputs.gpu_buffer() = outputs;
     }
 
     Number output_buf[output_size()];

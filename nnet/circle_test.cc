@@ -8,8 +8,6 @@
 #include <string>
 
 constexpr size_t kSampleSize = 2;
-// Dim(kSampleSize, 1)
-using Sample = Matrix<nnet::Number>;
 
 // Trains a neural network to learn if given point is in unit circle.
 int main() {
@@ -22,7 +20,7 @@ int main() {
   model.AddDenseLayer(kOutputSize);
   nnet::Nnet test_net(model, nnet::Nnet::Xavier, nnet::Nnet::MeanSquared);
 
-  std::vector<std::tuple<Sample, bool>> examples;
+  std::vector<std::tuple<std::vector<double>, bool>> examples;
 
   // Generate training samples.
   for (size_t i = 0; i < 10000; ++i) {
@@ -31,13 +29,14 @@ int main() {
 
     double in_unit_circle = ((x * x + y * y) <= 1.0) ? 1 : 0;
 
-    examples.push_back(std::make_tuple(Sample({{x}, {y}}), in_unit_circle));
+    examples.push_back(std::make_tuple({x, y}, in_unit_circle));
   }
 
   nnet::Nnet::LearningParameters params{.learning_rate = 0.3};
 
-  for (const std::tuple<Sample, double>& example : examples) {
-    std::cout << "curr output for train example: " << test_net.Evaluate(std::get<0>(example)).at(0, 0) << std::endl;
+  for (const std::tuple<std::vector<double>, double>& example : examples) {
+    auto& input_buffer = test_net.MakeBuffer(std::get<0>(example));
+    std::cout << "curr output for train example: " << test_net.Evaluate(input_buffer).at(0, 0) << std::endl;
     std::cout << "Training w curr output: " << std::get<1>(example) << std::endl;
     test_net.Train(std::get<0>(example),
                      Matrix<nnet::Number>(
@@ -51,19 +50,11 @@ int main() {
   for (size_t i = 0; i < 1000; ++i) {
     double pointx = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
     double pointy = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
-    double output_cpu =
-        test_net.Evaluate(Matrix<nnet::Number>{{pointx}, {pointy}}).at(0, 0);
-    double output_cl =
-        test_net.Evaluate(Matrix<nnet::Number>{{pointx}, {pointy}}).at(0, 0);
-    std::cerr << output_cpu << std::endl;
-    if (fabs(output_cpu - output_cl) > 0.000001) {
-      std::cerr << "Error, CPU/GPU output mismatch." << std::endl;
-      std::cerr << "CPU: " << output_cpu << std::endl;
-      std::cerr << "GPU: " << output_cl << std::endl;
-      std::cerr << "Input: " << "(" << pointx << "," << pointy << ")" << std::endl;
-      std::cerr << "Weights: " << test_net.WeightsToString() << std::endl;
-    }
-    std::cout << "((" << pointx << "," << pointy << ")," << output_cpu << ")"
+    auto& input_buffer = test_net.MakeBuffer({pointx, pointy});
+    double output =
+        test_net.Evaluate(input_buffer).at(0, 0);
+    std::cerr << output << std::endl;
+    std::cout << "((" << pointx << "," << pointy << ")," << output << ")"
               << std::endl;
   }
 
