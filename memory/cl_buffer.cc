@@ -2,6 +2,29 @@
 
 namespace memory {
 
+std::unique_ptr<ClBuffer> ClBuffer::MakeBufferFromColumnVector(
+    Matrix<double> column_vector) {
+  std::vector<double> values = {};
+  for (size_t i = 0; i < column_vector.dimensions().rows; ++i) {
+    values.push_back(column_vector.at(i, 0));
+  }
+  return std::make_unique<ClBuffer>(values);
+}
+
+void ClBuffer::resize(size_t new_size, double default_value) {
+  // This is going to kill GPU performance when resizing GPU buffers, but it's
+  // not a super realistic situation and when it comes up we can optimize for it
+  // quite easily.
+  auto old_state = state_;
+  if (state_ == Buffer::GPU) {
+    MoveToCpu();
+  }
+  cpu_buffer_.resize(new_size, default_value);
+  if (old_state == Buffer::GPU) {
+    MoveToGpu();
+  }
+}
+
 size_t ClBuffer::size() const {
   if (state_ == Buffer::CPU) {
     return cpu_buffer_.size();
@@ -65,6 +88,21 @@ void ClBuffer::MoveToGpu() {
   state_ = Buffer::GPU;
 }
 
+std::string ClBuffer::to_string() const {
+  if (state_ == Buffer::GPU) {
+    std::cerr << "Error: to_string() used while buffer is in GPU." << std::endl;
+    std::exit(1);
+  }
+
+  std::stringstream out;
+  out << "{\n";
+
+  for (size_t i = 0; i < size(); ++i) {
+    out << (*this)[i] << ",\n";
+  }
+  return out.str();
+}
+
 double &ClBuffer::operator[](size_t index) {
   if (state_ == Buffer::GPU) {
     std::cerr << "Error: [] used while buffer is in GPU." << std::endl;
@@ -83,4 +121,4 @@ const double &ClBuffer::operator[](size_t index) const {
   return cpu_buffer_[index];
 }
 
-} // namespace memory
+}  // namespace memory

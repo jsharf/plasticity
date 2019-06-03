@@ -17,6 +17,7 @@ cc_library(
     deps = [
         ":buffer",
         "//clutil:util",
+        "//math/geometry:dynamic_matrix",
     ],
 )
 

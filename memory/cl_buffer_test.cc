@@ -9,18 +9,8 @@
 #include <tuple>
 #include <unordered_map>
 
-#include "math/memory/cl_buffer.h"
 #include "clutil/util.h"
-
-// ASSERT for opencl calls.
-#define CL_CHECK(line) do { \
-  cl_int res = line; \
-  if (res != CL_SUCCESS) { \
-    std::cerr << "Error running line: " #line << std::endl; \
-    std::cerr << "Code: " << res << std::endl; \
-    std::exit(1); \
-  } \
-} while(0);
+#include "math/memory/cl_buffer.h"
 
 namespace memory {
 
@@ -58,7 +48,7 @@ OpenClState CompileCl(const std::vector<std::string>& kernel_source,
 TEST_CASE("CPU-only test", "[cpu]") {
   OpenClState cl_;
   std::vector<std::string> sources = {
-    "",
+      "",
   };
   cl_.device = SelectDevice();
   cl_ = CompileCl(sources, cl_.device);
@@ -75,7 +65,7 @@ TEST_CASE("CPU-only test", "[cpu]") {
 TEST_CASE("Opencl tests", "[cl]") {
   OpenClState cl_;
   std::vector<std::string> sources = {
-    "",
+      "",
   };
   cl_.device = SelectDevice();
   cl_ = CompileCl(sources, cl_.device);
@@ -106,10 +96,11 @@ TEST_CASE("Opencl tests", "[cl]") {
       inputs_buf[i] = i * 10;
     }
 
-    cl_int result = cl_.queue.enqueueWriteBuffer(cl_buffer, CL_TRUE, 0,
-                                             sizeof(double) * 5, inputs_buf);
+    cl_int result = cl_.queue.enqueueWriteBuffer(
+        cl_buffer, CL_TRUE, 0, sizeof(double) * 5, inputs_buf);
     if (result != CL_SUCCESS) {
-      std::cerr << "Error enqueuing input write (Eval):  " << result << std::endl;
+      std::cerr << "Error enqueuing input write (Eval):  " << result
+                << std::endl;
       std::exit(1);
     }
 
@@ -118,7 +109,7 @@ TEST_CASE("Opencl tests", "[cl]") {
     *buf.gpu_buffer() = cl_buffer;
 
     buf.MoveToCpu();
-    
+
     for (size_t i = 0; i < 5; ++i) {
       REQUIRE(buf[i] == i * 10);
     }
@@ -137,10 +128,11 @@ TEST_CASE("Opencl tests", "[cl]") {
       inputs_buf[i] = i * 10;
     }
 
-    cl_int result = cl_.queue.enqueueWriteBuffer(cl_buffer, CL_TRUE, 0,
-                                             sizeof(double) * 5, inputs_buf);
+    cl_int result = cl_.queue.enqueueWriteBuffer(
+        cl_buffer, CL_TRUE, 0, sizeof(double) * 5, inputs_buf);
     if (result != CL_SUCCESS) {
-      std::cerr << "Error enqueuing input write (Eval):  " << result << std::endl;
+      std::cerr << "Error enqueuing input write (Eval):  " << result
+                << std::endl;
       std::exit(1);
     }
 
@@ -178,10 +170,11 @@ TEST_CASE("Opencl tests", "[cl]") {
       inputs_buf[i] = i * 10;
     }
 
-    cl_int result = cl_.queue.enqueueWriteBuffer(cl_buffer, CL_TRUE, 0,
-                                             sizeof(double) * 5, inputs_buf);
+    cl_int result = cl_.queue.enqueueWriteBuffer(
+        cl_buffer, CL_TRUE, 0, sizeof(double) * 5, inputs_buf);
     if (result != CL_SUCCESS) {
-      std::cerr << "Error enqueuing input write (Eval):  " << result << std::endl;
+      std::cerr << "Error enqueuing input write (Eval):  " << result
+                << std::endl;
       std::exit(1);
     }
 
