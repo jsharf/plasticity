@@ -2,9 +2,9 @@
 #define NNET_H
 #include "clutil/util.h"
 #include "math/geometry/dynamic_matrix.h"
-#include "math/memory/buffer.h"
 #include "math/memory/cl_buffer.h"
 #include "math/nnet/architecture.h"
+#include "math/nnet/error_layer.h"
 #include "math/nnet/layer.h"
 #include "math/nnet/layer_dimensions.h"
 #include "math/nnet/symbol_generator.h"
@@ -14,21 +14,21 @@
 
 #include <cmath>
 #include <fstream>
+#include <future>
 #include <map>
 #include <memory>
 #include <sstream>
-#include <future>
 
 // ASSERT for opencl calls.
-#define CL_CHECK(line) do { \
-  cl_int res = line; \
-  if (res != CL_SUCCESS) { \
-    std::cerr << "Error running line: " #line << std::endl; \
-    std::cerr << "Code: " << res << std::endl; \
-    std::exit(1); \
-  } \
-} while(0);
-
+#define CL_CHECK(line)                                        \
+  do {                                                        \
+    cl_int res = line;                                        \
+    if (res != CL_SUCCESS) {                                  \
+      std::cerr << "Error running line: " #line << std::endl; \
+      std::cerr << "Code: " << res << std::endl;              \
+      std::exit(1);                                           \
+    }                                                         \
+  } while (0);
 
 namespace nnet {
 
@@ -53,16 +53,11 @@ class Nnet {
     InitToOne,
   };
 
-  enum LossFunction {
-    MeanSquared = 0,
-    CrossEntropy,
-  };
-
   // TODO(sharf): create factory class since C++'s doesn't allow named
   // parameters and I want this API to be readable.
-  Nnet(const Architecture& model, InitStrategy weight_initialization = Xavier,
+  Nnet(const Architecture &model, InitStrategy weight_initialization = Xavier,
        LossFunction loss_function = MeanSquared)
-      : model_(model), loss_function_(loss_function) {
+      : model_(model), error_(loss_function, model.output_size()) {
     if (!model_.VerifyArchitecture()) {
       std::cerr << "Invalid dimensions passed to Nnet(): " << model.to_string()
                 << std::endl;
@@ -76,34 +71,36 @@ class Nnet {
     CalculateInitialWeights(weight_initialization);
   }
 
-  std::unique_ptr<memory::Buffer> MakeBuffer(size_t size) {
+  std::unique_ptr<memory::ClBuffer> MakeBuffer(size_t size) {
     return std::make_unique<memory::ClBuffer>(
         size, &opencl_.queue, &std::get<0>(opencl_.compilation_units));
   }
 
-  std::unique_ptr<memory::Buffer> MakeBuffer(const std::vector<double>& values) {
-    return std::make_unique<memory::ClBuffer>(values, &opencl_.queue, &std::get<0>(opencl_.compilation_units));
+  std::unique_ptr<memory::ClBuffer> MakeBuffer(
+      const std::vector<double> &values) {
+    return std::make_unique<memory::ClBuffer>(
+        values, &opencl_.queue, &std::get<0>(opencl_.compilation_units));
   }
 
-  std::unique_ptr<memory::Buffer> MakeBuffer() {
+  std::unique_ptr<memory::ClBuffer> MakeBuffer() {
     return std::make_unique<memory::ClBuffer>(
         &opencl_.queue, &std::get<0>(opencl_.compilation_units));
   }
 
   void RegisterBuffer(memory::ClBuffer *buffer) {
-    buffer->RegisterBackend(&opencl_.queue,
-                            &std::get<0>(opencl_.compilation_units));
+    buffer->RegisterClBackend(&opencl_.queue,
+                              &std::get<0>(opencl_.compilation_units));
   }
 
   // Intended mostly for testing or low-level hacks. Proceed with caution.
-  Architecture& model() {
+  Architecture &model() {
     for (size_t i = 0; i < model_.layers.size(); ++i) {
       model_.layers[i].weight_buffer().MoveToCpu();
     }
     return model_;
   }
 
-  const Layer& layer(size_t layer) {
+  const Layer &layer(size_t layer) {
     model_.layers[layer].weight_buffer().MoveToCpu();
     return model_.layers[layer];
   }
@@ -116,17 +113,19 @@ class Nnet {
     std::cout << "Generating and compiling OpenCl kernels. This takes a while"
               << " the first time..." << std::endl;
     std::vector<std::future<std::string>> kernel_futures;
-    for (const Layer& layer : model_.layers) {
+    for (const Layer &layer : model_.layers) {
       std::cerr << "/";
       kernel_futures.push_back(std::async(
           std::launch::async, &Layer::GenerateEvaluationKernel, &layer));
       kernel_futures.push_back(std::async(
           std::launch::async, &Layer::GenerateTrainingKernels, &layer));
     }
+    kernel_futures.push_back(std::async(
+        std::launch::async, &ErrorLayer::GenerateErrorKernels, &error_));
 
     // Wait for kernels to be ready.
     std::vector<std::string> kernel_sources;
-    for (auto& kernel_future : kernel_futures) {
+    for (auto &kernel_future : kernel_futures) {
       std::cerr << "\\";
       kernel_sources.push_back(kernel_future.get());
     }
@@ -135,7 +134,7 @@ class Nnet {
     std::cout << "Done!" << std::endl;
   }
 
-  static bool ClDevicesAreEqual(const cl::Device& a, const cl::Device& b) {
+  static bool ClDevicesAreEqual(const cl::Device &a, const cl::Device &b) {
     std::string aname;
     std::string bname;
     if (CL_SUCCESS != a.getInfo(CL_DEVICE_NAME, &aname)) {
@@ -161,13 +160,13 @@ class Nnet {
     return devices[0];
   }
 
-  double& GetWeight(size_t layer, size_t weight_index) {
+  double &GetWeight(size_t layer, size_t weight_index) {
     model_.layers[layer].weight_buffer().MoveToCpu();
     return model_.layers[layer].weight_buffer()[weight_index];
   }
 
-  Matrix<Number> Evaluate(memory::ClBuffer& in) {
-    std::unique_ptr<std::vector<cl::Buffer>> _(nullptr);
+  memory::ClBuffer Evaluate(memory::ClBuffer *in) {
+    std::unique_ptr<std::vector<memory::ClBuffer>> _(nullptr);
     return Evaluate(in, _);
   }
 
@@ -175,18 +174,17 @@ class Nnet {
   // Layer outputs will only be saved if out_layer_outputs is non-null.
   // Otherwise it will be ignored.
   memory::ClBuffer Evaluate(
-      const std::unique_ptr<memory::ClBuffer>& inputs
-      std::unique_ptr<std::vector<cl::Buffer>>& out_layer_outputs) {
+      memory::ClBuffer *inputs,
+      std::unique_ptr<std::vector<memory::ClBuffer>> &out_layer_outputs) {
     CompileKernelsIfRequired();
 
-    cl::Context& context = std::get<0>(opencl_.compilation_units);
+    cl::Context &context = std::get<0>(opencl_.compilation_units);
 
     // Create a queue (a queue of commands that the GPU will execute)
     // Assumes that all kernels compiled for same device.
-    cl::CommandQueue& queue = opencl_.queue;
+    cl::CommandQueue &queue = opencl_.queue;
 
-    memory::ClBuffer outputs = MakeBuffer();
-    outputs.MoveToGpu();
+    std::unique_ptr<memory::ClBuffer> outputs;
 
     inputs->MoveToGpu();
 
@@ -197,52 +195,38 @@ class Nnet {
     }
 
     for (size_t index = 0; index < model_.layers.size(); ++index) {
-      Layer& layer = model_.layers[index];
-      cl_int buffer_init;
-      outputs = cl::Buffer(context, CL_MEM_READ_WRITE,
-                           layer.GetDimensions().num_outputs * sizeof(Number), nullptr, &buffer_init);
-      if (buffer_init != CL_SUCCESS) {
-        std::cerr << "Could not initialize output buffer" << std::endl;
-        std::cerr << "Layer: " << layer.LayerSuffix() << std::endl;
-        std::exit(1);
-      }
+      Layer &layer = model_.layers[index];
+
+      outputs = MakeBuffer(model_.layers[0].GetDimensions.num_outputs);
 
       // Evaluate.
+      cl_int result;
       std::string kernel_name = layer.EvaluateKernelName();
-      cl::Kernel& evaluate = CacheFetchKernel(kernel_name);
-      CL_CHECK(evaluate.setArg(0, *inputs.gpu_buffer()));
+      cl::Kernel &evaluate = CacheFetchKernel(kernel_name);
+      CL_CHECK(evaluate.setArg(0, *inputs->gpu_buffer()));
       CL_CHECK(evaluate.setArg(1, *layer.weight_buffer().gpu_buffer()));
-      CL_CHECK(evaluate.setArg(2, outputs));
+      CL_CHECK(evaluate.setArg(2, *outputs->gpu_buffer()));
       result = queue.enqueueNDRangeKernel(
           evaluate, cl::NullRange,
           cl::NDRange(layer.GetDimensions().num_outputs), cl::NullRange);
       if (result != CL_SUCCESS) {
-        std::cerr << "Error enqueuing Evaluation Kernel:  " << result << std::endl;
+        std::cerr << "Error enqueuing Evaluation Kernel:  " << result
+                  << std::endl;
         std::cerr << "Layer: " << layer.LayerSuffix() << std::endl;
         std::exit(1);
       }
 
       if (out_layer_outputs) {
-        out_layer_outputs->push_back(outputs);
+        out_layer_outputs->emplace_back(
+            &opencl_.queue, &std::get<0>(opencl_.compilation_units));
+        out_layer_outputs->back() = outputs;
       }
 
       // inputs = outputs (output of this layer is input for next layer).
-      *inputs.gpu_buffer() = outputs;
+      inputs = outputs.release();
     }
 
-    Number output_buf[output_size()];
-    result = queue.enqueueReadBuffer(
-        outputs, CL_TRUE, 0, sizeof(Number) * output_size(), output_buf);
-    if (result != CL_SUCCESS) {
-      std::cerr << "Failed to read new weight values from gpu. Error code: "
-                << result << std::endl;
-      std::exit(1);
-    }
-    Matrix<Number> output(output_size(), 1);
-    for (size_t i = 0; i < output_size(); ++i) {
-      output.at(i, 0) = output_buf[i];
-    }
-    return output;
+    return outputs;
   }
 
   void PrintColumnVector(std::string label, Matrix<Number> colvec) {
@@ -250,8 +234,8 @@ class Nnet {
               << "\n}" << std::endl;
   }
 
-  cl::Buffer ColumnVectorToGpuBuffer(const cl::Context& context,
-                                     cl::CommandQueue* queue,
+  cl::Buffer ColumnVectorToGpuBuffer(const cl::Context &context,
+                                     cl::CommandQueue *queue,
                                      Matrix<Number> colvec) {
     if (colvec.dimensions().cols != 1) {
       std::cerr << "Matrix passed to ColumnVectorToGpuBuffer() is NOT a column "
@@ -269,113 +253,117 @@ class Nnet {
     cl_int result = queue->enqueueWriteBuffer(
         gpu_buffer, CL_TRUE, 0, sizeof(Number) * num_values, value_buf);
     if (result != CL_SUCCESS) {
-      std::cerr << "Error enqueuing write to GPU buffer:  " << result << std::endl;
+      std::cerr << "Error enqueuing write to GPU buffer:  " << result
+                << std::endl;
       std::exit(1);
     }
     return gpu_buffer;
   }
 
-  double Error(Matrix<Number> in, Matrix<Number> o) {
-    Matrix<symbolic::Expression> output_symbolic =
-        GenerateOutputLayer(output_size());
+  double Error(memory::ClBuffer *actual_output, memory::ClBuffer *expected) {
+    CompileKernelsIfRequired();
 
-    Matrix<Number> actual_output = Evaluate(in);
+    actual_output->MoveToGpu();
+    expected->MoveToGpu();
 
-    // If the initial error expressions haven't been generated yet, derive and
-    // generate them now.
-    if (!output_gradients_symbolic_) {
-      Matrix<symbolic::Expression> expected_symbolic(o.dimensions().rows, 1);
-      for (size_t i = 0; i < o.dimensions().rows; ++i) {
-        expected_symbolic.at(i, 0) =
-            symbolic::NumericValue("E[" + std::to_string(i) + "]");
-      }
+    memory::ClBuffer error_components = *MakeBuffer(error_.size());
+    error_components.MoveToGpu();
 
-      error_ = std::make_unique<symbolic::Expression>(
-          GenerateErrorExpression(output_symbolic, expected_symbolic));
+    // Calculate error component for each output in parallel.
+    cl_int result;
+    std::string kernel_name = error_.ErrorKernelName();
+    cl::Kernel &evaluate = CacheFetchKernel(kernel_name);
+    CL_CHECK(evaluate.setArg(0, *actual_output->gpu_buffer()));
+    CL_CHECK(evaluate.setArg(1, *expected->gpu_buffer()));
+    CL_CHECK(evaluate.setArg(2, *error_components.gpu_buffer()));
+    result = queue.enqueueNDRangeKernel(
+        evaluate, cl::NullRange, cl::NDRange(error_.size()), cl::NullRange);
+    if (result != CL_SUCCESS) {
+      std::cerr << "Error enqueuing Error Kernel:  " << result << std::endl;
+      std::exit(1);
     }
 
-    // Build environment for evaluating output gradients.
-    symbolic::Environment env;
-    for (size_t i = 0; i < output_size(); ++i) {
-      env[generator_.O(i)] = symbolic::NumericValue(actual_output.at(i, 0));
-      env["E[" + std::to_string(i) + "]"] = symbolic::NumericValue(o.at(i, 0));
+    error_components.MoveToCpu();
+    double error = 0;
+    for (size_t i = 0; i < error_components.size(); ++i) {
+      error += error_components[i];
     }
 
-    return error_->Bind(env).Evaluate()->real();
+    return error;
   }
 
-  void Train(const Matrix<Number>& in, const Matrix<Number>& o,
-             const LearningParameters& params) {
-    std::unique_ptr<Matrix<Number>> _(nullptr);
-    return Train(in, o, params,  _);
+  memory::ClBuffer ErrorGradients(memory::ClBuffer *actual_output,
+                                  memory::ClBuffer *expected) {
+    CompileKernelsIfRequired();
+
+    actual_output->MoveToGpu();
+    expected->MoveToGpu();
+
+    memory::ClBuffer error_gradients = *MakeBuffer(error_.size());
+    error_gradients.MoveToGpu();
+
+    // Calculate error component for each output in parallel.
+    cl_int result;
+    std::string kernel_name = error_.GradientKernelName();
+    cl::Kernel &evaluate = CacheFetchKernel(kernel_name);
+    CL_CHECK(evaluate.setArg(0, *actual_output->gpu_buffer()));
+    CL_CHECK(evaluate.setArg(1, *expected->gpu_buffer()));
+    CL_CHECK(evaluate.setArg(2, *error_gradients.gpu_buffer()));
+    result = queue.enqueueNDRangeKernel(
+        evaluate, cl::NullRange, cl::NDRange(error_.size()), cl::NullRange);
+    if (result != CL_SUCCESS) {
+      std::cerr << "Error enqueuing Error Kernel:  " << result << std::endl;
+      std::exit(1);
+    }
+
+    return error_gradients;
   }
 
-  void Train(const Matrix<Number>& in, const Matrix<Number>& o,
-             const LearningParameters& params,
-             std::unique_ptr<Matrix<Number>>& input_gradients) {
+  void Train(memory::ClBuffer *in, memory::ClBuffer *o,
+             const LearningParameters &params) {
+    std::unique_ptr<memory::ClBuffer> _(nullptr);
+    return Train(in, o, params, _);
+  }
+
+  void Train(memory::ClBuffer *in, memory::ClBuffer *o,
+             const LearningParameters &params,
+             std::unique_ptr<memory::ClBuffer> &input_gradients) {
     cl::Device device = SelectDevice();
 
     CompileKernelsIfRequired();
 
-    cl::Context& context = std::get<0>(opencl_.compilation_units);
+    cl::Context &context = std::get<0>(opencl_.compilation_units);
 
     // Create a queue (a queue of commands that the GPU will execute)
     // Assumes that all kernels compiled for same device.
-    cl::CommandQueue& queue = opencl_.queue;
+    cl::CommandQueue &queue = opencl_.queue;
 
     // Forward pass, store each layer's outputs as a column vector in
     // layer_outputs.
-    std::unique_ptr<std::vector<cl::Buffer>> layer_outputs =
-        std::make_unique<std::vector<cl::Buffer>>();
-    Matrix<Number> actual_output = Evaluate(in, layer_outputs);
+    std::unique_ptr<std::vector<memory::ClBuffer>> layer_outputs =
+        std::make_unique<std::vector<memory::ClBuffer>>();
+    memory::ClBuffer actual_output = Evaluate(in, layer_outputs);
 
-    Matrix<symbolic::Expression> output_symbolic =
-        GenerateOutputLayer(output_size());
-
-    // If the initial error expressions haven't been generated yet, derive and
-    // generate them now.
-    if (!output_gradients_symbolic_) {
-      Matrix<symbolic::Expression> expected_symbolic(o.dimensions().rows, 1);
-      for (size_t i = 0; i < o.dimensions().rows; ++i) {
-        expected_symbolic.at(i, 0) =
-            symbolic::NumericValue("E[" + std::to_string(i) + "]");
-      }
-
-      error_ = std::make_unique<symbolic::Expression>(
-          GenerateErrorExpression(output_symbolic, expected_symbolic));
-
-      // Generate symbolic expressions for output gradients.
-      output_gradients_symbolic_ = std::make_unique<Matrix<symbolic::Expression>>(output_size(), 1);
-      for (size_t i = 0; i < output_size(); ++i) {
-        output_gradients_symbolic_->at(i, 0) =
-            error_->Derive(output_symbolic.at(i, 0).to_string());
-      }
-    }
-
-    // Build environment for evaluating output gradients.
-    symbolic::Environment env;
-    for (size_t i = 0; i < output_size(); ++i) {
-        env[generator_.O(i)] = symbolic::NumericValue(actual_output.at(i, 0));
-        env["E[" + std::to_string(i) + "]"] = symbolic::NumericValue(o.at(i, 0));
-    }
-
-    double error_value = error_->Bind(env).Evaluate()->real();
+    // Significant draw of GPU memory bus bandwidth. This should be removed as
+    // calculating the error forces us to take data from the GPU and move it
+    // back to the CPU.
+    double error_value = Error(&actual_output, o);
     if (std::isnan(error_value)) {
       std::cerr << "The error has diverged to NaN" << std::endl;
-      std::cerr << "Training value input\n=========\n " << in.to_string() << std::endl;
-      std::cerr << "Training value expected output\n=========\n " << o.to_string() << std::endl;
+      // std::cerr << "Training value input\n=========\n " << in.to_string() <<
+      // std::endl;
+      // std::cerr << "Training value expected output\n=========\n " <<
+      // o.to_string() << std::endl;
+      actual_output.MoveToCpu();
       std::cerr << "Training value actual output\n==========\n "
                 << actual_output.to_string() << std::endl;
-      std::cerr << "Weights\n==============\n" << WeightsToString() << std::endl;
+      std::cerr << "Weights\n==============\n"
+                << WeightsToString() << std::endl;
       std::exit(1);
     }
 
     // Generate output gradients (first part of backprop).
-    Matrix<Number> gradients =
-        symbolic::MapBindAndEvaluate(*output_gradients_symbolic_, env);
-
-    cl::Buffer gpu_gradients =
-          ColumnVectorToGpuBuffer(context, &queue, gradients);
+    memory::ClBuffer gpu_gradients = ErrorGradients(&actual_output, o);
 
     // Load all weights into the GPU (weights which are already in the GPU will
     // be skipped).
@@ -389,9 +377,10 @@ class Nnet {
     // kernel to calculate weight updates. Then pass it to the input gradient
     // kernel to calculate the gradient for the next layer.
     for (int i = model_.layers.size() - 1; i >= 0; --i) {
-      auto& layer = model_.layers[i];
-      const cl::Buffer& gpu_layer_input =
-          (i > 0) ? layer_outputs->at(i - 1) : ColumnVectorToGpuBuffer(context, &queue, in);
+      auto &layer = model_.layers[i];
+      const cl::Buffer &gpu_layer_input =
+          (i > 0) ? layer_outputs->at(i - 1)
+                  : ColumnVectorToGpuBuffer(context, &queue, in);
 
       // Load in gradients
       cl::Buffer gpu_new_gradients(
@@ -401,10 +390,10 @@ class Nnet {
       if (layer.GetDimensions().num_inputs > 0) {
         // Backprop gradient calculation.
         std::string input_kernel_name = layer.InputGradientKernelName();
-        cl::Kernel& input_update = CacheFetchKernel(input_kernel_name);
+        cl::Kernel &input_update = CacheFetchKernel(input_kernel_name);
         CL_CHECK(input_update.setArg(0, gpu_layer_input));
         CL_CHECK(input_update.setArg(1, *layer.weight_buffer().gpu_buffer()));
-        CL_CHECK(input_update.setArg(2, gpu_gradients));
+        CL_CHECK(input_update.setArg(2, *gpu_gradients.gpu_buffer()));
         CL_CHECK(input_update.setArg(3, gpu_new_gradients));
         cl_int result = queue.enqueueNDRangeKernel(
             input_update, cl::NullRange,
@@ -424,16 +413,17 @@ class Nnet {
       cl::Buffer learning_rate_buff(context, CL_MEM_READ_ONLY, sizeof(Number));
       CL_CHECK(queue.enqueueWriteBuffer(learning_rate_buff, CL_TRUE, 0,
                                         sizeof(Number), &params.learning_rate));
-  
+
       if (layer.weight_buffer().size() > 0) {
-        cl::Buffer gpu_new_weights(context, CL_MEM_READ_WRITE,
-                                   layer.weight_buffer().size() * sizeof(Number));
+        cl::Buffer gpu_new_weights(
+            context, CL_MEM_READ_WRITE,
+            layer.weight_buffer().size() * sizeof(Number));
         // Backprop layer weight updates.
         std::string weight_kernel_name = layer.WeightGradientKernelName();
-        cl::Kernel& weight_update = CacheFetchKernel(weight_kernel_name);
+        cl::Kernel &weight_update = CacheFetchKernel(weight_kernel_name);
         CL_CHECK(weight_update.setArg(0, gpu_layer_input));
         CL_CHECK(weight_update.setArg(1, *layer.weight_buffer().gpu_buffer()));
-        CL_CHECK(weight_update.setArg(2, gpu_gradients));
+        CL_CHECK(weight_update.setArg(2, *gpu_gradients.gpu_buffer()));
         CL_CHECK(weight_update.setArg(3, gpu_new_weights));
         CL_CHECK(weight_update.setArg(4, learning_rate_buff));
         cl_int result = queue.enqueueNDRangeKernel(
@@ -453,77 +443,8 @@ class Nnet {
       gpu_gradients = gpu_new_gradients;
     }
     if (input_gradients) {
-      size_t num_inputs = in.dimensions().rows;
-      input_gradients->resize(num_inputs, 1);
-      // Load in final gradients.
-      std::vector<Number> temp_gradients(num_inputs, 0);
-      CL_CHECK(queue.enqueueReadBuffer(gpu_gradients, CL_TRUE, 0,
-                                       sizeof(Number) * num_inputs,
-                                       temp_gradients.data()));
-      for (size_t i = 0; i < num_inputs; ++i) {
-        input_gradients->at(i, 0) = temp_gradients[i];
-      }
+      *input_gradients = gpu_gradients;
     }
-  }
-
-  // TODO(sharf): move loss functions to separate file.
-  symbolic::Expression GenerateErrorExpression(
-      const Matrix<symbolic::Expression>& actual,
-      const Matrix<symbolic::Expression>& expected) const {
-    switch (loss_function_) {
-      case MeanSquared:
-        return GenerateMseErrorExpression(actual, expected);
-      case CrossEntropy:
-        return GenerateCrossEntropyErrorExpression(actual, expected);
-      default:
-        std::cerr << "Error: Unknown loss function selected." << std::endl;
-        std::exit(1);
-    }
-  }
-
-  symbolic::Expression GenerateMseErrorExpression(
-      const Matrix<symbolic::Expression>& actual,
-      const Matrix<symbolic::Expression>& expected) const {
-    if (actual.size() != expected.size()) {
-      std::cerr << "Invalid expression passed to "
-                   "GenerateMseErrorExpression(Matrix<symbolic::Expression>, "
-                   "Matrix<symbolic::Expression>)"
-                << std::endl;
-      std::exit(1);
-    }
-
-    symbolic::Expression error;
-    for (size_t row = 0; row < actual.dimensions().rows; ++row) {
-      symbolic::Expression output_error =
-          (expected.at(row, 0) - actual.at(row, 0));
-      error = error + (output_error * output_error);
-    }
-    return error / 2;
-  }
-
-  symbolic::Expression GenerateCrossEntropyErrorExpression(
-      const Matrix<symbolic::Expression>& actual,
-      const Matrix<symbolic::Expression>& expected) const {
-    if (actual.size() != expected.size()) {
-      std::cerr << "Invalid expression passed to "
-                   "GenerateCrossEntropyErrorExpression(Matrix<symbolic::"
-                   "Expression>, "
-                   "Matrix<symbolic::Expression>)"
-                << std::endl;
-      std::exit(1);
-    }
-
-    symbolic::Expression error(0.0);
-    for (size_t row = 0; row < actual.dimensions().rows; ++row) {
-      symbolic::Expression e = expected.at(row, 0);
-      symbolic::Expression a = actual.at(row, 0);
-      // Should be SafeLog?
-      symbolic::Expression output_error = (e * symbolic::SafeLog(a));
-      error = error + output_error;
-    }
-
-    // The error formula above is actually negative...
-    return (symbolic::Expression(-1.0) * error);
   }
 
   std::string WeightsToString() {
@@ -532,7 +453,7 @@ class Nnet {
     for (size_t i = 0; i < model_.layers.size(); ++i) {
       output << model_.layers[i].WeightsToString();
       if (i != model_.layers.size() - 1) {
-       output << ",";
+        output << ",";
       }
       output << std::endl;
     }
@@ -582,15 +503,12 @@ class Nnet {
   Architecture model_;
 
   SymbolGenerator generator_;
-  LossFunction loss_function_;
+  ErrorLayer error_;
 
-  // Generated error gradient expressions.
-  std::unique_ptr<Matrix<symbolic::Expression>> output_gradients_symbolic_;
-  std::unique_ptr<symbolic::Expression> error_;
-
-  cl::Kernel& CacheFetchKernel(const std::string& kernel_name) {
+  cl::Kernel &CacheFetchKernel(const std::string &kernel_name) {
     if (opencl_.kernels.find(kernel_name) == opencl_.kernels.end()) {
-      opencl_.kernels[kernel_name] = cl::Kernel(std::get<1>(opencl_.compilation_units), kernel_name.c_str());
+      opencl_.kernels[kernel_name] = cl::Kernel(
+          std::get<1>(opencl_.compilation_units), kernel_name.c_str());
     }
     return opencl_.kernels[kernel_name];
   }
@@ -604,8 +522,8 @@ class Nnet {
     std::unordered_map<std::string, cl::Kernel> kernels;
   };
 
-  OpenClState CompileCl(const std::vector<std::string>& kernel_source,
-                        const cl::Device& device) {
+  OpenClState CompileCl(const std::vector<std::string> &kernel_source,
+                        const cl::Device &device) {
     OpenClState cl_state;
     cl_state.device = device;
     cl_state.compiled = true;

@@ -32,9 +32,9 @@ class Layer {
 
   // Constructors.
   Layer() = delete;
-  explicit Layer(std::unique_ptr<LayerImpl>&& root);
-  Layer(Layer&& rhs);
-  Layer(const Layer& rhs);
+  explicit Layer(std::unique_ptr<LayerImpl> &&root);
+  Layer(Layer &&rhs);
+  Layer(const Layer &rhs);
 
   // Destructor.
   virtual ~Layer() {}
@@ -42,8 +42,8 @@ class Layer {
   void RegisterToNetwork(nnet::Nnet *network);
 
   // Assignment Operators.
-  Layer& operator=(const Layer& rhs) = delete;
-  Layer& operator=(Layer&& rhs) = delete;
+  Layer &operator=(const Layer &rhs) = delete;
+  Layer &operator=(Layer &&rhs) = delete;
 
   // Dense Layer constructor. Dense layers alone do not contain an activation
   // function. This is done via a separate activation layer.
@@ -51,18 +51,18 @@ class Layer {
 
   // Convolutional Layer constructors.
   static Layer MakeConvolutionLayer(size_t layer_index,
-                                    const VolumeDimensions& dimensions,
-                                    const FilterParams& params);
+                                    const VolumeDimensions &dimensions,
+                                    const FilterParams &params);
 
   static Layer MakeActivationLayer(
       size_t layer_index, size_t size,
-      const ActivationFunctionType& activation_function);
+      const ActivationFunctionType &activation_function);
 
   static Layer MakeSoftmaxLayer(size_t layer_index, size_t size);
 
   static Layer MakeMaxPoolLayer(size_t layer_index,
-                                const VolumeDimensions& input,
-                                const AreaDimensions& output);
+                                const VolumeDimensions &input,
+                                const AreaDimensions &output);
 
   std::string WeightsToString();
 
@@ -70,7 +70,7 @@ class Layer {
   void XavierInitializeWeights();
   void InitializeWeights(double value);
 
-  double& W(size_t index) {
+  double &W(size_t index) {
     if (index >= weights_.size()) {
       std::cerr << "Too large weight index: " << index << std::endl;
       std::exit(1);
@@ -79,7 +79,7 @@ class Layer {
     return weights_[index];
   }
 
-  memory::ClBuffer& weight_buffer() { return weights_; }
+  memory::ClBuffer &weight_buffer() { return weights_; }
 
   Dimensions GetDimensions() const { return impl_->GetDimensions(); }
 

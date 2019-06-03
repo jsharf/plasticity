@@ -18,9 +18,9 @@ constexpr char kOutputIndex[] = "output_index";
 constexpr char kInputIndex[] = "input_index";
 constexpr char kWeightIndex[] = "weight_index";
 
-} // namespace kernel_symbols
+}  // namespace kernel_symbols
 
-} // namespace nnet
+}  // namespace nnet
 
 // Layer Class Implementation.
 
@@ -28,8 +28,7 @@ constexpr char kWeightIndex[] = "weight_index";
 Layer::Layer(std::unique_ptr<LayerImpl> &&root)
     : impl_(std::move(root)), weights_(impl_->weights().size()) {}
 Layer::Layer(Layer &&other)
-    : impl_(std::move(other.impl_)),
-      weights_(std::move(other.weights_)) {}
+    : impl_(std::move(other.impl_)), weights_(std::move(other.weights_)) {}
 Layer::Layer(const Layer &other)
     : impl_(other.impl_->Clone()), weights_(other.weights_) {}
 
@@ -111,7 +110,7 @@ std::string FileToString(std::string filepath) {
   return buffer.str();
 }
 
-} // namespace
+}  // namespace
 
 std::string Layer::GenerateEvaluationKernel() const {
   std::string evaluate_source =
@@ -165,7 +164,7 @@ std::string Layer::WeightsToString() {
   for (size_t i = 0; i < weights_.size(); ++i) {
     output << weights_[i];
     if (i != weights_.size() - 1) {
-     output << ",";
+      output << ",";
     }
     output << std::endl;
   }
@@ -235,4 +234,4 @@ Matrix<Expression> Layer::OutputExpression() const {
   return result;
 }
 
-} // namespace nnet
+}  // namespace nnet

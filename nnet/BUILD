@@ -26,6 +26,7 @@ cc_library(
     visibility = ["//math"],
     deps = [
         ":architecture",
+        ":error_layer",
         ":layer",
         ":layer_dimensions",
         "//clutil:util",
@@ -40,7 +41,11 @@ cc_library(
 cc_library(
     name = "layer",
     srcs = ["layer.cc"],
-    hdrs = ["layer.h", "nnet.h", "architecture.h"],
+    hdrs = [
+        "architecture.h",
+        "layer.h",
+        "nnet.h",
+    ],
     copts = [
         "--std=c++1z",
     ],
@@ -52,14 +57,32 @@ cc_library(
         ":activation_layer",
         ":convolution_layer",
         ":dense_layer",
+        ":error_layer",
         ":layer_impl",
         ":max_pool_layer",
         ":softmax_layer",
         "//clutil:util",
-        "//math/codegen:codegen",
+        "//math/codegen",
         "//math/geometry:dynamic_matrix",
         "//math/memory:cl_buffer",
         "//math/stats:normal",
+        "//math/symbolic",
+        "//math/symbolic:symbolic_util",
+    ],
+)
+
+cc_library(
+    name = "error_layer",
+    srcs = ["error_layer.cc"],
+    hdrs = ["error_layer.h"],
+    copts = [
+        "--std=c++1z",
+    ],
+    visibility = ["//math"],
+    deps = [
+        ":layer_dimensions",
+        "//clutil:util",
+        "//math/geometry:dynamic_matrix",
         "//math/symbolic",
         "//math/symbolic:symbolic_util",
     ],
@@ -75,7 +98,7 @@ cc_library(
     visibility = ["//math"],
     deps = [
         ":layer_dimensions",
-        "//math/codegen:codegen",
+        "//math/codegen",
         "//math/geometry:dynamic_matrix",
         "//math/stats:normal",
         "//math/symbolic",
@@ -85,8 +108,8 @@ cc_library(
 
 cc_library(
     name = "symbol_generator",
-    hdrs = ["symbol_generator.h"],
     srcs = ["symbol_generator.cc"],
+    hdrs = ["symbol_generator.h"],
     copts = [
         "--std=c++1z",
     ],
@@ -94,7 +117,7 @@ cc_library(
     deps = [
         ":layer_dimensions",
         ":layer_impl",
-        "//math/codegen:codegen",
+        "//math/codegen",
         "//math/codegen:codegen_util",
         "//math/geometry:dynamic_matrix",
         "//math/stats:normal",
@@ -126,7 +149,7 @@ cc_library(
         ":layer_dimensions",
         ":layer_impl",
         ":symbol_generator",
-        "//math/codegen:codegen",
+        "//math/codegen",
         "//math/geometry:dynamic_matrix",
         "//math/stats:normal",
         "//math/symbolic",
@@ -146,7 +169,7 @@ cc_library(
         ":layer_dimensions",
         ":layer_impl",
         ":symbol_generator",
-        "//math/codegen:codegen",
+        "//math/codegen",
         "//math/geometry:dynamic_matrix",
         "//math/stats:normal",
         "//math/symbolic",
@@ -165,7 +188,7 @@ cc_library(
         ":layer_dimensions",
         ":layer_impl",
         ":symbol_generator",
-        "//math/codegen:codegen",
+        "//math/codegen",
         "//math/geometry:dynamic_matrix",
         "//math/stats:normal",
         "//math/symbolic",
@@ -185,7 +208,7 @@ cc_library(
         ":layer_dimensions",
         ":layer_impl",
         ":symbol_generator",
-        "//math/codegen:codegen",
+        "//math/codegen",
         "//math/geometry:dynamic_matrix",
         "//math/stats:normal",
         "//math/symbolic",
@@ -205,7 +228,7 @@ cc_library(
         ":convolution_layer",
         ":layer_dimensions",
         ":layer_impl",
-        "//math/codegen:codegen",
+        "//math/codegen",
         "//math/geometry:dynamic_matrix",
         "//math/stats:normal",
         "//math/symbolic",
@@ -221,8 +244,14 @@ cc_binary(
     ],
     linkopts = select({
         "//clutil:osx": ["-framework OpenCL"],
-        "//clutil:linux": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
-        "//conditions:default": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
+        "//clutil:linux": [
+            "-lOpenCL",
+            "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+        ],
+        "//conditions:default": [
+            "-lOpenCL",
+            "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+        ],
     }),
     visibility = ["//math"],
     deps = [
@@ -240,8 +269,14 @@ cc_binary(
     ],
     linkopts = select({
         "//clutil:osx": ["-framework OpenCL"],
-        "//clutil:linux": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
-        "//conditions:default": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
+        "//clutil:linux": [
+            "-lOpenCL",
+            "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+        ],
+        "//conditions:default": [
+            "-lOpenCL",
+            "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+        ],
     }),
     visibility = ["//math"],
     deps = [
@@ -263,8 +298,14 @@ cc_binary(
     ],
     linkopts = select({
         "//clutil:osx": ["-framework OpenCL"],
-        "//clutil:linux": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
-        "//conditions:default": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
+        "//clutil:linux": [
+            "-lOpenCL",
+            "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+        ],
+        "//conditions:default": [
+            "-lOpenCL",
+            "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+        ],
     }),
     visibility = ["//math"],
     deps = [
@@ -284,8 +325,14 @@ cc_test(
     ],
     linkopts = select({
         "//clutil:osx": ["-framework OpenCL"],
-        "//clutil:linux": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
-        "//conditions:default": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
+        "//clutil:linux": [
+            "-lOpenCL",
+            "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+        ],
+        "//conditions:default": [
+            "-lOpenCL",
+            "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+        ],
     }),
     deps = [
         ":layer",

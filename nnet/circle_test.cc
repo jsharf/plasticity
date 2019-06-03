@@ -1,4 +1,5 @@
 #include "math/geometry/dynamic_matrix.h"
+#include "math/nnet/layer_dimensions.h"
 #include "math/nnet/nnet.h"
 #include "math/symbolic/expression.h"
 
@@ -18,7 +19,7 @@ int main() {
   nnet::Architecture model(kInputSize);
   model.AddDenseLayer(kLayerSize);
   model.AddDenseLayer(kOutputSize);
-  nnet::Nnet test_net(model, nnet::Nnet::Xavier, nnet::Nnet::MeanSquared);
+  nnet::Nnet test_net(model, nnet::Nnet::Xavier, nnet::MeanSquared);
 
   std::vector<std::tuple<std::vector<double>, bool>> examples;
 
@@ -36,12 +37,14 @@ int main() {
 
   for (const std::tuple<std::vector<double>, double>& example : examples) {
     auto& input_buffer = test_net.MakeBuffer(std::get<0>(example));
-    std::cout << "curr output for train example: " << test_net.Evaluate(input_buffer).at(0, 0) << std::endl;
-    std::cout << "Training w curr output: " << std::get<1>(example) << std::endl;
+    std::cout << "curr output for train example: "
+              << test_net.Evaluate(input_buffer).at(0, 0) << std::endl;
+    std::cout << "Training w curr output: " << std::get<1>(example)
+              << std::endl;
     test_net.Train(std::get<0>(example),
-                     Matrix<nnet::Number>(
-                         {{static_cast<nnet::Number>(std::get<1>(example))}}),
-                     params);
+                   Matrix<nnet::Number>(
+                       {{static_cast<nnet::Number>(std::get<1>(example))}}),
+                   params);
   }
   std::cout << "done training!" << std::endl;
 
@@ -51,8 +54,7 @@ int main() {
     double pointx = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
     double pointy = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
     auto& input_buffer = test_net.MakeBuffer({pointx, pointy});
-    double output =
-        test_net.Evaluate(input_buffer).at(0, 0);
+    double output = test_net.Evaluate(input_buffer).at(0, 0);
     std::cerr << output << std::endl;
     std::cout << "((" << pointx << "," << pointy << ")," << output << ")"
               << std::endl;
