@@ -21,7 +21,7 @@ int main() {
   model.AddDenseLayer(kOutputSize);
   nnet::Nnet test_net(model, nnet::Nnet::Xavier, nnet::MeanSquared);
 
-  std::vector<std::tuple<std::vector<double>, bool>> examples;
+  std::vector<std::tuple<std::vector<double>, double>> examples;
 
   // Generate training samples.
   for (size_t i = 0; i < 10000; ++i) {
@@ -30,21 +30,22 @@ int main() {
 
     double in_unit_circle = ((x * x + y * y) <= 1.0) ? 1 : 0;
 
-    examples.push_back(std::make_tuple({x, y}, in_unit_circle));
+    examples.push_back(
+        std::make_tuple(std::vector<double>{x, y}, in_unit_circle));
   }
 
   nnet::Nnet::LearningParameters params{.learning_rate = 0.3};
 
   for (const std::tuple<std::vector<double>, double>& example : examples) {
-    auto& input_buffer = test_net.MakeBuffer(std::get<0>(example));
-    std::cout << "curr output for train example: "
-              << test_net.Evaluate(input_buffer).at(0, 0) << std::endl;
+    auto input = test_net.MakeBuffer(std::get<0>(example));
+    auto result_buffer = test_net.Evaluate(input);
+    result_buffer.MoveToCpu();
+    auto result = result_buffer[0];
+    std::cout << "curr output for train example: " << result << std::endl;
     std::cout << "Training w curr output: " << std::get<1>(example)
               << std::endl;
-    test_net.Train(std::get<0>(example),
-                   Matrix<nnet::Number>(
-                       {{static_cast<nnet::Number>(std::get<1>(example))}}),
-                   params);
+    auto expected_output = test_net.MakeBuffer({std::get<1>(example)});
+    test_net.Train(input, expected_output, params);
   }
   std::cout << "done training!" << std::endl;
 
@@ -53,8 +54,10 @@ int main() {
   for (size_t i = 0; i < 1000; ++i) {
     double pointx = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
     double pointy = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
-    auto& input_buffer = test_net.MakeBuffer({pointx, pointy});
-    double output = test_net.Evaluate(input_buffer).at(0, 0);
+    auto input_buffer = test_net.MakeBuffer({pointx, pointy});
+    auto output_buffer = test_net.Evaluate(input_buffer);
+    output_buffer.MoveToCpu();
+    double output = output_buffer[0];
     std::cerr << output << std::endl;
     std::cout << "((" << pointx << "," << pointy << ")," << output << ")"
               << std::endl;

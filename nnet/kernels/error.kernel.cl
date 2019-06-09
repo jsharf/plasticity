@@ -1,8 +1,8 @@
-kernel double CalculateError(const global double* O, const global double* E, int index) {
+double CalculateError(const global double* O, const global double* E, int index) {
   return ERROR_EXPRESSION_HERE;
 }
 
-kernel double CalculateErrorGradient(const global double* O, const global double* E, int index) {
+double CalculateErrorGradient(const global double* O, const global double* E, int index) {
   return GRADIENT_EXPRESSION_HERE;
 }
 
