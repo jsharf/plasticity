@@ -171,7 +171,7 @@ class Nnet {
     return model_.layers[layer].weight_buffer()[weight_index];
   }
 
-  memory::ClBuffer Evaluate(std::unique_ptr<memory::ClBuffer> &in) {
+  std::unique_ptr<memory::ClBuffer> Evaluate(const std::unique_ptr<memory::ClBuffer> &in) {
     std::unique_ptr<std::vector<memory::ClBuffer>> _(nullptr);
     return Evaluate(in, _);
   }
@@ -179,8 +179,8 @@ class Nnet {
   // (*out_layer_outputs)[i] is a GPU buffer containing the outputs of layer i.
   // Layer outputs will only be saved if out_layer_outputs is non-null.
   // Otherwise it will be ignored.
-  memory::ClBuffer Evaluate(
-      std::unique_ptr<memory::ClBuffer> &inputs,
+  std::unique_ptr<memory::ClBuffer> Evaluate(
+      const std::unique_ptr<memory::ClBuffer> &inputs,
       std::unique_ptr<std::vector<memory::ClBuffer>> &out_layer_outputs) {
     CompileKernelsIfRequired();
 
@@ -192,6 +192,8 @@ class Nnet {
 
     inputs->MoveToGpu();
 
+    std::unique_ptr<memory::ClBuffer> nnet_input = std::make_unique<memory::ClBuffer>(*inputs);
+
     // Load all weights into the GPU (weights which are already in the GPU will
     // be skipped).
     for (size_t i = 0; i < model_.layers.size(); ++i) {
@@ -201,14 +203,14 @@ class Nnet {
     for (size_t index = 0; index < model_.layers.size(); ++index) {
       Layer &layer = model_.layers[index];
 
-      outputs = MakeBuffer(model_.layers[0].GetDimensions().num_outputs);
+      outputs = MakeBuffer(model_.layers[index].GetDimensions().num_outputs);
       outputs->MoveToGpu();
 
       // Evaluate.
       cl_int result;
       std::string kernel_name = layer.EvaluateKernelName();
       cl::Kernel &evaluate = CacheFetchKernel(kernel_name);
-      CL_CHECK(evaluate.setArg(0, *inputs->gpu_buffer()));
+      CL_CHECK(evaluate.setArg(0, *nnet_input->gpu_buffer()));
       CL_CHECK(evaluate.setArg(1, *layer.weight_buffer().gpu_buffer()));
       CL_CHECK(evaluate.setArg(2, *outputs->gpu_buffer()));
       result = queue.enqueueNDRangeKernel(
@@ -228,10 +230,10 @@ class Nnet {
       }
 
       // inputs = outputs (output of this layer is input for next layer).
-      inputs = std::move(outputs);
+      nnet_input = std::move(outputs);
     }
 
-    return *outputs;
+    return std::move(nnet_input);
   }
 
   void PrintColumnVector(std::string label, Matrix<Number> colvec) {
@@ -352,7 +354,7 @@ class Nnet {
     std::unique_ptr<std::vector<memory::ClBuffer>> layer_outputs =
         std::make_unique<std::vector<memory::ClBuffer>>();
     std::unique_ptr<memory::ClBuffer> actual_output =
-        std::make_unique<memory::ClBuffer>(Evaluate(in, layer_outputs));
+        Evaluate(in, layer_outputs);
 
     // Significant draw of GPU memory bus bandwidth. This should be removed as
     // calculating the error forces us to take data from the GPU and move it
@@ -400,7 +402,7 @@ class Nnet {
         // Backprop gradient calculation.
         std::string input_kernel_name = layer.InputGradientKernelName();
         cl::Kernel &input_update = CacheFetchKernel(input_kernel_name);
-        CL_CHECK(input_update.setArg(0, gpu_layer_input));
+        CL_CHECK(input_update.setArg(0, *gpu_layer_input.gpu_buffer()));
         CL_CHECK(input_update.setArg(1, *layer.weight_buffer().gpu_buffer()));
         CL_CHECK(input_update.setArg(2, *gpu_gradients.gpu_buffer()));
         CL_CHECK(input_update.setArg(3, gpu_new_gradients));
@@ -430,7 +432,7 @@ class Nnet {
         // Backprop layer weight updates.
         std::string weight_kernel_name = layer.WeightGradientKernelName();
         cl::Kernel &weight_update = CacheFetchKernel(weight_kernel_name);
-        CL_CHECK(weight_update.setArg(0, gpu_layer_input));
+        CL_CHECK(weight_update.setArg(0, *gpu_layer_input.gpu_buffer()));
         CL_CHECK(weight_update.setArg(1, *layer.weight_buffer().gpu_buffer()));
         CL_CHECK(weight_update.setArg(2, *gpu_gradients.gpu_buffer()));
         CL_CHECK(weight_update.setArg(3, gpu_new_weights));

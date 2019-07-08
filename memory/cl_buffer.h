@@ -44,20 +44,24 @@ class ClBuffer : public Buffer {
   using Location = Buffer::Location;
 
   ClBuffer()
-      : state_(Buffer::CPU), cpu_buffer_(0), cq_(nullptr), context_(nullptr) {}
+      : state_(Buffer::CPU), cpu_buffer_(0), cq_(nullptr), context_(nullptr) {
+      }
   ClBuffer(size_t size)
       : state_(Buffer::CPU),
         cpu_buffer_(size),
         cq_(nullptr),
-        context_(nullptr) {}
+        context_(nullptr) {
+        }
   ClBuffer(const std::vector<double> &values)
       : state_(Buffer::CPU),
         cpu_buffer_(values),
         cq_(nullptr),
-        context_(nullptr) {}
+        context_(nullptr) {
+        }
   ClBuffer(const std::vector<double> &values, cl::CommandQueue *cq,
            cl::Context *context)
-      : state_(Buffer::CPU), cpu_buffer_(values), cq_(cq), context_(context) {}
+      : state_(Buffer::CPU), cpu_buffer_(values), cq_(cq), context_(context) {
+  }
   ClBuffer(size_t size, cl::CommandQueue *cq, cl::Context *context)
       : state_(Buffer::CPU), cpu_buffer_(size), cq_(cq), context_(context) {
     CHECK_NOTNULL(context_);
@@ -108,6 +112,8 @@ class ClBuffer : public Buffer {
   void RegisterClBackend(cl::CommandQueue *queue, cl::Context *context) {
     CHECK_NOTNULL(cq_ = queue);
     CHECK_NOTNULL(context_ = context);
+    MoveToCpu();
+    MoveToGpu();
   }
 
   void MoveToCpu();
@@ -120,7 +126,9 @@ class ClBuffer : public Buffer {
 
   // Only use these after MoveToCpu!
   double &operator[](size_t index);
+  double &at(size_t index) { return (*this)[index]; }
   const double &operator[](size_t index) const;
+  const double &at(size_t index) const { return (*this)[index]; }
   std::string to_string() const;
 
   // Only use this after MoveToGpu!
@@ -132,18 +140,6 @@ class ClBuffer : public Buffer {
     return gpu_buffer_;
   }
 
-  const cl::Buffer &operator=(const cl::Buffer &gpu_buffer) {
-    if (state_ == Buffer::GPU) {
-      *gpu_buffer_ = gpu_buffer;
-    } else {
-      CHECK_NOTNULL(cq_);
-      CHECK_NOTNULL(context_);
-      gpu_buffer_ = std::make_unique<cl::Buffer>(gpu_buffer);
-      state_ = Buffer::GPU;
-    }
-    return *gpu_buffer_;
-  }
-
   const memory::ClBuffer &operator=(const memory::ClBuffer &rhs) {
     state_ = rhs.state_;
     cpu_buffer_ = rhs.cpu_buffer_;
@@ -153,7 +149,7 @@ class ClBuffer : public Buffer {
     CHECK_NOTNULL(cq_);
     CHECK_NOTNULL(context_);
     if (state_ == Buffer::GPU) {
-      *gpu_buffer() = *rhs.gpu_buffer();
+      gpu_buffer_ = std::make_unique<cl::Buffer>(*rhs.gpu_buffer());
     }
 
     return *this;

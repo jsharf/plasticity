@@ -38,12 +38,7 @@ Expression Log(const Expression& exp) {
 }
 
 Expression SafeLog(const Expression& exp) {
-  Expression log = Log(exp);
-  Expression epsilon_log = Log(exp + std::numeric_limits<double>::epsilon());
-  const symbolic::Expression equal_to_zero(
-      std::make_shared<symbolic::EqExpression>(exp, 0.0));
-  return symbolic::Expression(
-      std::make_shared<symbolic::IfExpression>(equal_to_zero, epsilon_log, log));
+  return Log(exp + std::numeric_limits<double>::epsilon());
 }
 
 Expression Exp(NumericValue base, const Expression& exp) {

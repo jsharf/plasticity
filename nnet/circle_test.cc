@@ -38,9 +38,11 @@ int main() {
 
   for (const std::tuple<std::vector<double>, double>& example : examples) {
     auto input = test_net.MakeBuffer(std::get<0>(example));
+    std::cout << "AA" << std::endl;
     auto result_buffer = test_net.Evaluate(input);
-    result_buffer.MoveToCpu();
-    auto result = result_buffer[0];
+    std::cout << "A" << std::endl;
+    result_buffer->MoveToCpu();
+    auto result = (*result_buffer)[0];
     std::cout << "curr output for train example: " << result << std::endl;
     std::cout << "Training w curr output: " << std::get<1>(example)
               << std::endl;
@@ -56,8 +58,8 @@ int main() {
     double pointy = (2.5 * static_cast<double>(std::rand()) / RAND_MAX) - 1.25;
     auto input_buffer = test_net.MakeBuffer({pointx, pointy});
     auto output_buffer = test_net.Evaluate(input_buffer);
-    output_buffer.MoveToCpu();
-    double output = output_buffer[0];
+    output_buffer->MoveToCpu();
+    double output = (*output_buffer)[0];
     std::cerr << output << std::endl;
     std::cout << "((" << pointx << "," << pointy << ")," << output << ")"
               << std::endl;

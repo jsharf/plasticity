@@ -117,30 +117,44 @@ TEST_CASE("Opencl tests", "[cl]") {
 
   SECTION("opencl copy constructor") {
     cl_int buffer_init;
-    cl::Buffer cl_buffer(std::get<0>(cl_.compilation_units), CL_MEM_READ_WRITE,
-                         5 * sizeof(double), nullptr, &buffer_init);
-    if (buffer_init != CL_SUCCESS) {
-      std::cerr << "Could not initialize input buffer" << std::endl;
-      std::exit(1);
+    {
+      cl::Buffer cl_buffer(std::get<0>(cl_.compilation_units), CL_MEM_READ_WRITE,
+                           5 * sizeof(double), nullptr, &buffer_init);
+      if (buffer_init != CL_SUCCESS) {
+        std::cerr << "Could not initialize input buffer" << std::endl;
+        std::exit(1);
+      }
+      double inputs_buf[5];
+      for (size_t i = 0; i < 5; ++i) {
+        inputs_buf[i] = i * 10;
+      }
+
+      cl_int result = cl_.queue.enqueueWriteBuffer(
+          cl_buffer, CL_TRUE, 0, sizeof(double) * 5, inputs_buf);
+      if (result != CL_SUCCESS) {
+        std::cerr << "Error enqueuing input write (Eval):  " << result
+                  << std::endl;
+        std::exit(1);
+      }
+
+      buf.MoveToGpu();
+
+      *buf.gpu_buffer() = cl_buffer;
+
     }
-    double inputs_buf[5];
-    for (size_t i = 0; i < 5; ++i) {
-      inputs_buf[i] = i * 10;
-    }
-
-    cl_int result = cl_.queue.enqueueWriteBuffer(
-        cl_buffer, CL_TRUE, 0, sizeof(double) * 5, inputs_buf);
-    if (result != CL_SUCCESS) {
-      std::cerr << "Error enqueuing input write (Eval):  " << result
-                << std::endl;
-      std::exit(1);
-    }
-
-    buf.MoveToGpu();
-
-    *buf.gpu_buffer() = cl_buffer;
-
     ClBuffer buf2(buf);
+
+    for (size_t i = 0; i < 100; ++i) {
+      ClBuffer buf3(buf2);
+      buf3.MoveToCpu();
+      buf3.MoveToGpu();
+      ClBuffer buf4(buf3);
+      buf4.MoveToCpu();
+      buf4.MoveToGpu();
+      ClBuffer buf5(buf4);
+      buf5.MoveToCpu();
+      buf5.MoveToGpu();
+    }
 
     buf2.MoveToCpu();
 
@@ -191,9 +205,11 @@ TEST_CASE("Opencl tests", "[cl]") {
       buf[i] = i * 2 + 1;
     }
 
-    buf.MoveToCpu();
-    buf.MoveToGpu();
-    buf.MoveToCpu();
+    for (size_t i = 0; i < 100; ++i) {
+      buf.MoveToCpu();
+      buf.MoveToGpu();
+      buf.MoveToCpu();
+    }
 
     for (size_t i = 0; i < 5; ++i) {
       REQUIRE(buf[i] == i * 2 + 1);

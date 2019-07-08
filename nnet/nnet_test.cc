@@ -12,11 +12,6 @@
 
 namespace nnet {
 
-using Input = Matrix<Number>;
-
-Input MakeInput(Number a, Number b, Number c) { return Input({{a}, {b}, {c}}); }
-Input MakeInput(Number a, Number b) { return Input({{a}, {b}}); }
-
 // This test case generated from only the first layer in the example at:
 // https://medium.com/@14prakash/back-propagation-is-very-simple-who-made-it-complicated-97b794c97e5c
 TEST_CASE("One-layer RELU network output is validated", "[nnet]") {
@@ -34,7 +29,7 @@ TEST_CASE("One-layer RELU network output is validated", "[nnet]") {
   model.AddDenseLayer(kLayerSize, symbolic::Relu);
 
   // Use the model to generate a neural network.
-  Nnet test_net(model, Nnet::NoWeightInit, Nnet::CrossEntropy);
+  Nnet test_net(model, Nnet::NoWeightInit, CrossEntropy);
 
   DenseSymbolGenerator s(Dimensions{3, 3});
 
@@ -63,13 +58,15 @@ TEST_CASE("One-layer RELU network output is validated", "[nnet]") {
   test_net.GetWeight(1, s.WeightNumber(2)) = 1;  // bias.
 
   SECTION("Verify output") {
-    Matrix<Number> output = test_net.Evaluate(MakeInput(0.1, 0.2, 0.7));
-    REQUIRE(output.dimensions().rows == 3);
-    REQUIRE(output.dimensions().cols == 1);
+    auto input = test_net.MakeBuffer({0.1, 0.2, 0.7});
+    auto output = test_net.Evaluate(input);
+    output->MoveToCpu();
 
-    REQUIRE(output.at(0, 0) == Approx(1.35).epsilon(EPSILON));
-    REQUIRE(output.at(1, 0) == Approx(1.27).epsilon(EPSILON));
-    REQUIRE(output.at(2, 0) == Approx(1.8).epsilon(EPSILON));
+    REQUIRE(output->size() == 3);
+
+    REQUIRE(output->at(0) == Approx(1.35).epsilon(EPSILON));
+    REQUIRE(output->at(1) == Approx(1.27).epsilon(EPSILON));
+    REQUIRE(output->at(2) == Approx(1.8).epsilon(EPSILON));
   }
 }
 
@@ -170,31 +167,27 @@ TEST_CASE("Simple neural network output is validated", "[nnet]") {
   model.layers[5].W(s.WeightNumber(2)) = 1;  // bias.
 
   // Use the model to generate a neural network.
-  Nnet test_net(model, Nnet::NoWeightInit, Nnet::CrossEntropy);
+  Nnet test_net(model, Nnet::NoWeightInit, CrossEntropy);
 
   SECTION("Verify output") {
-    Matrix<Number> output =
-        test_net.Evaluate(MakeInput(0.1, 0.2, 0.7));
-    REQUIRE(output.dimensions().rows == 3);
-    REQUIRE(output.dimensions().cols == 1);
+    auto output =
+        test_net.Evaluate(test_net.MakeBuffer({0.1, 0.2, 0.7}));
+    output->MoveToCpu();
 
-    REQUIRE(output.at(0, 0) == Approx(0.19858).epsilon(EPSILON));
-    REQUIRE(output.at(1, 0) == Approx(0.28559).epsilon(EPSILON));
-    REQUIRE(output.at(2, 0) == Approx(0.51583).epsilon(EPSILON));
+    REQUIRE(output->size() == 3);
+
+    REQUIRE(output->at(0) == Approx(0.19858).epsilon(EPSILON));
+    REQUIRE(output->at(1) == Approx(0.28559).epsilon(EPSILON));
+    REQUIRE(output->at(2) == Approx(0.51583).epsilon(EPSILON));
   }
 
   SECTION("Verify error") {
     // Incorrect actual output values because the example used had a weird
     // calculation for softmax (a/sum(a)) instead of exp(a)/sum(exp(a)).
-    Matrix<symbolic::Expression> actual({{0.26980}, {0.32235}, {0.40784}});
-    Matrix<symbolic::Expression> expected({{1.0}, {0.0}, {0.0}});
+    auto actual = test_net.MakeBuffer({0.26980, 0.32235, 0.40784});
+    auto expected = test_net.MakeBuffer({1.0, 0.0, 0.0});
 
-    // Verify error value.
-    symbolic::Expression error_value =
-        test_net.GenerateCrossEntropyErrorExpression(actual, expected);
-
-    REQUIRE(error_value.Evaluate());
-    REQUIRE(error_value.Evaluate()->real() == Approx(1.310074));
+    REQUIRE(test_net.Error(actual, expected) == Approx(1.310074));
   }
 }
 
@@ -237,31 +230,30 @@ TEST_CASE("Simple neural network output and gradient descent is validated",
   model.layers[3].W(s.WeightNumber(1)) = 0.60;  // bias.
 
   // Use the model to generate a neural network.
-  Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+  Nnet test_net(model, Nnet::NoWeightInit, MeanSquared);
 
   SECTION("Verify Output of neural network", "[nnet]") {
-    Matrix<Number> output = test_net.Evaluate(MakeInput(0.05, 0.10));
-    REQUIRE(output.dimensions().rows == 2);
-    REQUIRE(output.dimensions().cols == 1);
+    auto output = test_net.Evaluate(test_net.MakeBuffer({0.05, 0.10}));
+    REQUIRE(output->size() == 2);
+    output->MoveToCpu();
 
-    REQUIRE(output.at(0, 0) == Approx(0.75136507));
-    REQUIRE(output.at(1, 0) == Approx(0.772928465));
+    REQUIRE(output->at(0) == Approx(0.75136507));
+    REQUIRE(output->at(1) == Approx(0.772928465));
   }
 
-  Matrix<symbolic::Expression> actual({{0.75136507}, {0.772928465}});
-  Matrix<symbolic::Expression> expected({{0.01}, {0.99}});
 
   SECTION("Verify error propagation for neural network", "[nnet]") {
-    symbolic::Expression error =
-        test_net.GenerateErrorExpression(actual, expected);
-    REQUIRE(error.Evaluate());
-    REQUIRE(error.Evaluate()->real() == Approx(0.298371109));
+    auto actual = test_net.MakeBuffer({0.75136507, 0.772928465});
+    auto expected = test_net.MakeBuffer({0.01, 0.99});
+
+    REQUIRE(test_net.Error(actual, expected) == Approx(0.298371109));
   }
 
   SECTION("Verify back propagation of neural network", "[nnet]") {
 
-    Matrix<Number> expected({{0.01}, {0.99}});
-    test_net.Train(MakeInput(0.05, 0.10), expected,
+    auto expected = test_net.MakeBuffer({0.01, 0.99});
+    auto input = test_net.MakeBuffer({0.05, 0.10});
+    test_net.Train(input, expected,
                    Nnet::LearningParameters{0.5});
 
     Architecture model = test_net.model();
@@ -302,132 +294,136 @@ TEST_CASE("Just testing a single max_pool layer", "[maxpool]") {
       });
 
   // Use the model to generate a neural network.
-  Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+  Nnet test_net(model, Nnet::NoWeightInit, MeanSquared);
 
   // input is a 3D 4x4x3 image.
-  Input example = {
+  auto example = test_net.MakeBuffer({
     // Layer 1
-    {1}, {0}, {0}, {3},
-    {32}, {0}, {0}, {2},
-    {0}, {0}, {0}, {0},
-    {0}, {0}, {0}, {5},
+    1, 0, 0, 3,
+    32, 0, 0, 2,
+    0, 0, 0, 0,
+    0, 0, 0, 5,
     // Layer 2
-    {1}, {0}, {0}, {3},
-    {7}, {8}, {10}, {2},
-    {0}, {0}, {5}, {0},
-    {1}, {0}, {0}, {5},
+    1, 0, 0, 3,
+    7, 8, 10, 2,
+    0, 0, 5, 0,
+    1, 0, 0, 5,
     // Layer 3
-    {1}, {-8}, {0}, {3},
-    {32}, {24}, {0}, {2},
-    {0}, {100}, {0}, {0},
-    {0}, {0}, {0}, {5},
-  };
+    1, -8, 0, 3,
+    32, 24, 0, 2,
+    0, 100, 0, 0,
+    0, 0, 0, 5,
+  });
 
-  Input expected = {
+  auto expected = test_net.MakeBuffer({
     // Layer 1
-    {32}, {3}, 
-    {0}, {5},
+    32, 3, 
+    0, 5,
     // Layer 2
-    {8}, {10},
-    {1}, {5},
+    8, 10,
+    1, 5,
     // Layer 3
-    {32}, {3},
-    {100}, {5},
-  };
+    32, 3,
+    100, 5,
+  });
 
   auto actual = test_net.Evaluate(example);
 
+  actual->MoveToCpu();
+  expected->MoveToCpu();
+
   SECTION("forward pass", "[maxpool]") {
-    for (size_t i = 0; i < expected.dimensions().rows; ++i) {
-      for (size_t j = 0; j < expected.dimensions().cols; ++j) {
-        CAPTURE(expected.at(i, j));
-        CAPTURE(actual.at(i, j));
-        REQUIRE(expected.at(i, j) == Approx(actual.at(i, j)));
-      }
+    for (size_t i = 0; i < expected->size(); ++i) {
+      CAPTURE(expected->at(i));
+      CAPTURE(actual->at(i));
+      REQUIRE(expected->at(i) == Approx(actual->at(i)));
     }
   }
 
   SECTION("gradient backprop", "[maxpool]") {
     nnet::Nnet::LearningParameters params{.learning_rate = 1};
-    Input expected_altered = {
+    auto expected_altered = test_net.MakeBuffer({
         // Layer 1
-        {33}, {3},
-        {100}, {4},
+        33, 3,
+        100, 4,
         // Layer 2
-        {8}, {10},
-        {1}, {5},
+        8, 10,
+        1, 5,
         // Layer 3
-        {31}, {4},
-        {90}, {6},
-    };
-    std::unique_ptr<Matrix<double>> gradients = std::make_unique<Matrix<double>>();
+        31, 4,
+        90, 6,
+    });
+    std::unique_ptr<memory::ClBuffer> gradients = std::make_unique<memory::ClBuffer>();
     test_net.Train(example, expected_altered, params, gradients);
 
-    REQUIRE(gradients->dimensions().rows == 48);
-    REQUIRE(example.dimensions().rows == 48);
+    gradients->MoveToCpu();
+    example->MoveToCpu();
+
+    REQUIRE(gradients->size() == 48);
+    REQUIRE(example->size() == 48);
 
     // Layer 1
-    CHECK(gradients->at(0, 0) == Approx(0.0));
-    CHECK(gradients->at(1, 0) == Approx(0.0));
-    CHECK(gradients->at(2, 0) == Approx(0.0));
-    CHECK(gradients->at(3, 0) == Approx(0.0));
+    CHECK(gradients->at(0) == Approx(0.0));
+    CHECK(gradients->at(1) == Approx(0.0));
+    CHECK(gradients->at(2) == Approx(0.0));
+    CHECK(gradients->at(3) == Approx(0.0));
 
-    CHECK(gradients->at(4, 0) < (0.0));
-    CHECK(gradients->at(5, 0) == Approx(0.0));
-    CHECK(gradients->at(6, 0) == Approx(0.0));
-    CHECK(gradients->at(7, 0) == Approx(0.0));
+    CHECK(gradients->at(4) < (0.0));
+    CHECK(gradients->at(5) == Approx(0.0));
+    CHECK(gradients->at(6) == Approx(0.0));
+    CHECK(gradients->at(7) == Approx(0.0));
 
-    CHECK(gradients->at(8, 0) < (0.0));
-    CHECK(gradients->at(9, 0) < (0.0));
-    CHECK(gradients->at(10, 0) == Approx(0.0));
-    CHECK(gradients->at(11, 0) == Approx(0.0));
+    CHECK(gradients->at(8) < (0.0));
+    CHECK(gradients->at(9) < (0.0));
+    CHECK(gradients->at(10) == Approx(0.0));
+    CHECK(gradients->at(11) == Approx(0.0));
 
-    CHECK(gradients->at(12, 0) < (0.0));
-    CHECK(gradients->at(13, 0) < (0.0));
-    CHECK(gradients->at(14, 0) == Approx(0.0));
-    CHECK(gradients->at(15, 0) > (0.0));
+    CHECK(gradients->at(12) < (0.0));
+    CHECK(gradients->at(13) < (0.0));
+    CHECK(gradients->at(14) == Approx(0.0));
+    CHECK(gradients->at(15) > (0.0));
 
     // Layer 2
-    CHECK(gradients->at(16, 0) == Approx(0.0));
-    CHECK(gradients->at(17, 0) == Approx(0.0));
-    CHECK(gradients->at(18, 0) == Approx(0.0));
-    CHECK(gradients->at(19, 0) == Approx(0.0));
+    CHECK(gradients->at(16) == Approx(0.0));
+    CHECK(gradients->at(17) == Approx(0.0));
+    CHECK(gradients->at(18) == Approx(0.0));
+    CHECK(gradients->at(19) == Approx(0.0));
 
-    CHECK(gradients->at(20, 0) == Approx(0.0));
-    CHECK(gradients->at(21, 0) == Approx(0.0));
-    CHECK(gradients->at(22, 0) == Approx(0.0));
-    CHECK(gradients->at(23, 0) == Approx(0.0));
+    CHECK(gradients->at(20) == Approx(0.0));
+    CHECK(gradients->at(21) == Approx(0.0));
+    CHECK(gradients->at(22) == Approx(0.0));
+    CHECK(gradients->at(23) == Approx(0.0));
 
-    CHECK(gradients->at(24, 0) == Approx(0.0));
-    CHECK(gradients->at(25, 0) == Approx(0.0));
-    CHECK(gradients->at(26, 0) == Approx(0.0));
-    CHECK(gradients->at(27, 0) == Approx(0.0));
+    CHECK(gradients->at(24) == Approx(0.0));
+    CHECK(gradients->at(25) == Approx(0.0));
+    CHECK(gradients->at(26) == Approx(0.0));
+    CHECK(gradients->at(27) == Approx(0.0));
 
-    CHECK(gradients->at(28, 0) == Approx(0.0));
-    CHECK(gradients->at(29, 0) == Approx(0.0));
-    CHECK(gradients->at(30, 0) == Approx(0.0));
-    CHECK(gradients->at(31, 0) == Approx(0.0));
+    CHECK(gradients->at(28) == Approx(0.0));
+    CHECK(gradients->at(29) == Approx(0.0));
+    CHECK(gradients->at(30) == Approx(0.0));
+    CHECK(gradients->at(31) == Approx(0.0));
 
     // Layer 3
-    CHECK(gradients->at(32, 0) == Approx(0.0));
-    CHECK(gradients->at(33, 0) == Approx(0.0));
-    CHECK(gradients->at(34, 0) == Approx(0.0));
-    CHECK(gradients->at(35, 0) < (0.0));
+    CHECK(gradients->at(32) == Approx(0.0));
+    CHECK(gradients->at(33) == Approx(0.0));
+    CHECK(gradients->at(34) == Approx(0.0));
+    CHECK(gradients->at(35) < (0.0));
 
-    CHECK(gradients->at(36, 0) > (0.0));
-    CHECK(gradients->at(37, 0) == Approx(0.0));
-    CHECK(gradients->at(38, 0) == Approx(0.0));
-    CHECK(gradients->at(39, 0) == Approx(0.0));
+    CHECK(gradients->at(36) > (0.0));
+    CHECK(gradients->at(37) == Approx(0.0));
+    CHECK(gradients->at(38) == Approx(0.0));
+    CHECK(gradients->at(39) == Approx(0.0));
 
-    CHECK(gradients->at(40, 0) == Approx(0.0));
-    CHECK(gradients->at(41, 0) > (0.0));
-    CHECK(gradients->at(42, 0) == Approx(0.0));
-    CHECK(gradients->at(43, 0) == Approx(0.0));
+    CHECK(gradients->at(40) == Approx(0.0));
+    CHECK(gradients->at(41) > (0.0));
+    CHECK(gradients->at(42) == Approx(0.0));
+    CHECK(gradients->at(43) == Approx(0.0));
 
-    CHECK(gradients->at(44, 0) == Approx(0.0));
-    CHECK(gradients->at(45, 0) == Approx(0.0));
-    CHECK(gradients->at(46, 0) == Approx(0.0));
-    CHECK(gradients->at(47, 0) < (0.0));
+    CHECK(gradients->at(44) == Approx(0.0));
+    CHECK(gradients->at(45) == Approx(0.0));
+    CHECK(gradients->at(46) == Approx(0.0));
+    CHECK(gradients->at(47) < (0.0));
   }
 }
 
@@ -642,72 +638,74 @@ TEST_CASE("Convolution layer test", "[convnet]") {
   model.layers[1].W(s.WeightNumber(1)) = 0;
 
   // Use the model to generate a neural network.
-  Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+  Nnet test_net(model, Nnet::NoWeightInit, MeanSquared);
 
   // input is a 3D 5x5x3 image.
-  Input example = {
+  auto example = test_net.MakeBuffer({
     // Layer 1
-    {1}, {0}, {0}, {1}, {1},
-    {2}, {0}, {0}, {2}, {1},
-    {0}, {1}, {1}, {2}, {0},
-    {1}, {0}, {0}, {2}, {1},
-    {2}, {2}, {1}, {1}, {1},
+    1, 0, 0, 1, 1,
+    2, 0, 0, 2, 1,
+    0, 1, 1, 2, 0,
+    1, 0, 0, 2, 1,
+    2, 2, 1, 1, 1,
     // Layer 2
-    {0}, {2}, {0}, {0}, {1},
-    {1}, {1}, {1}, {1}, {2},
-    {1}, {1}, {0}, {1}, {1},
-    {1}, {1}, {1}, {0}, {2},
-    {2}, {0}, {2}, {0}, {0},
+    0, 2, 0, 0, 1,
+    1, 1, 1, 1, 2,
+    1, 1, 0, 1, 1,
+    1, 1, 1, 0, 2,
+    2, 0, 2, 0, 0,
     // Layer 3
-    {2}, {0}, {2}, {1}, {2},
-    {0}, {2}, {1}, {0}, {0},
-    {2}, {1}, {1}, {0}, {0},
-    {1}, {1}, {0}, {0}, {0},
-    {2}, {1}, {1}, {1}, {2},
-  };
+    2, 0, 2, 1, 2,
+    0, 2, 1, 0, 0,
+    2, 1, 1, 0, 0,
+    1, 1, 0, 0, 0,
+    2, 1, 1, 1, 2,
+  });
 
-  Input expected = {
+  auto expected = test_net.MakeBuffer({
     // Layer 1
-    {3}, {4}, {1},
-    {8}, {0}, {-2},
-    {2}, {-1}, {2},
+    3, 4, 1,
+    8, 0, -2,
+    2, -1, 2,
     // Layer 2
-    {2}, {4}, {6},
-    {-5}, {5}, {-1},
-    {1}, {3}, {2},
-  };
+    2, 4, 6,
+    -5, 5, -1,
+    1, 3, 2,
+  });
 
   auto actual = test_net.Evaluate(example);
 
+  actual->MoveToCpu();
   SECTION("forward pass", "[convnet]") {
-    for (size_t i = 0; i < expected.dimensions().rows; ++i) {
-      for (size_t j = 0; j < expected.dimensions().cols; ++j) {
-        CAPTURE(i);
-        CAPTURE(expected.at(i, j));
-        CAPTURE(actual.at(i, j));
-        CHECK(expected.at(i, j) == Approx(actual.at(i, j)));
-      }
+    for (size_t i = 0; i < expected->size(); ++i) {
+      CAPTURE(i);
+      CAPTURE(expected->at(i));
+      CAPTURE(actual->at(i));
+      CHECK(expected->at(i) == Approx(actual->at(i)));
     }
   }
 
   SECTION("training pass", "[convnet]") {
-    Input expected_altered = {
+    auto expected_altered = test_net.MakeBuffer({
       // Layer 1
-      {4}, {4}, {1},
-      {8}, {0}, {-2},
-      {2}, {-1}, {2},
+      4, 4, 1,
+      8, 0, -2,
+      2, -1, 2,
       // Layer 2
-      {2}, {4}, {6},
-      {-5}, {5}, {-1},
-      {1}, {3}, {2},
-    };
+      2, 4, 6,
+      -5, 5, -1,
+      1, 3, 2,
+    });
 
     nnet::Nnet::LearningParameters params{.learning_rate = 1};
-    std::unique_ptr<Matrix<double>> gradients = std::make_unique<Matrix<double>>();
+    std::unique_ptr<memory::ClBuffer> gradients = std::make_unique<memory::ClBuffer>();
     test_net.Train(example, expected_altered, params, gradients);
 
-    REQUIRE(gradients->dimensions().rows == 75);
-    REQUIRE(example.dimensions().rows == 75);
+    gradients->MoveToCpu();
+    example->MoveToCpu();
+
+    REQUIRE(gradients->size() == 75);
+    REQUIRE(example->size() == 75);
 
     // Expected non-zero gradients.
     // Visually , I expected 30 & 51 to also be non-zero, however actually doing
@@ -731,9 +729,9 @@ TEST_CASE("Convolution layer test", "[convnet]") {
     for (size_t i = 0; i < 75; ++i) {
       if (expected_changed_gradients.count(i) == 1) {
         CAPTURE(i);
-        REQUIRE(gradients->at(i, 0) != (0.0));
+        REQUIRE(gradients->at(i) != (0.0));
       } else {
-        REQUIRE(gradients->at(i, 0) == Approx(0.0));
+        REQUIRE(gradients->at(i) == Approx(0.0));
       }
     }
 
@@ -750,32 +748,34 @@ TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
   Architecture model(kInputSize);
   model.AddDenseLayer(kLayerSize, symbolic::Identity);
 
-  Input expected = {{0.2}, {0.2}, {0.2}, {0.2}, {0.2}};
-
   stats::Normal initializer(0, 5);
-  Input input(5, 1);
+  std::unique_ptr<memory::ClBuffer> input = std::make_unique<memory::ClBuffer>(5);
   for (size_t i = 0; i < 5; ++i) {
-    input.at(i, 0) = initializer.sample();
+    input->at(i) = initializer.sample();
   }
 
   SECTION("Verify input gradient") {
     // Use the model to generate a neural network.
-    Nnet test_net(model, Nnet::Xavier, Nnet::MeanSquared);
+    Nnet test_net(model, Nnet::Xavier, MeanSquared);
+    auto expected = test_net.MakeBuffer({0.2, 0.2, 0.2, 0.2, 0.2});
+    test_net.RegisterBuffer(input.get());
 
     nnet::Nnet::LearningParameters params{.learning_rate = 0};
-    std::unique_ptr<Matrix<double>> gradients = std::make_unique<Matrix<double>>();
+    std::unique_ptr<memory::ClBuffer> gradients = std::make_unique<memory::ClBuffer>();
     test_net.Train(input, expected, params, gradients);
 
+    gradients->MoveToCpu();
+
     for (size_t i = 0; i < 5; ++i) {
-      auto input_left(input);
-      input_left.at(i, 0) -= EPSILON;
-      auto input_right(input);
-      input_right.at(i, 0) += EPSILON;
+      std::unique_ptr<memory::ClBuffer> input_left = std::make_unique<memory::ClBuffer>(*input);
+      input_left->at(i) -= EPSILON;
+      std::unique_ptr<memory::ClBuffer> input_right = std::make_unique<memory::ClBuffer>(*input);
+      input_right->at(i) += EPSILON;
       double output_left = test_net.Error(input_left, expected);
       double output_right = test_net.Error(input_right, expected);
 
       double approx_gradient = (output_right - output_left) / (2*EPSILON);
-      double actual_gradient = gradients->at(i, 0);
+      double actual_gradient = gradients->at(i);
 
       CAPTURE(i);
       REQUIRE(actual_gradient == Approx(approx_gradient).epsilon(EPSILON));
@@ -796,22 +796,28 @@ TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
     for (size_t i = 0; i < model.layers[1].weight_buffer().size(); ++i) {
       // A neural network with the weight tweaked left.
       model.layers[1].weight_buffer()[i] = weight_init_values[i] - EPSILON;
-      Nnet test_net_tweak_left(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+      Nnet test_net_tweak_left(model, Nnet::NoWeightInit, MeanSquared);
+      auto expected = test_net_tweak_left.MakeBuffer({0.2, 0.2, 0.2, 0.2, 0.2});
+      test_net_tweak_left.RegisterBuffer(input.get());
 
       double output_left = test_net_tweak_left.Error(input, expected);
 
       // A neural network with the weight tweaked right.
       model.layers[1].weight_buffer()[i] = weight_init_values[i] + EPSILON;
-      Nnet test_net_tweak_right(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+      Nnet test_net_tweak_right(model, Nnet::NoWeightInit, MeanSquared);
+      test_net_tweak_right.RegisterBuffer(input.get());
+      expected = test_net_tweak_right.MakeBuffer({0.2, 0.2, 0.2, 0.2, 0.2});
 
       double output_right = test_net_tweak_right.Error(input, expected);
 
       double approx_gradient = (output_right - output_left) / (2*EPSILON);
 
       model.layers[1].weight_buffer()[i] = weight_init_values[i];
-      Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+      Nnet test_net(model, Nnet::NoWeightInit, MeanSquared);
 
+      test_net.RegisterBuffer(input.get());
       auto result = test_net.Evaluate(input);
+      test_net.RegisterBuffer(expected.get());
       test_net.Train(input, expected, params);
       double weight_gradient = weight_init_values[i] - test_net.GetWeight(1, i);
 
@@ -828,39 +834,38 @@ TEST_CASE("Convolution Layer Gradient checking", "[convolution_gradient_check]")
 
   Architecture model(kInputSize);
   model.AddConvolutionLayer({3, 3, 1}, {3, 3, 1, 1, 1, 1}, symbolic::Relu);
+  Nnet test_net(model, Nnet::Xavier, CrossEntropy);
 
   stats::Normal initializer(0, 5);
-  Input input(9, 1);
-
+  auto input = test_net.MakeBuffer(9);
   for (size_t i = 0; i < 9; ++i) {
-      input.at(i, 0) = initializer.sample();
+      input->at(i) = initializer.sample();
   }
 
-  Input expected = {
-    {0.2}, {0.2}, {0.2},
-    {0.2}, {0.2}, {0.2},
-    {0.2}, {0.2}, {0.2},
-  };
+  auto expected = test_net.MakeBuffer({
+    0.2, 0.2, 0.2,
+    0.2, 0.2, 0.2,
+    0.2, 0.2, 0.2,
+  });
 
   SECTION("Verify input gradient") {
-    // Use the model to generate a neural network.
-    Nnet test_net(model, Nnet::Xavier, Nnet::CrossEntropy);
-
-
     nnet::Nnet::LearningParameters params{.learning_rate = 0};
-    std::unique_ptr<Matrix<double>> gradients = std::make_unique<Matrix<double>>();
+    std::unique_ptr<memory::ClBuffer> gradients = std::make_unique<memory::ClBuffer>();
     test_net.Train(input, expected, params, gradients);
 
+    gradients->MoveToCpu();
+    input->MoveToCpu();
+
     for (size_t i = 0; i < 9; ++i) {
-      auto input_left(input);
-      input_left.at(i, 0) -= EPSILON;
-      auto input_right(input);
-      input_right.at(i, 0) += EPSILON;
+      std::unique_ptr<memory::ClBuffer> input_left = std::make_unique<memory::ClBuffer>(*input);
+      input_left->at(i) -= EPSILON;
+      std::unique_ptr<memory::ClBuffer> input_right = std::make_unique<memory::ClBuffer>(*input);
+      input_right->at(i) += EPSILON;
       double output_left = test_net.Error(input_left, expected);
       double output_right = test_net.Error(input_right, expected);
 
       double approx_gradient = (output_right - output_left) / (2*EPSILON);
-      double actual_gradient = gradients->at(i, 0);
+      double actual_gradient = gradients->at(i);
 
       CAPTURE(i);
       REQUIRE(actual_gradient == Approx(approx_gradient).epsilon(EPSILON));
@@ -881,22 +886,23 @@ TEST_CASE("Convolution Layer Gradient checking", "[convolution_gradient_check]")
     for (size_t i = 0; i < model.layers[1].weight_buffer().size(); ++i) {
       // A neural network with the weight tweaked left.
       model.layers[1].weight_buffer()[i] = weight_init_values[i] - EPSILON;
-      Nnet test_net_tweak_left(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+      Nnet test_net_tweak_left(model, Nnet::NoWeightInit, MeanSquared);
 
       double output_left = test_net_tweak_left.Error(input, expected);
 
       // A neural network with the weight tweaked right.
       model.layers[1].weight_buffer()[i] = weight_init_values[i] + EPSILON;
-      Nnet test_net_tweak_right(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+      Nnet test_net_tweak_right(model, Nnet::NoWeightInit, MeanSquared);
 
       double output_right = test_net_tweak_right.Error(input, expected);
 
       double approx_gradient = (output_right - output_left) / (2*EPSILON);
 
       model.layers[1].weight_buffer()[i] = weight_init_values[i];
-      Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
+      Nnet test_net(model, Nnet::NoWeightInit, MeanSquared);
 
-      auto result = test_net.Evaluate(input);
+      // TODO(sharf): is this next line needed for tests to pass or can delete?
+      // auto result = test_net.Evaluate(input);
       test_net.Train(input, expected, params);
       double weight_gradient = weight_init_values[i] - test_net.GetWeight(1, i);
 
@@ -915,40 +921,42 @@ TEST_CASE("Softmax Layer unit tests", "[softmaxnet]") {
   Architecture model(kInputSize);
   model.AddSoftmaxLayer(kLayerSize);
 
-  auto expected = MakeInput(0.2, 0.2, 0.2);
   
   SECTION("Check softmax output") {
     // Error function and weight initialization do not matter as we are running
     // Evaluate() with a single weightless layer.
-    Nnet test_net(model, Nnet::NoWeightInit, Nnet::MeanSquared);
-    auto example = MakeInput(-2.85, 0.86, 0.28);
-    auto expected = MakeInput(0.0154493515, 0.631, 0.3533874062);
+    Nnet test_net(model, Nnet::NoWeightInit, MeanSquared);
+    auto example = test_net.MakeBuffer({-2.85, 0.86, 0.28});
+    auto expected = test_net.MakeBuffer({0.0154493515, 0.631, 0.3533874062});
     auto actual = test_net.Evaluate(example);
+    expected->MoveToCpu();
+    actual->MoveToCpu();
     for (size_t i = 0; i < 3; ++i) {
-      REQUIRE(expected.at(i, 0) == Approx(actual.at(i, 0)).epsilon(EPSILON));
+      REQUIRE(expected->at(i) == Approx(actual->at(i)).epsilon(EPSILON));
     }
   }
 
   SECTION("Verify input gradient (cross-checked with approximation)") {
     // Use the model to generate a neural network.
-    Nnet test_net(model, Nnet::NoWeightInit, Nnet::CrossEntropy);
+    Nnet test_net(model, Nnet::NoWeightInit, CrossEntropy);
+    auto expected = test_net.MakeBuffer({0.2, 0.2, 0.2});
 
     nnet::Nnet::LearningParameters params{.learning_rate = 0};
 
-    std::unique_ptr<Matrix<double>> gradients = std::make_unique<Matrix<double>>();
-    test_net.Train(MakeInput(0.1, 0.2, 0.7), expected, params, gradients);
+    std::unique_ptr<memory::ClBuffer> gradients = std::make_unique<memory::ClBuffer>();
+    auto input = test_net.MakeBuffer({0.1, 0.2, 0.7});
+    test_net.Train(input, expected, params, gradients);
 
-    auto input = MakeInput(0.1, 0.2, 0.7);
     for (size_t i = 0; i < 3; ++i) {
-      auto input_left(input);
-      input_left.at(i, 0) -= EPSILON;
-      auto input_right(input);
-      input_right.at(i, 0) += EPSILON;
+      std::unique_ptr<memory::ClBuffer> input_left = std::make_unique<memory::ClBuffer>(*input);
+      input_left->at(i) -= EPSILON;
+      std::unique_ptr<memory::ClBuffer> input_right = std::make_unique<memory::ClBuffer>(*input);
+      input_right->at(i) += EPSILON;
       double output_left = test_net.Error(input_left, expected);
       double output_right = test_net.Error(input_right, expected);
 
       double approx_gradient = (output_right - output_left) / (2*EPSILON);
-      double actual_gradient = gradients->at(i, 0);
+      double actual_gradient = gradients->at(i);
 
       CAPTURE(i);
       REQUIRE(actual_gradient == Approx(approx_gradient).epsilon(EPSILON));
@@ -1016,42 +1024,41 @@ TEST_CASE("Cifar model gradient test", "[cifar]") {
       // activation function
       .AddDenseLayer(10, symbolic::Identity)
       .AddSoftmaxLayer(10);
-  nnet::Nnet test_net(model, nnet::Nnet::Xavier, nnet::Nnet::CrossEntropy);
+  nnet::Nnet test_net(model, nnet::Nnet::Xavier, nnet::CrossEntropy);
 
   SECTION("Verify cifar input gradient (cross-checked with approximation)") {
     nnet::Nnet::LearningParameters params{.learning_rate = 0};
 
     stats::Normal initializer(0, 1);
-    auto input = Matrix<double>(kInputSize, 1);
+    auto input = test_net.MakeBuffer(kInputSize);
     for (size_t i = 0; i < kInputSize; ++i) {
-      input.at(i, 0) = initializer.sample();
+      input->at(i) = initializer.sample();
     }
 
     // Training label doesn' matter, we're just testing that gradients work, so
     // make it random.
-    auto train_label = Matrix<double>(10, 1);
+    auto train_label = test_net.MakeBuffer(10);
     for (size_t i = 0; i < 10; ++i) {
-      train_label.at(i, 0) = initializer.sample();
+      train_label->at(i) = initializer.sample();
     }
 
     // Calculate actual gradients.
-    std::unique_ptr<Matrix<double>> gradients =
-        std::make_unique<Matrix<double>>();
+    std::unique_ptr<memory::ClBuffer> gradients = std::make_unique<memory::ClBuffer>();
     test_net.Train(input, train_label, params, gradients);
 
     for (size_t i = 0; i < kInputSize; ++i) {
-      auto input_left(input);
-      auto input_right(input);
+      std::unique_ptr<memory::ClBuffer> input_left = std::make_unique<memory::ClBuffer>(*input);
+      std::unique_ptr<memory::ClBuffer> input_right = std::make_unique<memory::ClBuffer>(*input);
 
-      input_left.at(i, 0) -= EPSILON;
-      input_right.at(i, 0) += EPSILON;
+      input_left->at(i) -= EPSILON;
+      input_right->at(i) += EPSILON;
 
       double output_left = test_net.Error(input_left, train_label);
       double output_right = test_net.Error(input_right, train_label);
 
       double approx_gradient = (output_right - output_left) / (2*EPSILON);
 
-      double actual_gradient = gradients->at(i, 0);
+      double actual_gradient = gradients->at(i);
 
       CAPTURE(i);
       REQUIRE(actual_gradient == Approx(approx_gradient).epsilon(COMPARISON_EPSILON));

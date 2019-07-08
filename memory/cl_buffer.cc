@@ -71,7 +71,7 @@ void ClBuffer::MoveToGpu() {
   if (size() == 0) {
     // Special case. If this buffer is allocated to size zero, then allocate a
     // 1-size dummy buffer, since empty buffers aren't allowed. Don't need to
-    // even intialize it.
+    // even initialize it.
     gpu_buffer_ =
         std::make_unique<cl::Buffer>(*context_, CL_MEM_READ_WRITE,
                                      sizeof(double) * 1, nullptr, &buffer_init);
