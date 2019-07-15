@@ -765,6 +765,7 @@ TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
     test_net.Train(input, expected, params, gradients);
 
     gradients->MoveToCpu();
+    input->MoveToCpu();
 
     for (size_t i = 0; i < 5; ++i) {
       std::unique_ptr<memory::ClBuffer> input_left = std::make_unique<memory::ClBuffer>(*input);
@@ -947,6 +948,10 @@ TEST_CASE("Softmax Layer unit tests", "[softmaxnet]") {
     auto input = test_net.MakeBuffer({0.1, 0.2, 0.7});
     test_net.Train(input, expected, params, gradients);
 
+    input->MoveToCpu();
+    expected->MoveToCpu();
+    gradients->MoveToCpu();
+
     for (size_t i = 0; i < 3; ++i) {
       std::unique_ptr<memory::ClBuffer> input_left = std::make_unique<memory::ClBuffer>(*input);
       input_left->at(i) -= EPSILON;
@@ -1045,6 +1050,10 @@ TEST_CASE("Cifar model gradient test", "[cifar]") {
     // Calculate actual gradients.
     std::unique_ptr<memory::ClBuffer> gradients = std::make_unique<memory::ClBuffer>();
     test_net.Train(input, train_label, params, gradients);
+
+    input->MoveToCpu();
+    train_label->MoveToCpu();
+    gradients->MoveToCpu();
 
     for (size_t i = 0; i < kInputSize; ++i) {
       std::unique_ptr<memory::ClBuffer> input_left = std::make_unique<memory::ClBuffer>(*input);

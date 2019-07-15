@@ -338,7 +338,7 @@ class Nnet {
   void Train(std::unique_ptr<memory::ClBuffer> &in,
              std::unique_ptr<memory::ClBuffer> &o,
              const LearningParameters &params,
-             std::unique_ptr<memory::ClBuffer> &input_gradients) {
+             const std::unique_ptr<memory::ClBuffer> &input_gradients) {
     cl::Device device = SelectDevice();
 
     CompileKernelsIfRequired();

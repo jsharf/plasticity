@@ -327,6 +327,7 @@ cc_test(
         "//clutil:osx": ["-framework OpenCL"],
         "//clutil:linux": [
             "-lOpenCL",
+            "-lSegFault",
             "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
         ],
         "//conditions:default": [
