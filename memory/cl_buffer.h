@@ -110,9 +110,9 @@ class ClBuffer : public Buffer {
       Matrix<double> column_vector);
 
   void RegisterClBackend(cl::CommandQueue *queue, cl::Context *context) {
+    MoveToCpu();
     CHECK_NOTNULL(cq_ = queue);
     CHECK_NOTNULL(context_ = context);
-    MoveToCpu();
     MoveToGpu();
   }
 

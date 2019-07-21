@@ -796,6 +796,7 @@ TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
 
     for (size_t i = 0; i < model.layers[1].weight_buffer().size(); ++i) {
       // A neural network with the weight tweaked left.
+      model.layers[1].weight_buffer().MoveToCpu();
       model.layers[1].weight_buffer()[i] = weight_init_values[i] - EPSILON;
       Nnet test_net_tweak_left(model, Nnet::NoWeightInit, MeanSquared);
       auto expected = test_net_tweak_left.MakeBuffer({0.2, 0.2, 0.2, 0.2, 0.2});
@@ -804,6 +805,7 @@ TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
       double output_left = test_net_tweak_left.Error(input, expected);
 
       // A neural network with the weight tweaked right.
+      model.layers[1].weight_buffer().MoveToCpu();
       model.layers[1].weight_buffer()[i] = weight_init_values[i] + EPSILON;
       Nnet test_net_tweak_right(model, Nnet::NoWeightInit, MeanSquared);
       test_net_tweak_right.RegisterBuffer(input.get());
@@ -813,6 +815,7 @@ TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
 
       double approx_gradient = (output_right - output_left) / (2*EPSILON);
 
+      model.layers[1].weight_buffer().MoveToCpu();
       model.layers[1].weight_buffer()[i] = weight_init_values[i];
       Nnet test_net(model, Nnet::NoWeightInit, MeanSquared);
 
@@ -889,13 +892,19 @@ TEST_CASE("Convolution Layer Gradient checking", "[convolution_gradient_check]")
       model.layers[1].weight_buffer()[i] = weight_init_values[i] - EPSILON;
       Nnet test_net_tweak_left(model, Nnet::NoWeightInit, MeanSquared);
 
+      std::cout << "C" << std::endl;
+      // I'm using input (registered with test_net) with test_net_tweak_left.
+      // Hence the error.
       double output_left = test_net_tweak_left.Error(input, expected);
+      std::cout << "D" << std::endl;
 
       // A neural network with the weight tweaked right.
       model.layers[1].weight_buffer()[i] = weight_init_values[i] + EPSILON;
       Nnet test_net_tweak_right(model, Nnet::NoWeightInit, MeanSquared);
 
+      std::cout << "E" << std::endl;
       double output_right = test_net_tweak_right.Error(input, expected);
+      std::cout << "F" << std::endl;
 
       double approx_gradient = (output_right - output_left) / (2*EPSILON);
 
