@@ -772,10 +772,12 @@ TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
       input_left->at(i) -= EPSILON;
       std::unique_ptr<memory::ClBuffer> input_right = std::make_unique<memory::ClBuffer>(*input);
       input_right->at(i) += EPSILON;
-      double output_left = test_net.Error(input_left, expected);
-      double output_right = test_net.Error(input_right, expected);
+      auto output_left = test_net.Evaluate(input_left);
+      double error_left = test_net.Error(output_left, expected);
+      auto output_right = test_net.Evaluate(input_right);
+      double error_right = test_net.Error(output_right, expected);
 
-      double approx_gradient = (output_right - output_left) / (2*EPSILON);
+      double approx_gradient = (error_right - error_left) / (2*EPSILON);
       double actual_gradient = gradients->at(i);
 
       CAPTURE(i);
@@ -802,7 +804,8 @@ TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
       auto expected = test_net_tweak_left.MakeBuffer({0.2, 0.2, 0.2, 0.2, 0.2});
       test_net_tweak_left.RegisterBuffer(input.get());
 
-      double output_left = test_net_tweak_left.Error(input, expected);
+      auto output_left = test_net_tweak_left.Evaluate(input);
+      double error_left = test_net_tweak_left.Error(output_left, expected);
 
       // A neural network with the weight tweaked right.
       model.layers[1].weight_buffer().MoveToCpu();
@@ -811,9 +814,10 @@ TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
       test_net_tweak_right.RegisterBuffer(input.get());
       expected = test_net_tweak_right.MakeBuffer({0.2, 0.2, 0.2, 0.2, 0.2});
 
-      double output_right = test_net_tweak_right.Error(input, expected);
+      auto output_right = test_net_tweak_right.Evaluate(input);
+      double error_right = test_net_tweak_right.Error(output_right, expected);
 
-      double approx_gradient = (output_right - output_left) / (2*EPSILON);
+      double approx_gradient = (error_right - error_left) / (2*EPSILON);
 
       model.layers[1].weight_buffer().MoveToCpu();
       model.layers[1].weight_buffer()[i] = weight_init_values[i];
@@ -827,6 +831,9 @@ TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
 
       CAPTURE(i);
       REQUIRE(weight_gradient == Approx(approx_gradient).epsilon(EPSILON));
+
+      input->MoveToCpu();
+      expected->MoveToCpu();
     }
   }
 }
@@ -865,10 +872,17 @@ TEST_CASE("Convolution Layer Gradient checking", "[convolution_gradient_check]")
       input_left->at(i) -= EPSILON;
       std::unique_ptr<memory::ClBuffer> input_right = std::make_unique<memory::ClBuffer>(*input);
       input_right->at(i) += EPSILON;
-      double output_left = test_net.Error(input_left, expected);
-      double output_right = test_net.Error(input_right, expected);
+      auto output_left = test_net.Evaluate(input_left);
+      auto output_right = test_net.Evaluate(input_right);
+      double error_left = test_net.Error(output_left, expected);
+      double error_right = test_net.Error(output_right, expected);
 
-      double approx_gradient = (output_right - output_left) / (2*EPSILON);
+      input_left->MoveToCpu();
+      input_right->MoveToCpu();
+      std::cout << input_left->at(i) << " " << input_right->at(i) << std::endl;
+      std::cout << error_left << " " << error_right << std::endl;
+      std::cout << EPSILON << std::endl;
+      double approx_gradient = (error_right - error_left) / (2 * EPSILON);
       double actual_gradient = gradients->at(i);
 
       CAPTURE(i);
@@ -892,21 +906,23 @@ TEST_CASE("Convolution Layer Gradient checking", "[convolution_gradient_check]")
       model.layers[1].weight_buffer()[i] = weight_init_values[i] - EPSILON;
       Nnet test_net_tweak_left(model, Nnet::NoWeightInit, MeanSquared);
 
-      std::cout << "C" << std::endl;
       // I'm using input (registered with test_net) with test_net_tweak_left.
       // Hence the error.
-      double output_left = test_net_tweak_left.Error(input, expected);
-      std::cout << "D" << std::endl;
+      test_net_tweak_left.RegisterBuffer(input.get());
+      test_net_tweak_left.RegisterBuffer(expected.get());
+      auto output_left = test_net_tweak_left.Evaluate(input);
+      double error_left = test_net_tweak_left.Error(output_left, expected);
 
       // A neural network with the weight tweaked right.
       model.layers[1].weight_buffer()[i] = weight_init_values[i] + EPSILON;
       Nnet test_net_tweak_right(model, Nnet::NoWeightInit, MeanSquared);
 
-      std::cout << "E" << std::endl;
-      double output_right = test_net_tweak_right.Error(input, expected);
-      std::cout << "F" << std::endl;
+      test_net_tweak_right.RegisterBuffer(input.get());
+      test_net_tweak_right.RegisterBuffer(expected.get());
+      auto output_right = test_net_tweak_right.Evaluate(input);
+      double error_right = test_net_tweak_right.Error(output_right, expected);
 
-      double approx_gradient = (output_right - output_left) / (2*EPSILON);
+      double approx_gradient = (error_right - error_left) / (2*EPSILON);
 
       model.layers[1].weight_buffer()[i] = weight_init_values[i];
       Nnet test_net(model, Nnet::NoWeightInit, MeanSquared);
@@ -918,6 +934,12 @@ TEST_CASE("Convolution Layer Gradient checking", "[convolution_gradient_check]")
 
       CAPTURE(i);
       REQUIRE(weight_gradient == Approx(approx_gradient).epsilon(EPSILON));
+
+      // These are currently registered to a temporary nnet
+      // (test_net_tweak_right) which is about to be deallocated. Move them to
+      // the CPU so they can be re-registered in the next iteration.
+      input->MoveToCpu();
+      expected->MoveToCpu();
     }
   }
 }
@@ -966,10 +988,12 @@ TEST_CASE("Softmax Layer unit tests", "[softmaxnet]") {
       input_left->at(i) -= EPSILON;
       std::unique_ptr<memory::ClBuffer> input_right = std::make_unique<memory::ClBuffer>(*input);
       input_right->at(i) += EPSILON;
-      double output_left = test_net.Error(input_left, expected);
-      double output_right = test_net.Error(input_right, expected);
+      auto output_left = test_net.Evaluate(input_left);
+      double error_left = test_net.Error(output_left, expected);
+      auto output_right = test_net.Evaluate(input_right);
+      double error_right = test_net.Error(output_right, expected);
 
-      double approx_gradient = (output_right - output_left) / (2*EPSILON);
+      double approx_gradient = (error_right - error_left) / (2*EPSILON);
       double actual_gradient = gradients->at(i);
 
       CAPTURE(i);
@@ -1071,10 +1095,12 @@ TEST_CASE("Cifar model gradient test", "[cifar]") {
       input_left->at(i) -= EPSILON;
       input_right->at(i) += EPSILON;
 
-      double output_left = test_net.Error(input_left, train_label);
-      double output_right = test_net.Error(input_right, train_label);
+      auto output_left = test_net.Evaluate(input_left);
+      double error_left = test_net.Error(output_left, train_label);
+      auto output_right = test_net.Evaluate(input_right);
+      double error_right = test_net.Error(output_right, train_label);
 
-      double approx_gradient = (output_right - output_left) / (2*EPSILON);
+      double approx_gradient = (error_right - error_left) / (2*EPSILON);
 
       double actual_gradient = gradients->at(i);
 
