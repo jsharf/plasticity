@@ -741,6 +741,7 @@ TEST_CASE("Convolution layer test", "[convnet]") {
 
 TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
   constexpr double EPSILON = 0.000001;
+  constexpr double COMPARISON_EPSILON = 0.01;
 
   constexpr size_t kInputSize = 5;
   constexpr size_t kLayerSize = 5;
@@ -830,7 +831,7 @@ TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
       double weight_gradient = weight_init_values[i] - test_net.GetWeight(1, i);
 
       CAPTURE(i);
-      REQUIRE(weight_gradient == Approx(approx_gradient).epsilon(EPSILON));
+      REQUIRE(weight_gradient == Approx(approx_gradient).epsilon(COMPARISON_EPSILON));
 
       input->MoveToCpu();
       expected->MoveToCpu();
@@ -879,9 +880,6 @@ TEST_CASE("Convolution Layer Gradient checking", "[convolution_gradient_check]")
 
       input_left->MoveToCpu();
       input_right->MoveToCpu();
-      std::cout << input_left->at(i) << " " << input_right->at(i) << std::endl;
-      std::cout << error_left << " " << error_right << std::endl;
-      std::cout << EPSILON << std::endl;
       double approx_gradient = (error_right - error_left) / (2 * EPSILON);
       double actual_gradient = gradients->at(i);
 
@@ -929,6 +927,8 @@ TEST_CASE("Convolution Layer Gradient checking", "[convolution_gradient_check]")
 
       // TODO(sharf): is this next line needed for tests to pass or can delete?
       // auto result = test_net.Evaluate(input);
+      test_net.RegisterBuffer(input.get());
+      test_net.RegisterBuffer(expected.get());
       test_net.Train(input, expected, params);
       double weight_gradient = weight_init_values[i] - test_net.GetWeight(1, i);
 
@@ -1003,8 +1003,8 @@ TEST_CASE("Softmax Layer unit tests", "[softmaxnet]") {
 }
 
 TEST_CASE("Cifar model gradient test", "[cifar]") {
-  constexpr double EPSILON = 0.0001;
-  constexpr double COMPARISON_EPSILON = 0.001;
+  constexpr double EPSILON = 0.00001;
+  constexpr double COMPARISON_EPSILON = 0.05;
   constexpr size_t kInputSize = 32 * 32 * 3;
   nnet::Architecture model(kInputSize);
   model
@@ -1111,3 +1111,4 @@ TEST_CASE("Cifar model gradient test", "[cifar]") {
 }
 
 }  // namespace nnet
+

@@ -31,8 +31,8 @@ struct Sample {
     return LabelToString(label);
   }
 
-  Matrix<double> NormalizedInput() const {
-    Matrix<double> input(kSampleSize, 1, 0);
+  std::unique_ptr<memory::ClBuffer> NormalizedInput(nnet::Nnet *network) const {
+    std::unique_ptr<memory::ClBuffer> input = network->MakeBuffer(kSampleSize);
     double norm = 0;
     for (size_t i = 0; i < kSampleSize; ++i) {
       norm += static_cast<double>(pixels[i]) * pixels[i];
@@ -42,21 +42,22 @@ struct Sample {
       norm = 1;
     }
     for (size_t i = 0; i < kSampleSize; ++i) {
-      input.at(i, 0) = static_cast<double>(pixels[i]) / norm;
+      input->at(i) = static_cast<double>(pixels[i]) / norm;
     }
     return input;
   }
 
-  Matrix<double> OneHotEncodedOutput() const {
+  std::unique_ptr<memory::ClBuffer> OneHotEncodedOutput(
+      nnet::Nnet* network) const {
     // Initialize kOutputSizex1 blank column vector.
-    Matrix<double> output(kOutputSize, 1, 0);
+    std::unique_ptr<memory::ClBuffer> output = network->MakeBuffer(kOutputSize);
 
     // Zero the inputs.
     for (size_t i = 0; i < kOutputSize; ++i) {
-      output.at(i, 0) = 0.0;
+      output->at(i) = 0.0;
     }
 
-    output.at(label, 0) = 1.0;
+    output->at(label) = 1.0;
 
     return output;
   }
@@ -102,10 +103,11 @@ std::string LabelToString(uint8_t label) {
   }
 }
 
-std::string OneHotEncodedOutputToString(Matrix<double> output) {
+std::string OneHotEncodedOutputToString(std::unique_ptr<memory::ClBuffer> buffer) {
+  buffer->MoveToCpu();
   uint8_t max_index = 0;
-  for (size_t index = 0; index < std::get<0>(output.size()); ++index) {
-    if (output.at(index, 0) > output.at(max_index, 0)) {
+  for (size_t index = 0; index < buffer->size(); ++index) {
+    if (buffer->at(index) > buffer->at(max_index)) {
       max_index = index;
     }
   }
@@ -125,7 +127,7 @@ void PrintStatus(nnet::Nnet* test_net, const std::vector<Sample>& samples, size_
     size_t example_index = std::rand() % samples.size();
     std::string actual = samples[example_index].Label();
     std::string nnet_output = OneHotEncodedOutputToString(
-        test_net->Evaluate(samples[example_index].NormalizedInput()));
+        test_net->Evaluate(samples[example_index].NormalizedInput(test_net)));
     std::cout << "=================================" << std::endl;
     std::cout << "Actual Answer: " << actual << "\nnnet output: " << nnet_output
               << std::endl;
@@ -221,7 +223,7 @@ int main() {
       .AddDenseLayer(10, symbolic::Identity)
       .AddSoftmaxLayer(10);
   std::cout << "Initializing network..." << std::endl;
-  nnet::Nnet test_net(model, nnet::Nnet::Xavier, nnet::Nnet::CrossEntropy);
+  nnet::Nnet test_net(model, nnet::Nnet::Xavier, nnet::CrossEntropy);
 
   // Read in the files.
   std::vector<string> training_files = {
@@ -266,10 +268,11 @@ int main() {
         std::cout << "Epoch " << epoch << std::endl;
         error_sum = 0;
       }
-      test_net.Train(sample.NormalizedInput(), sample.OneHotEncodedOutput(),
-                     params);
-      error_sum += test_net.Error(sample.NormalizedInput(),
-                                  sample.OneHotEncodedOutput());
+      auto input = sample.NormalizedInput(&test_net);
+      auto expected = sample.OneHotEncodedOutput(&test_net);
+      test_net.Train(input, expected, params);
+      auto output = test_net.Evaluate(input);
+      error_sum += test_net.Error(output, expected);
     }
   }
 

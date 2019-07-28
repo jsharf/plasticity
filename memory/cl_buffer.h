@@ -17,15 +17,16 @@
 
 namespace memory {
 
-// ASSERT for opencl calls.
-#define CL_CHECK(line)                                        \
-  do {                                                        \
-    cl_int res = line;                                        \
-    if (res != CL_SUCCESS) {                                  \
-      std::cerr << "Error running line: " #line << std::endl; \
-      std::cerr << "Code: " << res << std::endl;              \
-      std::exit(1);                                           \
-    }                                                         \
+#define CL_CHECK(line)                                       \
+  do {                                                       \
+    cl_int res = line;                                       \
+    if (res != CL_SUCCESS) {                                 \
+      std::cerr << "Error running line " #line << std::endl; \
+      std::cerr << "Code: " << res << std::endl;             \
+      std::cerr << "Line no: " << __LINE__ << std::endl;     \
+      std::cerr << "File: " << __FILE__ << std::endl;     \
+      std::exit(1);                                          \
+    }                                                        \
   } while (0);
 
 #define CHECK_NOTNULL(x)                                          \
