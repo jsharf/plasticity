@@ -44,6 +44,25 @@ class ClBuffer : public Buffer {
  public:
   using Location = Buffer::Location;
 
+  // Creates a clone of this buffer. If the buffer is loaded onto the GPU, uses
+  // clEnqueueCopyBuffer() to efficiently copy the buffer without leaving the
+  // GPU.
+  ClBuffer DeepClone() {
+    if (state_ == Buffer::CPU) {
+      return ClBuffer(*this);
+    } else {
+      cl_int buffer_init;
+      auto gpu_buffer = std::make_unique<cl::Buffer>(*context_, CL_MEM_READ_WRITE,
+                                                 size() * sizeof(double),
+                                                 nullptr, &buffer_init);
+      CL_CHECK(buffer_init);
+      CL_CHECK(cq_->enqueueCopyBuffer(*gpu_buffer, *gpu_buffer_, 0, 0,
+                                      size() * sizeof(double)));
+      CL_CHECK(cq_->finish());
+      return ClBuffer(cq_, context_, std::move(gpu_buffer));
+    }
+  }
+
   ClBuffer()
       : state_(Buffer::CPU), cpu_buffer_(0), cq_(nullptr), context_(nullptr) {
       }
@@ -70,6 +89,11 @@ class ClBuffer : public Buffer {
   }
   ClBuffer(cl::CommandQueue *cq, cl::Context *context)
       : state_(Buffer::CPU), cpu_buffer_(0), cq_(cq), context_(context) {
+    CHECK_NOTNULL(context_);
+    CHECK_NOTNULL(cq_);
+  }
+  ClBuffer(cl::CommandQueue *cq, cl::Context *context, std::unique_ptr<cl::Buffer>&& gpu_buffer)
+      : state_(Buffer::GPU), cpu_buffer_(0), gpu_buffer_(std::move(gpu_buffer)), cq_(cq), context_(context) {
     CHECK_NOTNULL(context_);
     CHECK_NOTNULL(cq_);
   }

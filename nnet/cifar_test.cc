@@ -250,29 +250,38 @@ int main() {
       }
     }
   }
-  std::cout << "Loaded " << samples.size() << " Samples!" << std::endl;
-
-  int samples_so_far = 0;
-  double error_sum = 0;
-  const size_t kNumTrainingEpochs = 1000;
-  for (size_t epoch = 1; epoch <= kNumTrainingEpochs; ++epoch) {
-    nnet::Nnet::LearningParameters params{.learning_rate = 0.001};
-    for (const auto& sample : samples) {
-      if (samples_so_far % 10000 == 0) {
-        PrintStatus(&test_net, samples, 100);
-      }
-      if (samples_so_far++ % 500 == 0) {
-        std::cout << "Progress: " << samples_so_far - 1 << " / " << (kNumTrainingEpochs * samples.size()) << std::endl;
-        std::cout << "Error avg over past 500 samples: " << error_sum / 500.0
-                  << std::endl;
-        std::cout << "Epoch " << epoch << std::endl;
-        error_sum = 0;
-      }
+  std::cout << "Loaded " << samples.size() << " Samples from disk!" << std::endl;
+  std::cout << "Moving samples to GPU..." << std::endl;
+  std::vector<std::unique_ptr<memory::ClBuffer>> inputs;
+  std::vector<std::unique_ptr<memory::ClBuffer>> outputs;
+  for (const auto& sample : samples) {
       auto input = sample.NormalizedInput(&test_net);
       auto expected = sample.OneHotEncodedOutput(&test_net);
-      test_net.Train(input, expected, params);
-      auto output = test_net.Evaluate(input);
-      error_sum += test_net.Error(output, expected);
+      input->MoveToGpu();
+      expected->MoveToGpu();
+      inputs.emplace_back(std::move(input));
+      outputs.emplace_back(std::move(expected));
+  }
+  std::cout << "Entire dataset of " << inputs.size()
+            << " examples is now stored on GPU!" << std::endl;
+
+  nnet::Nnet::LearningParameters params{.learning_rate = 0.001};
+  test_net.SetLearningParameters(params);
+
+  int samples_so_far = 0;
+  const size_t kNumTrainingEpochs = 1000;
+  for (size_t epoch = 1; epoch <= kNumTrainingEpochs; ++epoch) {
+    for (size_t i = 0; i < inputs.size(); ++i) {
+      if (samples_so_far % 100000 == 0) {
+        PrintStatus(&test_net, samples, 1000);
+      }
+      if (samples_so_far++ % 5000 == 0) {
+        std::cout << "Progress: " << samples_so_far - 1 << " / " << (kNumTrainingEpochs * samples.size()) << std::endl;
+        std::cout << "Epoch " << epoch << std::endl;
+      }
+      auto& input = inputs[i];
+      auto& expected = outputs[i];
+      test_net.Train(input, expected);
     }
   }
 

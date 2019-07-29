@@ -253,8 +253,8 @@ TEST_CASE("Simple neural network output and gradient descent is validated",
 
     auto expected = test_net.MakeBuffer({0.01, 0.99});
     auto input = test_net.MakeBuffer({0.05, 0.10});
-    test_net.Train(input, expected,
-                   Nnet::LearningParameters{0.5});
+    test_net.SetLearningParameters(Nnet::LearningParameters{0.5});
+    test_net.Train(input, expected);
 
     Architecture model = test_net.model();
 
@@ -353,8 +353,9 @@ TEST_CASE("Just testing a single max_pool layer", "[maxpool]") {
         31, 4,
         90, 6,
     });
-    std::unique_ptr<memory::ClBuffer> gradients = std::make_unique<memory::ClBuffer>();
-    test_net.Train(example, expected_altered, params, gradients);
+    std::unique_ptr<memory::ClBuffer> gradients = test_net.MakeBuffer(0);
+    test_net.SetLearningParameters(params);
+    test_net.Train(example, expected_altered, gradients);
 
     gradients->MoveToCpu();
     example->MoveToCpu();
@@ -698,8 +699,9 @@ TEST_CASE("Convolution layer test", "[convnet]") {
     });
 
     nnet::Nnet::LearningParameters params{.learning_rate = 1};
-    std::unique_ptr<memory::ClBuffer> gradients = std::make_unique<memory::ClBuffer>();
-    test_net.Train(example, expected_altered, params, gradients);
+    std::unique_ptr<memory::ClBuffer> gradients = test_net.MakeBuffer(0);
+    test_net.SetLearningParameters(params);
+    test_net.Train(example, expected_altered, gradients);
 
     gradients->MoveToCpu();
     example->MoveToCpu();
@@ -762,8 +764,9 @@ TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
     test_net.RegisterBuffer(input.get());
 
     nnet::Nnet::LearningParameters params{.learning_rate = 0};
-    std::unique_ptr<memory::ClBuffer> gradients = std::make_unique<memory::ClBuffer>();
-    test_net.Train(input, expected, params, gradients);
+    std::unique_ptr<memory::ClBuffer> gradients = test_net.MakeBuffer(0);
+    test_net.SetLearningParameters(params);
+    test_net.Train(input, expected, gradients);
 
     gradients->MoveToCpu();
     input->MoveToCpu();
@@ -827,7 +830,8 @@ TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
       test_net.RegisterBuffer(input.get());
       auto result = test_net.Evaluate(input);
       test_net.RegisterBuffer(expected.get());
-      test_net.Train(input, expected, params);
+      test_net.SetLearningParameters(params);
+      test_net.Train(input, expected);
       double weight_gradient = weight_init_values[i] - test_net.GetWeight(1, i);
 
       CAPTURE(i);
@@ -862,8 +866,9 @@ TEST_CASE("Convolution Layer Gradient checking", "[convolution_gradient_check]")
 
   SECTION("Verify input gradient") {
     nnet::Nnet::LearningParameters params{.learning_rate = 0};
-    std::unique_ptr<memory::ClBuffer> gradients = std::make_unique<memory::ClBuffer>();
-    test_net.Train(input, expected, params, gradients);
+    std::unique_ptr<memory::ClBuffer> gradients = test_net.MakeBuffer(0);
+    test_net.SetLearningParameters(params);
+    test_net.Train(input, expected, gradients);
 
     gradients->MoveToCpu();
     input->MoveToCpu();
@@ -925,11 +930,10 @@ TEST_CASE("Convolution Layer Gradient checking", "[convolution_gradient_check]")
       model.layers[1].weight_buffer()[i] = weight_init_values[i];
       Nnet test_net(model, Nnet::NoWeightInit, MeanSquared);
 
-      // TODO(sharf): is this next line needed for tests to pass or can delete?
-      // auto result = test_net.Evaluate(input);
       test_net.RegisterBuffer(input.get());
       test_net.RegisterBuffer(expected.get());
-      test_net.Train(input, expected, params);
+      test_net.SetLearningParameters(params);
+      test_net.Train(input, expected);
       double weight_gradient = weight_init_values[i] - test_net.GetWeight(1, i);
 
       CAPTURE(i);
@@ -975,9 +979,10 @@ TEST_CASE("Softmax Layer unit tests", "[softmaxnet]") {
 
     nnet::Nnet::LearningParameters params{.learning_rate = 0};
 
-    std::unique_ptr<memory::ClBuffer> gradients = std::make_unique<memory::ClBuffer>();
+    std::unique_ptr<memory::ClBuffer> gradients = test_net.MakeBuffer(0);
     auto input = test_net.MakeBuffer({0.1, 0.2, 0.7});
-    test_net.Train(input, expected, params, gradients);
+    test_net.SetLearningParameters(params);
+    test_net.Train(input, expected, gradients);
 
     input->MoveToCpu();
     expected->MoveToCpu();
@@ -1081,8 +1086,9 @@ TEST_CASE("Cifar model gradient test", "[cifar]") {
     }
 
     // Calculate actual gradients.
-    std::unique_ptr<memory::ClBuffer> gradients = std::make_unique<memory::ClBuffer>();
-    test_net.Train(input, train_label, params, gradients);
+    std::unique_ptr<memory::ClBuffer> gradients = test_net.MakeBuffer(0);
+    test_net.SetLearningParameters(params);
+    test_net.Train(input, train_label, gradients);
 
     input->MoveToCpu();
     train_label->MoveToCpu();

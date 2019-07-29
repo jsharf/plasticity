@@ -83,10 +83,20 @@ TEST_CASE("Opencl tests", "[cl]") {
     }
   }
 
+  SECTION("DeepClone in GPU mode doesn't ruin everything") {
+    buf.MoveToGpu();
+    auto buf2 = buf.DeepClone();
+    buf2.MoveToCpu();
+    buf.MoveToCpu();
+    for (size_t i = 0; i < 5; ++i) {
+      REQUIRE(buf[i] == buf2[i]);
+    }
+  }
+
   SECTION("Assigning via opencl doesn't kill values") {
     cl_int buffer_init;
     cl::Buffer cl_buffer(std::get<0>(cl_.compilation_units), CL_MEM_READ_WRITE,
-                         5 * sizeof(double), nullptr, &buffer_init);
+                         10 * sizeof(double), nullptr, &buffer_init);
     if (buffer_init != CL_SUCCESS) {
       std::cerr << "Could not initialize input buffer" << std::endl;
       std::exit(1);
