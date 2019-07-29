@@ -398,9 +398,7 @@ class Nnet {
       }
 
       if (layer.weight_buffer().size() > 0) {
-        cl::Buffer gpu_new_weights(
-            std::get<0>(opencl_.compilation_units), CL_MEM_READ_WRITE,
-            layer.weight_buffer().size() * sizeof(Number));
+        memory::ClBuffer gpu_new_weights = layer.weight_buffer().DeepClone();
 
         // Backprop layer weight updates.
         std::string weight_kernel_name = layer.WeightGradientKernelName();
@@ -408,7 +406,7 @@ class Nnet {
         CL_CHECK(weight_update.setArg(0, *gpu_layer_input.gpu_buffer()));
         CL_CHECK(weight_update.setArg(1, *layer.weight_buffer().gpu_buffer()));
         CL_CHECK(weight_update.setArg(2, *backprop_gradients_->gpu_buffer()));
-        CL_CHECK(weight_update.setArg(3, gpu_new_weights));
+        CL_CHECK(weight_update.setArg(3, *gpu_new_weights.gpu_buffer()));
         CL_CHECK(weight_update.setArg(4, *learning_rate_buffer_->gpu_buffer()));
         cl_int result = queue.enqueueNDRangeKernel(
             weight_update, cl::NullRange,
@@ -419,7 +417,7 @@ class Nnet {
                     << " & error code: " << result << std::endl;
           std::exit(1);
         }
-        *layer.weight_buffer().gpu_buffer() = gpu_new_weights;
+        layer.weight_buffer() = gpu_new_weights;
       }
 
       // Use the new input gradients for the next layer backwards (the one

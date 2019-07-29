@@ -45,7 +45,6 @@ void ClBuffer::MoveToCpu() {
   if (state_ == Buffer::CPU) {
     return;
   }
-  std::cout << "MOVING to CPU..." << std::endl;
   if (!gpu_buffer_) {
     std::cerr << "Error, unexpected nullptr gpu_buffer_" << std::endl;
     std::exit(1);
@@ -68,7 +67,6 @@ void ClBuffer::MoveToGpu() {
   if (gpu_buffer_) {
     gpu_buffer_.reset();
   }
-  std::cout << "MOVING to GPU..." << std::endl;
   cl_int buffer_init;
   if (size() == 0) {
     // Special case. If this buffer is allocated to size zero, then allocate a

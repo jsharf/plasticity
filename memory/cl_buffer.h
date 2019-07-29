@@ -56,9 +56,8 @@ class ClBuffer : public Buffer {
                                                  size() * sizeof(double),
                                                  nullptr, &buffer_init);
       CL_CHECK(buffer_init);
-      CL_CHECK(cq_->enqueueCopyBuffer(*gpu_buffer, *gpu_buffer_, 0, 0,
+      CL_CHECK(cq_->enqueueCopyBuffer(*gpu_buffer_, *gpu_buffer, 0, 0,
                                       size() * sizeof(double)));
-      CL_CHECK(cq_->finish());
       return ClBuffer(cq_, context_, std::move(gpu_buffer));
     }
   }

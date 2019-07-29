@@ -845,6 +845,7 @@ TEST_CASE("Dense Layer Gradient checking", "[densenet]") {
 
 TEST_CASE("Convolution Layer Gradient checking", "[convolution_gradient_check]") {
   constexpr double EPSILON = 0.000001;
+  constexpr double COMPARISON_EPSILON = 0.0001;
 
   constexpr size_t kInputSize = 9;
 
@@ -889,7 +890,7 @@ TEST_CASE("Convolution Layer Gradient checking", "[convolution_gradient_check]")
       double actual_gradient = gradients->at(i);
 
       CAPTURE(i);
-      REQUIRE(actual_gradient == Approx(approx_gradient).epsilon(EPSILON));
+      REQUIRE(actual_gradient == Approx(approx_gradient).epsilon(COMPARISON_EPSILON));
     }
   }
 
@@ -937,6 +938,8 @@ TEST_CASE("Convolution Layer Gradient checking", "[convolution_gradient_check]")
       double weight_gradient = weight_init_values[i] - test_net.GetWeight(1, i);
 
       CAPTURE(i);
+      CAPTURE(weight_init_values[i]);
+      CAPTURE(test_net.GetWeight(1, i));
       REQUIRE(weight_gradient == Approx(approx_gradient).epsilon(EPSILON));
 
       // These are currently registered to a temporary nnet

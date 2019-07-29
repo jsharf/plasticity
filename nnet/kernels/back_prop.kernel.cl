@@ -30,9 +30,8 @@ kernel void weight_delta_LAYERID(
     const global double* output_gradient,  // back-propagated output gradient.
     global double* new_weights, global double* learning_rate) {
   size_t i = get_global_id(0);
-  new_weights[i] =
-      weights[i] - learning_rate[0] * CalculateWeightGradient_LAYERID(
-                                          inputs, weights, output_gradient, i);
+  new_weights[i] -= learning_rate[0] * CalculateWeightGradient_LAYERID(
+                                           inputs, weights, output_gradient, i);
 }
 
 kernel void input_delta_LAYERID(
