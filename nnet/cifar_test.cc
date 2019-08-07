@@ -286,8 +286,7 @@ int main() {
       }
       auto& input = inputs[i];
       auto& expected = outputs[i];
-      // test_net.Train(input, expected);
-      test_net.Evaluate(input);
+      test_net.Train(input, expected);
     }
   }
 
