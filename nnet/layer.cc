@@ -26,11 +26,26 @@ constexpr char kWeightIndex[] = "weight_index";
 
 // Boilerplate constructors.
 Layer::Layer(std::unique_ptr<LayerImpl> &&root)
-    : impl_(std::move(root)), weights_(impl_->weights().size()) {}
+    : impl_(std::move(root)),
+      eval_workgroup_size_(
+          CalculateWorkgroupSize(impl_->GetDimensions().num_outputs)),
+      weight_train_workgroup_size_(
+          CalculateWorkgroupSize(impl_->weights().size())),
+      bp_train_workgroup_size_(
+          CalculateWorkgroupSize(impl_->GetDimensions().num_inputs)),
+      weights_(impl_->weights().size()) {}
 Layer::Layer(Layer &&other)
-    : impl_(std::move(other.impl_)), weights_(std::move(other.weights_)) {}
+    : impl_(std::move(other.impl_)),
+      eval_workgroup_size_(other.eval_workgroup_size_),
+      weight_train_workgroup_size_(other.weight_train_workgroup_size_),
+      bp_train_workgroup_size_(other.bp_train_workgroup_size_),
+      weights_(std::move(other.weights_)) {}
 Layer::Layer(const Layer &other)
-    : impl_(other.impl_->Clone()), weights_(other.weights_) {}
+    : impl_(other.impl_->Clone()),
+      eval_workgroup_size_(other.eval_workgroup_size_),
+      weight_train_workgroup_size_(other.weight_train_workgroup_size_),
+      bp_train_workgroup_size_(other.bp_train_workgroup_size_),
+      weights_(other.weights_) {}
 
 void Layer::RegisterToNetwork(nnet::Nnet *network) {
   // Awesome, we have a network registered. Use it to allocate a buffer for the

@@ -31,6 +31,10 @@ size_t ClBuffer::size() const {
   } else {
     size_t gpu_size = 0;
     CL_CHECK(gpu_buffer_->getInfo(CL_MEM_SIZE, &gpu_size));
+    // Special case.
+    if (gpu_size == 1) {
+      return 0;
+    }
     if (gpu_size % sizeof(double) != 0) {
       std::cerr << "GPU Buffer is not an even multiple of doubles. Invalid GPU "
                    "buffer size."
@@ -54,7 +58,7 @@ void ClBuffer::MoveToCpu() {
     CL_CHECK(cq_->enqueueReadBuffer(*gpu_buffer_, CL_TRUE, 0,
                                     sizeof(double) * size(), &cpu_buffer_[0]));
   }
-  gpu_buffer_ = nullptr;
+  gpu_buffer_.reset(nullptr);
   state_ = Buffer::CPU;
 }
 
@@ -72,9 +76,8 @@ void ClBuffer::MoveToGpu() {
     // Special case. If this buffer is allocated to size zero, then allocate a
     // 1-size dummy buffer, since empty buffers aren't allowed. Don't need to
     // even initialize it.
-    gpu_buffer_ =
-        std::make_unique<cl::Buffer>(*context_, CL_MEM_READ_WRITE,
-                                     sizeof(double) * 1, nullptr, &buffer_init);
+    gpu_buffer_ = std::make_unique<cl::Buffer>(*context_, CL_MEM_READ_WRITE, 1,
+                                               nullptr, &buffer_init);
     CL_CHECK(buffer_init);
     state_ = Buffer::GPU;
     return;

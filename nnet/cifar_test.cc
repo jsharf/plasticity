@@ -124,7 +124,8 @@ void PrintStatus(nnet::Nnet* test_net, const std::vector<Sample>& samples, size_
   srand(time(nullptr));
   int correct_count = 0;
   for (size_t i = 0; i < num_examples; ++i) {
-    size_t example_index = std::rand() % samples.size();
+    size_t random_integer = std::rand();
+    size_t example_index = random_integer % samples.size();
     std::string actual = samples[example_index].Label();
     std::string nnet_output = OneHotEncodedOutputToString(
         test_net->Evaluate(samples[example_index].NormalizedInput(test_net)));
@@ -251,6 +252,10 @@ int main() {
     }
   }
   std::cout << "Loaded " << samples.size() << " Samples from disk!" << std::endl;
+  if (samples.size() == 0) {
+    std::cerr << "No samples found, quitting!" << std::endl;
+    return -1;
+  }
   std::cout << "Moving samples to GPU..." << std::endl;
   std::vector<std::unique_ptr<memory::ClBuffer>> inputs;
   std::vector<std::unique_ptr<memory::ClBuffer>> outputs;
@@ -269,9 +274,9 @@ int main() {
   test_net.SetLearningParameters(params);
 
   int samples_so_far = 0;
-  const size_t kNumTrainingEpochs = 1000;
+  const size_t kNumTrainingEpochs = 1;
   for (size_t epoch = 1; epoch <= kNumTrainingEpochs; ++epoch) {
-    for (size_t i = 0; i < inputs.size(); ++i) {
+    for (size_t i = 0; i < samples.size(); ++i) {
       if (samples_so_far % 100000 == 0) {
         PrintStatus(&test_net, samples, 1000);
       }

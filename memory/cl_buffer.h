@@ -92,7 +92,7 @@ class ClBuffer : public Buffer {
     CHECK_NOTNULL(cq_);
   }
   ClBuffer(cl::CommandQueue *cq, cl::Context *context, std::unique_ptr<cl::Buffer>&& gpu_buffer)
-      : state_(Buffer::GPU), cpu_buffer_(0), gpu_buffer_(std::move(gpu_buffer)), cq_(cq), context_(context) {
+      : state_(Buffer::GPU), gpu_buffer_(std::move(gpu_buffer)), cq_(cq), context_(context) {
     CHECK_NOTNULL(context_);
     CHECK_NOTNULL(cq_);
   }

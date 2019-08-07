@@ -13,13 +13,18 @@ cc_library(
     ],
 )
 
+filegroup(
+    name = "kernels",
+    srcs = glob(["kernels/*"]),
+)
+
 cc_library(
     name = "nnet",
     hdrs = ["nnet.h"],
     copts = [
         "--std=c++1z",
     ],
-    data = glob(["kernels/*"]),
+    data = [":kernels"],
     linkopts = [
         "-pthread",
     ],
@@ -129,6 +134,7 @@ cc_library(
 cc_library(
     name = "layer_dimensions",
     hdrs = ["layer_dimensions.h"],
+    srcs = ["layer_dimensions.cc"],
     copts = [
         "--std=c++1z",
     ],
@@ -292,6 +298,7 @@ cc_binary(
     srcs = ["cifar_test.cc"],
     copts = [
         "--std=c++1z",
+        "-O3",
     ],
     data = [
         "//math/nnet/data:cifar-10",
@@ -314,6 +321,55 @@ cc_binary(
         ":nnet",
         "//math/geometry:dynamic_matrix",
         "//math/symbolic",
+    ],
+)
+
+cc_binary(
+    name = "cifar_test_gprof",
+    srcs = ["cifar_test.cc"],
+    copts = [
+        "--std=c++1z",
+        "-g",
+        "-pg",
+        "-O3",
+    ],
+    data = [
+        "//math/nnet/data:cifar-10",
+    ],
+    linkopts = select({
+        "//clutil:osx": ["-framework OpenCL"],
+        "//clutil:linux": [
+            "-lOpenCL",
+            "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+        ],
+        "//conditions:default": [
+            "-lOpenCL",
+            "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+        ],
+    }) + [
+        "-g",
+        "-pg",
+    ],
+    visibility = ["//math"],
+    deps = [
+        ":convolution_layer",
+        ":layer",
+        ":nnet",
+        "//math/geometry:dynamic_matrix",
+        "//math/symbolic",
+    ],
+)
+
+genrule(
+    name = "cifar_profile",
+    srcs = [
+        ":kernels",
+        "//math/nnet/data:cifar-10",
+    ],
+    outs = ["profile.dot", "profile.out"],
+    cmd = "$(execpath :cifar_test_gprof); gprof $(execpath :cifar_test_gprof) > $(@D)/profile.out; gprof2dot $(@D)/profile.out > $(@D)/profile.dot",
+    tools = [
+        ":cifar_test_gprof",
     ],
 )
 

@@ -5,6 +5,7 @@
 #include "math/nnet/activation_layer.h"
 #include "math/nnet/convolution_layer.h"
 #include "math/nnet/dense_layer.h"
+#include "math/nnet/layer_dimensions.h"
 #include "math/nnet/layer_impl.h"
 #include "math/nnet/max_pool_layer.h"
 #include "math/nnet/softmax_layer.h"
@@ -111,10 +112,19 @@ class Layer {
   Matrix<symbolic::Expression> InputExpression() const;
   Matrix<symbolic::Expression> OutputExpression() const;
 
+  size_t eval_workgroup_size() const { return eval_workgroup_size_; }
+  size_t weight_train_workgroup_size() const {
+    return weight_train_workgroup_size_;
+  }
+  size_t bp_train_workgroup_size() const { return bp_train_workgroup_size_; }
+
  private:
   Nnet *nnet_;
   SymbolGenerator generator_;
   std::unique_ptr<LayerImpl> impl_;
+  const size_t eval_workgroup_size_;
+  const size_t weight_train_workgroup_size_;
+  const size_t bp_train_workgroup_size_;
 
   // Weights are cached in the GPU between training runs.
   memory::ClBuffer weights_;

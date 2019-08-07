@@ -1,5 +1,8 @@
 #ifndef LAYER_DIMENSIONS_H
 #define LAYER_DIMENSIONS_H
+
+#include <cstddef>
+
 namespace nnet {
 
 enum LossFunction {
@@ -46,6 +49,8 @@ struct VolumeDimensions {
 struct AreaDimensions {
   size_t width, height;
 };
+
+size_t CalculateWorkgroupSize(size_t global_num_tasks);
 
 }  // namespace nnet
 #endif  // LAYER_DIMENSIONS_H

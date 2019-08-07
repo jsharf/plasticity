@@ -11,10 +11,14 @@ namespace nnet {
 class ErrorLayer {
  public:
   ErrorLayer(LossFunction loss_function, size_t size)
-      : loss_function_(loss_function), size_(size) {}
+      : loss_function_(loss_function),
+        size_(size),
+        workgroup_size_(CalculateWorkgroupSize(size_)) {}
 
   ErrorLayer(const ErrorLayer& rhs)
-      : loss_function_(rhs.loss_function_), size_(rhs.size_) {}
+      : loss_function_(rhs.loss_function_),
+        size_(rhs.size_),
+        workgroup_size_(rhs.workgroup_size_) {}
 
   // Returns the source code for two kernels. One will compare the output of the
   // forward pass (current output) with the expected output, and generate
@@ -28,6 +32,10 @@ class ErrorLayer {
 
   std::string GradientKernelName() const { return "error_gradients"; }
 
+  size_t workgroup_size() const {
+    return workgroup_size_;
+  }
+
   size_t size() const { return size_; }
 
  private:
@@ -39,6 +47,7 @@ class ErrorLayer {
 
   LossFunction loss_function_;
   size_t size_;
+  size_t workgroup_size_;
 };
 
 }  // namespace nnet
