@@ -279,10 +279,14 @@ int main() {
   auto start = std::chrono::high_resolution_clock::now();
   for (size_t epoch = 1; epoch <= kNumTrainingEpochs; ++epoch) {
     for (size_t i = 0; i < samples.size(); ++i) {
+      auto& input = inputs[i];
+      auto& expected = outputs[i];
+      test_net.Train(input, expected);
+      samples_so_far++;
       if (samples_so_far % 100000 == 0) {
         PrintStatus(&test_net, samples, 1000);
       }
-      if (samples_so_far++ % 5000 == 0) {
+      if (samples_so_far % 5000 == 0) {
         std::cout << "Progress: " << samples_so_far - 1 << " / " << (kNumTrainingEpochs * samples.size()) << std::endl;
         std::cout << "Epoch " << epoch << std::endl;
         auto end = std::chrono::high_resolution_clock::now();
@@ -291,9 +295,6 @@ int main() {
         std::cout << "Training rate (samples per second): " << rate << std::endl;
         start = std::chrono::high_resolution_clock::now();
       }
-      auto& input = inputs[i];
-      auto& expected = outputs[i];
-      test_net.Train(input, expected);
     }
   }
 
