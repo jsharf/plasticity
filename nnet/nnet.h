@@ -235,10 +235,11 @@ class Nnet {
       CL_CHECK(evaluate.setArg(0, *nnet_input->gpu_buffer()));
       CL_CHECK(evaluate.setArg(1, *layer.weight_buffer().gpu_buffer()));
       CL_CHECK(evaluate.setArg(2, outputs));
+      auto workgroup = (layer.eval_workgroup_size() != 0) ? cl::NDRange(layer.eval_workgroup_size()) : cl::NullRange;
       result = queue.enqueueNDRangeKernel(
           evaluate, cl::NullRange,
           cl::NDRange(layer.GetDimensions().num_outputs),
-          cl::NDRange(layer.eval_workgroup_size()));
+          workgroup);
       if (result != CL_SUCCESS) {
         std::cerr << "Error enqueuing Evaluation Kernel:  " << result
                   << std::endl;
@@ -280,9 +281,9 @@ class Nnet {
     CL_CHECK(evaluate.setArg(0, *actual_output->gpu_buffer()));
     CL_CHECK(evaluate.setArg(1, *expected->gpu_buffer()));
     CL_CHECK(evaluate.setArg(2, *error_components.gpu_buffer()));
+    auto workgroup = (error_.workgroup_size() != 0) ? cl::NDRange(error_.workgroup_size()) : cl::NullRange;
     result = opencl_.queue.enqueueNDRangeKernel(
-        evaluate, cl::NullRange, cl::NDRange(error_.size()),
-        cl::NDRange(error_.workgroup_size()));
+        evaluate, cl::NullRange, cl::NDRange(error_.size()), workgroup);
     if (result != CL_SUCCESS) {
       std::cerr << "Error enqueuing Error Kernel:  " << result << std::endl;
       std::exit(1);
@@ -320,9 +321,9 @@ class Nnet {
     CL_CHECK(evaluate.setArg(0, *actual_output->gpu_buffer()));
     CL_CHECK(evaluate.setArg(1, *expected->gpu_buffer()));
     CL_CHECK(evaluate.setArg(2, *out_error_gradients->gpu_buffer()));
+    auto workgroup = (error_.workgroup_size() != 0) ? cl::NDRange(error_.workgroup_size()) : cl::NullRange;
     result = opencl_.queue.enqueueNDRangeKernel(
-        evaluate, cl::NullRange, cl::NDRange(error_.size()),
-        cl::NDRange(error_.workgroup_size()));
+        evaluate, cl::NullRange, cl::NDRange(error_.size()), workgroup);
     if (result != CL_SUCCESS) {
       std::cerr << "Error enqueuing Error Kernel:  " << result << std::endl;
       std::exit(1);
@@ -385,10 +386,10 @@ class Nnet {
         CL_CHECK(input_update.setArg(1, *layer.weight_buffer().gpu_buffer()));
         CL_CHECK(input_update.setArg(2, *backprop_gradients_->gpu_buffer()));
         CL_CHECK(input_update.setArg(3, *next_backprop_gradients_->gpu_buffer()));
+        auto workgroup = (layer.bp_train_workgroup_size() != 0) ? cl::NDRange(layer.bp_train_workgroup_size()) : cl::NullRange;
         cl_int result = queue.enqueueNDRangeKernel(
             input_update, cl::NullRange,
-            cl::NDRange(layer.GetDimensions().num_inputs),
-            cl::NDRange(layer.bp_train_workgroup_size()));
+            cl::NDRange(layer.GetDimensions().num_inputs), workgroup);
         if (result != CL_SUCCESS) {
           std::cerr << "Error enqueuing kernel "
                     << layer.InputGradientKernelName()
@@ -412,10 +413,10 @@ class Nnet {
         CL_CHECK(weight_update.setArg(2, *backprop_gradients_->gpu_buffer()));
         CL_CHECK(weight_update.setArg(3, *gpu_new_weights.gpu_buffer()));
         CL_CHECK(weight_update.setArg(4, *learning_rate_buffer_->gpu_buffer()));
+        auto workgroup = (layer.weight_train_workgroup_size() != 0) ? cl::NDRange(layer.weight_train_workgroup_size()) : cl::NullRange;
         cl_int result = queue.enqueueNDRangeKernel(
             weight_update, cl::NullRange,
-            cl::NDRange(layer.weight_buffer().size()),
-            cl::NDRange(layer.weight_train_workgroup_size()));
+            cl::NDRange(layer.weight_buffer().size()), workgroup);
         if (result != CL_SUCCESS) {
           std::cerr << "Error enqueuing kernel "
                     << layer.WeightGradientKernelName()

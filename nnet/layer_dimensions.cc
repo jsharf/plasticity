@@ -35,6 +35,13 @@ size_t CalculateWorkgroupSize(size_t global_num_tasks) {
     }                                    \
   } while (0);
 
+  size_t max_workgroup_size = std::min(global_num_tasks / 2, kMaxWorkgroupSize);
+  for (size_t potential_workgroup_size = 32; potential_workgroup_size < max_workgroup_size; potential_workgroup_size++) {
+    if ((global_num_tasks % potential_workgroup_size) == 0) {
+      return potential_workgroup_size;
+    }
+  }
+
   RETURN_IF_DIVIDES_EVENLY(global_num_tasks, 96);
   RETURN_IF_DIVIDES_EVENLY(global_num_tasks, 128);
   RETURN_IF_DIVIDES_EVENLY(global_num_tasks, 160);
@@ -43,12 +50,6 @@ size_t CalculateWorkgroupSize(size_t global_num_tasks) {
   RETURN_IF_DIVIDES_EVENLY(global_num_tasks, 512);
   RETURN_IF_DIVIDES_EVENLY(global_num_tasks, 256);
 
-  size_t max_workgroup_size = std::min(global_num_tasks / 2, kMaxWorkgroupSize);
-  for (size_t potential_workgroup_size = 1; potential_workgroup_size < max_workgroup_size; potential_workgroup_size++) {
-    if ((global_num_tasks % potential_workgroup_size) == 0) {
-      return potential_workgroup_size;
-    }
-  }
   return 1;
 }
 

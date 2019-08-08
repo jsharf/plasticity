@@ -8,6 +8,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <chrono>
 
 constexpr size_t kSampleSize = 32 * 32 * 3;
 constexpr size_t kOutputSize = 10;
@@ -274,7 +275,8 @@ int main() {
   test_net.SetLearningParameters(params);
 
   int samples_so_far = 0;
-  const size_t kNumTrainingEpochs = 1;
+  const size_t kNumTrainingEpochs = 4000;
+  auto start = std::chrono::high_resolution_clock::now();
   for (size_t epoch = 1; epoch <= kNumTrainingEpochs; ++epoch) {
     for (size_t i = 0; i < samples.size(); ++i) {
       if (samples_so_far % 100000 == 0) {
@@ -283,6 +285,11 @@ int main() {
       if (samples_so_far++ % 5000 == 0) {
         std::cout << "Progress: " << samples_so_far - 1 << " / " << (kNumTrainingEpochs * samples.size()) << std::endl;
         std::cout << "Epoch " << epoch << std::endl;
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        double rate = 1000 * 5000.0 / duration.count();
+        std::cout << "Training rate (samples per second): " << rate << std::endl;
+        start = std::chrono::high_resolution_clock::now();
       }
       auto& input = inputs[i];
       auto& expected = outputs[i];
