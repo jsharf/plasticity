@@ -140,8 +140,11 @@ class ClBuffer : public Buffer {
     MoveToGpu();
   }
 
-  void MoveToCpu();
-  void MoveToGpu();
+  // These commands can optionally be run on a provided command queue. Otherwise
+  // they'll default to the CQ that the buffer was initialized with.
+  void MoveToCpu(const std::unique_ptr<cl::CommandQueue>& cq=nullptr);
+  void MoveToGpu(const std::unique_ptr<cl::CommandQueue>& cq=nullptr);
+
   Location GetBufferLocation() { return state_; }
   size_t size() const;
   void resize(

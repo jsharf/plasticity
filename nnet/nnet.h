@@ -77,6 +77,7 @@ class Nnet {
       RegisterBuffer(&eval_layer_outputs_->back());
     }
 
+    max_layer_output_size_ = max_layer_output_size;
     layer_outputs_ = MakeBuffer(max_layer_output_size);
     backprop_gradients_ = MakeBuffer(max_layer_output_size);
     next_backprop_gradients_ = MakeBuffer(max_layer_output_size);
@@ -192,7 +193,8 @@ class Nnet {
     return model_.layers[layer].weight_buffer()[weight_index];
   }
 
-  std::unique_ptr<memory::ClBuffer> Evaluate(const std::unique_ptr<memory::ClBuffer> &in) {
+  std::unique_ptr<memory::ClBuffer> Evaluate(
+      const std::unique_ptr<memory::ClBuffer> &in) {
     std::unique_ptr<std::vector<memory::ClBuffer>> _(nullptr);
     return Evaluate(in, _);
   }
@@ -213,7 +215,8 @@ class Nnet {
 
     inputs->MoveToGpu();
 
-    std::unique_ptr<memory::ClBuffer> nnet_input = std::make_unique<memory::ClBuffer>(*inputs);
+    std::unique_ptr<memory::ClBuffer> nnet_input =
+        std::make_unique<memory::ClBuffer>(*inputs);
 
     // Load all weights into the GPU (weights which are already in the GPU will
     // be skipped).
@@ -235,11 +238,12 @@ class Nnet {
       CL_CHECK(evaluate.setArg(0, *nnet_input->gpu_buffer()));
       CL_CHECK(evaluate.setArg(1, *layer.weight_buffer().gpu_buffer()));
       CL_CHECK(evaluate.setArg(2, outputs));
-      auto workgroup = (layer.eval_workgroup_size() != 0) ? cl::NDRange(layer.eval_workgroup_size()) : cl::NullRange;
+      auto workgroup = (layer.eval_workgroup_size() != 0)
+                           ? cl::NDRange(layer.eval_workgroup_size())
+                           : cl::NullRange;
       result = queue.enqueueNDRangeKernel(
           evaluate, cl::NullRange,
-          cl::NDRange(layer.GetDimensions().num_outputs),
-          workgroup);
+          cl::NDRange(layer.GetDimensions().num_outputs), workgroup);
       if (result != CL_SUCCESS) {
         std::cerr << "Error enqueuing Evaluation Kernel:  " << result
                   << std::endl;
@@ -256,6 +260,7 @@ class Nnet {
       *nnet_input->gpu_buffer() = outputs;
     }
 
+    queue.finish();
     return std::move(nnet_input);
   }
 
@@ -277,13 +282,15 @@ class Nnet {
     // Calculate error component for each output in parallel.
     cl_int result;
     std::string kernel_name = error_.ErrorKernelName();
-    cl::Kernel &evaluate = CacheFetchKernel(kernel_name);
-    CL_CHECK(evaluate.setArg(0, *actual_output->gpu_buffer()));
-    CL_CHECK(evaluate.setArg(1, *expected->gpu_buffer()));
-    CL_CHECK(evaluate.setArg(2, *error_components.gpu_buffer()));
-    auto workgroup = (error_.workgroup_size() != 0) ? cl::NDRange(error_.workgroup_size()) : cl::NullRange;
+    cl::Kernel &error_kernel = CacheFetchKernel(kernel_name);
+    CL_CHECK(error_kernel.setArg(0, *actual_output->gpu_buffer()));
+    CL_CHECK(error_kernel.setArg(1, *expected->gpu_buffer()));
+    CL_CHECK(error_kernel.setArg(2, *error_components.gpu_buffer()));
+    auto workgroup = (error_.workgroup_size() != 0)
+                         ? cl::NDRange(error_.workgroup_size())
+                         : cl::NullRange;
     result = opencl_.queue.enqueueNDRangeKernel(
-        evaluate, cl::NullRange, cl::NDRange(error_.size()), workgroup);
+        error_kernel, cl::NullRange, cl::NDRange(error_.size()), workgroup);
     if (result != CL_SUCCESS) {
       std::cerr << "Error enqueuing Error Kernel:  " << result << std::endl;
       std::exit(1);
@@ -298,10 +305,9 @@ class Nnet {
     return error;
   }
 
-  void ErrorGradients(
-      std::unique_ptr<memory::ClBuffer> &actual_output,
-      std::unique_ptr<memory::ClBuffer> &expected,
-      std::unique_ptr<memory::ClBuffer> &out_error_gradients) {
+  void ErrorGradients(std::unique_ptr<memory::ClBuffer> &actual_output,
+                      std::unique_ptr<memory::ClBuffer> &expected,
+                      std::unique_ptr<memory::ClBuffer> &out_error_gradients) {
     CompileKernelsIfRequired();
 
     actual_output->MoveToGpu();
@@ -317,13 +323,15 @@ class Nnet {
     // Calculate error component for each output in parallel.
     cl_int result;
     std::string kernel_name = error_.GradientKernelName();
-    cl::Kernel &evaluate = CacheFetchKernel(kernel_name);
-    CL_CHECK(evaluate.setArg(0, *actual_output->gpu_buffer()));
-    CL_CHECK(evaluate.setArg(1, *expected->gpu_buffer()));
-    CL_CHECK(evaluate.setArg(2, *out_error_gradients->gpu_buffer()));
-    auto workgroup = (error_.workgroup_size() != 0) ? cl::NDRange(error_.workgroup_size()) : cl::NullRange;
+    cl::Kernel &error_kernel = CacheFetchKernel(kernel_name);
+    CL_CHECK(error_kernel.setArg(0, *actual_output->gpu_buffer()));
+    CL_CHECK(error_kernel.setArg(1, *expected->gpu_buffer()));
+    CL_CHECK(error_kernel.setArg(2, *out_error_gradients->gpu_buffer()));
+    auto workgroup = (error_.workgroup_size() != 0)
+                         ? cl::NDRange(error_.workgroup_size())
+                         : cl::NullRange;
     result = opencl_.queue.enqueueNDRangeKernel(
-        evaluate, cl::NullRange, cl::NDRange(error_.size()), workgroup);
+        error_kernel, cl::NullRange, cl::NDRange(error_.size()), workgroup);
     if (result != CL_SUCCESS) {
       std::cerr << "Error enqueuing Error Kernel:  " << result << std::endl;
       std::exit(1);
@@ -346,11 +354,7 @@ class Nnet {
              std::unique_ptr<memory::ClBuffer> &o,
              const std::unique_ptr<memory::ClBuffer> &input_gradients) {
     cl::Device device = SelectDevice();
-
     CompileKernelsIfRequired();
-
-    // Create a queue (a queue of commands that the GPU will execute)
-    // Assumes that all kernels compiled for same device.
     cl::CommandQueue &queue = opencl_.queue;
 
     // Forward pass, store each layer's outputs as a column vector in
@@ -366,6 +370,7 @@ class Nnet {
     for (size_t i = 0; i < model_.layers.size(); ++i) {
       model_.layers[i].weight_buffer().MoveToGpu();
     }
+    CL_CHECK(LoadWeightsToGpu().finish());
 
     // Backpropagation algorithm.
     // For each layer, take the current backpropagated gradients (stored in
@@ -377,7 +382,6 @@ class Nnet {
       const memory::ClBuffer &gpu_layer_input =
           (i > 0) ? eval_layer_outputs_->at(i - 1) : *in;
 
-
       if (layer.GetDimensions().num_inputs > 0) {
         // Backprop gradient calculation.
         std::string input_kernel_name = layer.InputGradientKernelName();
@@ -385,8 +389,11 @@ class Nnet {
         CL_CHECK(input_update.setArg(0, *gpu_layer_input.gpu_buffer()));
         CL_CHECK(input_update.setArg(1, *layer.weight_buffer().gpu_buffer()));
         CL_CHECK(input_update.setArg(2, *backprop_gradients_->gpu_buffer()));
-        CL_CHECK(input_update.setArg(3, *next_backprop_gradients_->gpu_buffer()));
-        auto workgroup = (layer.bp_train_workgroup_size() != 0) ? cl::NDRange(layer.bp_train_workgroup_size()) : cl::NullRange;
+        CL_CHECK(
+            input_update.setArg(3, *next_backprop_gradients_->gpu_buffer()));
+        auto workgroup = (layer.bp_train_workgroup_size() != 0)
+                             ? cl::NDRange(layer.bp_train_workgroup_size())
+                             : cl::NullRange;
         cl_int result = queue.enqueueNDRangeKernel(
             input_update, cl::NullRange,
             cl::NDRange(layer.GetDimensions().num_inputs), workgroup);
@@ -413,7 +420,9 @@ class Nnet {
         CL_CHECK(weight_update.setArg(2, *backprop_gradients_->gpu_buffer()));
         CL_CHECK(weight_update.setArg(3, *gpu_new_weights.gpu_buffer()));
         CL_CHECK(weight_update.setArg(4, *learning_rate_buffer_->gpu_buffer()));
-        auto workgroup = (layer.weight_train_workgroup_size() != 0) ? cl::NDRange(layer.weight_train_workgroup_size()) : cl::NullRange;
+        auto workgroup = (layer.weight_train_workgroup_size() != 0)
+                             ? cl::NDRange(layer.weight_train_workgroup_size())
+                             : cl::NullRange;
         cl_int result = queue.enqueueNDRangeKernel(
             weight_update, cl::NullRange,
             cl::NDRange(layer.weight_buffer().size()), workgroup);
@@ -434,6 +443,158 @@ class Nnet {
       input_gradients->MoveToGpu();
       *input_gradients->gpu_buffer() = *backprop_gradients_->gpu_buffer();
     }
+  }
+
+  cl::CommandQueue LoadWeightsToGpu() {
+    auto queue = std::make_unique<cl::CommandQueue>(
+        std::get<0>(cl_state.compilation_units), device);
+
+    // Load all weights into the GPU (weights which are already in the GPU will
+    // be skipped).
+    for (size_t i = 0; i < model_.layers.size(); ++i) {
+      model_.layers[i].weight_buffer().MoveToGpu(queue);
+    }
+
+    return queue;
+  }
+
+  cl::CommandQueue CalculateGradients(
+      const std::unique_ptr<memory::ClBuffer> &in,
+      const std::unique_ptr<memory::ClBuffer> &out,
+      const std::unique_ptr<std::vector<memory::ClBuffer>> &out_gradients) {
+    std::unique_ptr<memory::ClBuffer> _(nullptr);
+    return CalculateGradients(in, out, out_gradients, _);
+  }
+
+  // NOTE: This method ASSUMES that layer weights are already loaded onto the
+  // GPU!!
+  cl::CommandQueue CalculateGradients(
+      const std::unique_ptr<memory::ClBuffer> &in,
+      const std::unique_ptr<memory::ClBuffer> &out,
+      const std::unique_ptr<std::vector<memory::ClBuffer>> &out_gradients,
+      const std::unique_ptr<memory::ClBuffer>& input_gradients) {
+    cl::Device device = SelectDevice();
+    CompileKernelsIfRequired();
+    auto queue = std::make_unique<cl::CommandQueue>(
+        std::get<0>(cl_state.compilation_units), device);
+
+    std::unique_ptr<std::vector<memory::ClBuffer>> layer_outputs;
+
+    // Forward pass, store each layer's outputs as a column vector in
+    // layer_outputs.
+    std::unique_ptr<memory::ClBuffer> actual_output =
+        Evaluate(in, layer_outputs);
+
+    // Generate output gradients (first part of backprop).
+    std::unique_ptr<memory::ClBuffer> backprop_gradients;
+    ErrorGradients(actual_output, out, backprop_gradients);
+
+    // Wait on Eval() and ErrorGradients to finish.
+    opencl_.queue.finish();
+
+    // Backpropagation algorithm.
+    // For each layer, take the current backpropagated gradients (stored in
+    // variable Matrix<Number> gradients) and pass it to the weight gradient
+    // kernel to calculate weight updates. Then pass it to the input gradient
+    // kernel to calculate the gradient for the next layer.
+    for (int i = model_.layers.size() - 1; i >= 0; --i) {
+      std::unique_ptr<memory::ClBuffer> next_backprop_gradients =
+          MakeBuffer(layer.GetDimensions().num_inputs);
+      next_backprop_gradients->MoveToGpu(queue);
+      auto &layer = model_.layers[i];
+      const memory::ClBuffer &gpu_layer_input =
+          (i > 0) ? eval_layer_outputs_->at(i - 1) : *in;
+
+      if (layer.GetDimensions().num_inputs > 0) {
+        // Backprop gradient calculation.
+        std::string input_kernel_name = layer.InputGradientKernelName();
+        cl::Kernel &input_update = CacheFetchKernel(input_kernel_name);
+        CL_CHECK(input_update.setArg(0, *gpu_layer_input.gpu_buffer()));
+        CL_CHECK(input_update.setArg(1, *layer.weight_buffer().gpu_buffer()));
+        CL_CHECK(input_update.setArg(2, *backprop_gradients->gpu_buffer()));
+        CL_CHECK(
+            input_update.setArg(3, *next_backprop_gradients->gpu_buffer()));
+        auto workgroup = (layer.bp_train_workgroup_size() != 0)
+                             ? cl::NDRange(layer.bp_train_workgroup_size())
+                             : cl::NullRange;
+        cl_int result = queue.enqueueNDRangeKernel(
+            input_update, cl::NullRange,
+            cl::NDRange(layer.GetDimensions().num_inputs), workgroup);
+        if (result != CL_SUCCESS) {
+          std::cerr << "Error enqueuing kernel "
+                    << layer.InputGradientKernelName()
+                    << " & error code: " << result << std::endl;
+          std::exit(1);
+        }
+      } else {
+        std::cerr
+            << "Error, incorrect model config. Layer with zero inputs found: "
+            << layer.LayerSuffix() << std::endl;
+      }
+
+      if (layer.weight_buffer().size() > 0) {
+        // Backprop layer weight updates.
+        std::string weight_kernel_name = layer.WeightGradientKernelName();
+        cl::Kernel &weight_update = CacheFetchKernel(weight_kernel_name);
+        CL_CHECK(weight_update.setArg(0, *gpu_layer_input.gpu_buffer()));
+        CL_CHECK(weight_update.setArg(1, *layer.weight_buffer().gpu_buffer()));
+        CL_CHECK(weight_update.setArg(2, *backprop_gradients->gpu_buffer()));
+        CL_CHECK(weight_update.setArg(3, *out_gradients->at(i)->gpu_buffer()));
+        CL_CHECK(weight_update.setArg(4, *learning_rate_buffer_->gpu_buffer()));
+        auto workgroup = (layer.weight_train_workgroup_size() != 0)
+                             ? cl::NDRange(layer.weight_train_workgroup_size())
+                             : cl::NullRange;
+        cl_int result = queue.enqueueNDRangeKernel(
+            weight_update, cl::NullRange,
+            cl::NDRange(layer.weight_buffer().size()), workgroup);
+        if (result != CL_SUCCESS) {
+          std::cerr << "Error enqueuing kernel "
+                    << layer.WeightGradientKernelName()
+                    << " & error code: " << result << std::endl;
+          std::exit(1);
+        }
+      }
+
+      // Use the new input gradients for the next layer backwards (the one
+      // before this one, we're iterating backwards).
+      backprop_gradients.swap(next_backprop_gradients);
+    }
+    if (input_gradients) {
+      input_gradients->MoveToGpu(queue);
+      *input_gradients->gpu_buffer() = *backprop_gradients->gpu_buffer();
+    }
+    return queue;
+  }
+
+  void BatchTrain(std::vector<std::unique_ptr<memory::ClBuffer>> &ins,
+                  std::vector<std::unique_ptr<memory::ClBuffer>> &outs,
+                  std::set<int> indices_to_train,
+                  const std::unique_ptr<memory::ClBuffer> &input_gradients) {
+    cl::Device device = SelectDevice();
+    CompileKernelsIfRequired();
+
+    auto load_weights_promise = LoadWeightsToGpu();
+
+    // Before we train, need to wait on weights to load.
+    CL_CHECK(load_weights_promise.finish());
+
+    std::vector<std::unique_ptr<std::vector<memory::ClBuffer>>>
+        batch_weight_gradients;
+    // initialize batch_weight_gradients.
+    std::vector<cl::CommandQueue> queues;
+    for (int i : indices_to_train) {
+      batch_weight_gradients.emplace_back(std::make_unique <
+                                          std::vector<memory::ClBuffer>());
+      queues.push_back(
+          CalculateGradients(ins[i], outs[i], batch_weight_gradients.back()));
+    }
+    for (size_t i = 0; i < queues.size(); ++i) {
+      queues[i].finish();
+    }
+    // Combine all weights in batch_weight_gradients and then add them to layer
+    // weights.
+    // Now accumulate input bp gradients!
+    // return!
   }
 
   std::string WeightsToString() {
@@ -512,6 +673,8 @@ class Nnet {
 
   std::unique_ptr<std::vector<memory::ClBuffer>> eval_layer_outputs_;
 
+  size_t max_layer_output_size_;
+
   // OpenCL state variables.
   struct OpenClState {
     bool compiled = false;
@@ -537,4 +700,4 @@ class Nnet {
 
 }  // namespace nnet
 
-#endif /* NNET_H */
+endif /* NNET_H */

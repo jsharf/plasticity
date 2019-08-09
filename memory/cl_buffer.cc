@@ -45,7 +45,8 @@ size_t ClBuffer::size() const {
   }
 }
 
-void ClBuffer::MoveToCpu() {
+void ClBuffer::MoveToCpu(const std::unique_ptr<cl::CommandQueue>& cq) {
+  cl::CommandQueue& queue = (cq) ? *cq : *cq_;
   if (state_ == Buffer::CPU) {
     return;
   }
@@ -55,18 +56,18 @@ void ClBuffer::MoveToCpu() {
   }
   if (size() != 0) {
     cpu_buffer_.resize(size());
-    CL_CHECK(cq_->enqueueReadBuffer(*gpu_buffer_, CL_TRUE, 0,
-                                    sizeof(double) * size(), &cpu_buffer_[0]));
+    CL_CHECK(queue.enqueueReadBuffer(*gpu_buffer_, CL_TRUE, 0,
+                                     sizeof(double) * size(), &cpu_buffer_[0]));
   }
   gpu_buffer_.reset(nullptr);
   state_ = Buffer::CPU;
 }
 
-void ClBuffer::MoveToGpu() {
+void ClBuffer::MoveToGpu(const std::unique_ptr<cl::CommandQueue>& cq) {
+  cl::CommandQueue& queue = (cq) ? *cq : *cq_;
   if (state_ == Buffer::GPU) {
     return;
   }
-  CHECK_NOTNULL(cq_);
   CHECK_NOTNULL(context_);
   if (gpu_buffer_) {
     gpu_buffer_.reset();
@@ -86,8 +87,8 @@ void ClBuffer::MoveToGpu() {
                                              sizeof(double) * size(), nullptr,
                                              &buffer_init);
   CL_CHECK(buffer_init);
-  CL_CHECK(cq_->enqueueWriteBuffer(*gpu_buffer_, CL_TRUE, 0,
-                                   sizeof(double) * size(), &cpu_buffer_[0]));
+  CL_CHECK(queue.enqueueWriteBuffer(*gpu_buffer_, CL_TRUE, 0,
+                                    sizeof(double) * size(), &cpu_buffer_[0]));
   state_ = Buffer::GPU;
 }
 
@@ -106,7 +107,7 @@ std::string ClBuffer::to_string() const {
   return out.str();
 }
 
-double &ClBuffer::operator[](size_t index) {
+double& ClBuffer::operator[](size_t index) {
   if (state_ == Buffer::GPU) {
     std::cerr << "Error: [] used while buffer is in GPU." << std::endl;
     std::exit(1);
@@ -115,7 +116,7 @@ double &ClBuffer::operator[](size_t index) {
   return cpu_buffer_[index];
 }
 
-const double &ClBuffer::operator[](size_t index) const {
+const double& ClBuffer::operator[](size_t index) const {
   if (state_ == Buffer::GPU) {
     std::cerr << "Error: [] used while buffer is in GPU." << std::endl;
     std::exit(1);

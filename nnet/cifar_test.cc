@@ -263,8 +263,8 @@ int main() {
   for (const auto& sample : samples) {
       auto input = sample.NormalizedInput(&test_net);
       auto expected = sample.OneHotEncodedOutput(&test_net);
-      input->MoveToGpu();
-      expected->MoveToGpu();
+      //input->MoveToGpu();
+      //expected->MoveToGpu();
       inputs.emplace_back(std::move(input));
       outputs.emplace_back(std::move(expected));
   }
