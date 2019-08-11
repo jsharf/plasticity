@@ -1,6 +1,6 @@
-#include "math/memory/cl_buffer.h"
+#include "math/compute/cl_buffer.h"
 
-namespace memory {
+namespace compute {
 
 std::unique_ptr<ClBuffer> ClBuffer::MakeBufferFromColumnVector(
     Matrix<double> column_vector) {
@@ -125,4 +125,4 @@ const double& ClBuffer::operator[](size_t index) const {
   return cpu_buffer_[index];
 }
 
-}  // namespace memory
+}  // namespace compute

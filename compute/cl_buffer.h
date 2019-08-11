@@ -8,14 +8,14 @@
 
 #include "clutil/util.h"
 #include "math/geometry/dynamic_matrix.h"
-#include "math/memory/buffer.h"
+#include "math/compute/buffer.h"
 
 // FYI for the future, this class might be a simpler interface if context is
 // inferred from the buffer and CommandQueue is just initialized from
 // CommandQueue::getDefault(cl_int* error);
 // cl_context context = getInfo<CL_QUEUE_CONTEXT>();
 
-namespace memory {
+namespace compute {
 
 #define CL_CHECK(line)                                       \
   do {                                                       \
@@ -167,7 +167,7 @@ class ClBuffer : public Buffer {
     return gpu_buffer_;
   }
 
-  const memory::ClBuffer &operator=(const memory::ClBuffer &rhs) {
+  const compute::ClBuffer &operator=(const compute::ClBuffer &rhs) {
     state_ = rhs.state_;
     cpu_buffer_ = rhs.cpu_buffer_;
     cq_ = rhs.cq_;
@@ -190,6 +190,6 @@ class ClBuffer : public Buffer {
   cl::Context *context_ = nullptr;
 };
 
-}  // namespace memory
+}  // namespace compute
 
 #endif  // CL_BUFFER_H

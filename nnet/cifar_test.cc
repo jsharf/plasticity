@@ -4,11 +4,11 @@
 #include "math/symbolic/expression.h"
 
 #include <cassert>
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <chrono>
 
 constexpr size_t kSampleSize = 32 * 32 * 3;
 constexpr size_t kOutputSize = 10;
@@ -28,12 +28,11 @@ struct Sample {
     memcpy(&pixels[0], &data[1], kSampleSize);
   }
 
-  std::string Label() const {
-    return LabelToString(label);
-  }
+  std::string Label() const { return LabelToString(label); }
 
-  std::unique_ptr<memory::ClBuffer> NormalizedInput(nnet::Nnet *network) const {
-    std::unique_ptr<memory::ClBuffer> input = network->MakeBuffer(kSampleSize);
+  std::unique_ptr<compute::ClBuffer> NormalizedInput(
+      nnet::Nnet* network) const {
+    std::unique_ptr<compute::ClBuffer> input = network->MakeBuffer(kSampleSize);
     double norm = 0;
     for (size_t i = 0; i < kSampleSize; ++i) {
       norm += static_cast<double>(pixels[i]) * pixels[i];
@@ -48,10 +47,11 @@ struct Sample {
     return input;
   }
 
-  std::unique_ptr<memory::ClBuffer> OneHotEncodedOutput(
+  std::unique_ptr<compute::ClBuffer> OneHotEncodedOutput(
       nnet::Nnet* network) const {
     // Initialize kOutputSizex1 blank column vector.
-    std::unique_ptr<memory::ClBuffer> output = network->MakeBuffer(kOutputSize);
+    std::unique_ptr<compute::ClBuffer> output =
+        network->MakeBuffer(kOutputSize);
 
     // Zero the inputs.
     for (size_t i = 0; i < kOutputSize; ++i) {
@@ -79,32 +79,33 @@ enum Label : uint8_t {
 
 std::string LabelToString(uint8_t label) {
   switch (label) {
-  case AIRPLANE:
-    return "Airplane";
-  case AUTOMOBILE:
-    return "Automobile";
-  case BIRD:
-    return "Bird";
-  case CAT:
-    return "Cat";
-  case DEER:
-    return "Deer";
-  case DOG:
-    return "Dog";
-  case FROG:
-    return "Frog";
-  case HORSE:
-    return "Horse";
-  case SHIP:
-    return "Ship";
-  case TRUCK:
-    return "Truck";
-  default:
-    return "Unknown?!?";
+    case AIRPLANE:
+      return "Airplane";
+    case AUTOMOBILE:
+      return "Automobile";
+    case BIRD:
+      return "Bird";
+    case CAT:
+      return "Cat";
+    case DEER:
+      return "Deer";
+    case DOG:
+      return "Dog";
+    case FROG:
+      return "Frog";
+    case HORSE:
+      return "Horse";
+    case SHIP:
+      return "Ship";
+    case TRUCK:
+      return "Truck";
+    default:
+      return "Unknown?!?";
   }
 }
 
-std::string OneHotEncodedOutputToString(std::unique_ptr<memory::ClBuffer> buffer) {
+std::string OneHotEncodedOutputToString(
+    std::unique_ptr<compute::ClBuffer> buffer) {
   buffer->MoveToCpu();
   uint8_t max_index = 0;
   for (size_t index = 0; index < buffer->size(); ++index) {
@@ -116,7 +117,8 @@ std::string OneHotEncodedOutputToString(std::unique_ptr<memory::ClBuffer> buffer
   return LabelToString(max_index);
 }
 
-void PrintStatus(nnet::Nnet* test_net, const std::vector<Sample>& samples, size_t num_examples) {
+void PrintStatus(nnet::Nnet* test_net, const std::vector<Sample>& samples,
+                 size_t num_examples) {
   std::cout << "Network Weights: " << std::endl;
   std::cout << test_net->WeightsToString() << std::endl;
   std::cout << "Trained over " << samples.size() << " Samples!" << std::endl;
@@ -140,7 +142,6 @@ void PrintStatus(nnet::Nnet* test_net, const std::vector<Sample>& samples, size_
   std::cout << "Examples correct: " << correct_count << " / " << num_examples
             << " (" << 100.0 * static_cast<double>(correct_count) / num_examples
             << "%)" << std::endl;
-
 }
 
 // Trains a neural network to learn if given point is in unit circle.
@@ -155,68 +156,68 @@ int main() {
   // (output on top, input on bottom).
   //
   // Layer 12 softmax_layer_12
-	// Layer 11 activation_layer_11
-	// Layer 10 dense_layer_10
-	// Layer 9 max_pool_layer_9
-	// Layer 8 activation_layer_8
-	// Layer 7 convolution_layer_7
-	// Layer 6 max_pool_layer_6
-	// Layer 5 activation_layer_5
-	// Layer 4 convolution_layer_4
-	// Layer 3 max_pool_layer_3
-	// Layer 2 activation_layer_2
-	// Layer 1 convolution_layer_1
-	// Layer 0 activation_layer_0
+  // Layer 11 activation_layer_11
+  // Layer 10 dense_layer_10
+  // Layer 9 max_pool_layer_9
+  // Layer 8 activation_layer_8
+  // Layer 7 convolution_layer_7
+  // Layer 6 max_pool_layer_6
+  // Layer 5 activation_layer_5
+  // Layer 4 convolution_layer_4
+  // Layer 3 max_pool_layer_3
+  // Layer 2 activation_layer_2
+  // Layer 1 convolution_layer_1
+  // Layer 0 activation_layer_0
 
   nnet::Architecture model(kInputSize);
   model
       .AddConvolutionLayer(
           {
-              32, // width
-              32, // height
-              3,  // R,G,B (depth).
+              32,  // width
+              32,  // height
+              3,   // R,G,B (depth).
           },
           {
-              5,  // filter x size.
-              5,  // filter y size.
-              3,  // filter z depth size.
-              1,  // stride.
-              2,  // padding.
-              16, // number of filters.
+              5,   // filter x size.
+              5,   // filter y size.
+              3,   // filter z depth size.
+              1,   // stride.
+              2,   // padding.
+              16,  // number of filters.
           })
       .AddMaxPoolLayer(
           /* Input size */ nnet::VolumeDimensions{32, 32, 16},
           /* Output size */ nnet::AreaDimensions{16, 16})
       .AddConvolutionLayer(
           {
-              16, // width
-              16, // height
-              16, // R,G,B (depth).
+              16,  // width
+              16,  // height
+              16,  // R,G,B (depth).
           },
           {
-              5,  // filter x size.
-              5,  // filter y size.
-              16, // filter z depth size.
-              1,  // stride.
-              2,  // padding.
-              20, // number of filters.
+              5,   // filter x size.
+              5,   // filter y size.
+              16,  // filter z depth size.
+              1,   // stride.
+              2,   // padding.
+              20,  // number of filters.
           })
       .AddMaxPoolLayer(
           /* Input size */ nnet::VolumeDimensions{16, 16, 20},
           /* output size */ nnet::AreaDimensions{8, 8})
       .AddConvolutionLayer(
           {
-              8,  // width
-              8,  // height
-              20, // R,G,B (depth).
+              8,   // width
+              8,   // height
+              20,  // R,G,B (depth).
           },
           {
-              5,  // filter x size.
-              5,  // filter y size.
-              20, // filter z depth size.
-              1,  // stride.
-              2,  // padding.
-              20, // number of filters.
+              5,   // filter x size.
+              5,   // filter y size.
+              20,  // filter z depth size.
+              1,   // stride.
+              2,   // padding.
+              20,  // number of filters.
           })
       .AddMaxPoolLayer(/* Input size */ {8, 8, 20},
                        /* output size */ {4, 4})
@@ -252,21 +253,22 @@ int main() {
       }
     }
   }
-  std::cout << "Loaded " << samples.size() << " Samples from disk!" << std::endl;
+  std::cout << "Loaded " << samples.size() << " Samples from disk!"
+            << std::endl;
   if (samples.size() == 0) {
     std::cerr << "No samples found, quitting!" << std::endl;
     return -1;
   }
   std::cout << "Moving samples to GPU..." << std::endl;
-  std::vector<std::unique_ptr<memory::ClBuffer>> inputs;
-  std::vector<std::unique_ptr<memory::ClBuffer>> outputs;
+  std::vector<std::unique_ptr<compute::ClBuffer>> inputs;
+  std::vector<std::unique_ptr<compute::ClBuffer>> outputs;
   for (const auto& sample : samples) {
-      auto input = sample.NormalizedInput(&test_net);
-      auto expected = sample.OneHotEncodedOutput(&test_net);
-      //input->MoveToGpu();
-      //expected->MoveToGpu();
-      inputs.emplace_back(std::move(input));
-      outputs.emplace_back(std::move(expected));
+    auto input = sample.NormalizedInput(&test_net);
+    auto expected = sample.OneHotEncodedOutput(&test_net);
+    // input->MoveToGpu();
+    // expected->MoveToGpu();
+    inputs.emplace_back(std::move(input));
+    outputs.emplace_back(std::move(expected));
   }
   std::cout << "Entire dataset of " << inputs.size()
             << " examples is now stored on GPU!" << std::endl;
@@ -287,12 +289,15 @@ int main() {
         PrintStatus(&test_net, samples, 1000);
       }
       if (samples_so_far % 5000 == 0) {
-        std::cout << "Progress: " << samples_so_far - 1 << " / " << (kNumTrainingEpochs * samples.size()) << std::endl;
+        std::cout << "Progress: " << samples_so_far - 1 << " / "
+                  << (kNumTrainingEpochs * samples.size()) << std::endl;
         std::cout << "Epoch " << epoch << std::endl;
         auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        auto duration =
+            std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         double rate = 1000 * 5000.0 / duration.count();
-        std::cout << "Training rate (samples per second): " << rate << std::endl;
+        std::cout << "Training rate (samples per second): " << rate
+                  << std::endl;
         start = std::chrono::high_resolution_clock::now();
       }
     }

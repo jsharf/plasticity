@@ -38,3 +38,26 @@ cc_binary(
         "//math/third_party:catch2",
     ],
 )
+
+cc_library(
+    name = "command_queue",
+    hdrs = ["command_queue.h"],
+    copts = [
+        "--std=c++1z",
+    ],
+)
+
+cc_library(
+    name = "cl_command_queue",
+    hdrs = ["cl_command_queue.h"],
+    srcs = ["cl_command_queue.cc"],
+    copts = [
+        "--std=c++1z",
+    ],
+    visibility = ["//math"],
+    deps = [
+        ":command_queue",
+        "//clutil:util",
+        "//math/geometry:dynamic_matrix",
+    ],
+)

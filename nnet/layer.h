@@ -1,7 +1,7 @@
 #ifndef LAYER_H
 #define LAYER_H
 #include "math/geometry/dynamic_matrix.h"
-#include "math/memory/cl_buffer.h"
+#include "math/compute/cl_buffer.h"
 #include "math/nnet/activation_layer.h"
 #include "math/nnet/convolution_layer.h"
 #include "math/nnet/dense_layer.h"
@@ -80,7 +80,7 @@ class Layer {
     return weights_[index];
   }
 
-  memory::ClBuffer &weight_buffer() { return weights_; }
+  compute::ClBuffer &weight_buffer() { return weights_; }
 
   Dimensions GetDimensions() const { return impl_->GetDimensions(); }
 
@@ -127,7 +127,7 @@ class Layer {
   const size_t bp_train_workgroup_size_;
 
   // Weights are cached in the GPU between training runs.
-  memory::ClBuffer weights_;
+  compute::ClBuffer weights_;
 };
 
 }  // namespace nnet

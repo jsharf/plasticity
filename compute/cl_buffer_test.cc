@@ -10,9 +10,9 @@
 #include <unordered_map>
 
 #include "clutil/util.h"
-#include "math/memory/cl_buffer.h"
+#include "math/compute/cl_buffer.h"
 
-namespace memory {
+namespace compute {
 
 // OpenCL state variables.
 struct OpenClState {
@@ -227,4 +227,4 @@ TEST_CASE("Opencl tests", "[cl]") {
   }
 }
 
-}  // namespace memory
+}  // namespace compute

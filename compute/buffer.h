@@ -1,6 +1,6 @@
 #ifndef BUFFER_H
 #define BUFFER_H
-namespace memory {
+namespace compute {
 
 class Buffer {
  public:
@@ -21,6 +21,6 @@ class Buffer {
   virtual const double &operator[](size_t index) const = 0;
 };
 
-}  // namespace memory
+}  // namespace compute
 
 #endif  // BUFFER_H
