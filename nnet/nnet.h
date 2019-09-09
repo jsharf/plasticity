@@ -1,8 +1,8 @@
 #ifndef NNET_H
 #define NNET_H
 #include "clutil/util.h"
-#include "math/geometry/dynamic_matrix.h"
 #include "math/compute/cl_buffer.h"
+#include "math/geometry/dynamic_matrix.h"
 #include "math/nnet/architecture.h"
 #include "math/nnet/error_layer.h"
 #include "math/nnet/layer.h"
@@ -157,6 +157,10 @@ class Nnet {
       std::cerr << "\\";
       kernel_sources.push_back(kernel_future.get());
     }
+    // Add the vector_add() kernel, for summing weight gradients together in
+    // Batch training.
+    kernel_sources.push_back(
+        FileToString("math/nnet/kernels/combine.kernel.cl"));
     std::cout << "Kernels generated. Compiling..." << std::endl;
     opencl_ = CompileCl(kernel_sources, opencl_.device);
     std::cout << "Done!" << std::endl;
@@ -370,7 +374,7 @@ class Nnet {
     for (size_t i = 0; i < model_.layers.size(); ++i) {
       model_.layers[i].weight_buffer().MoveToGpu();
     }
-    CL_CHECK(LoadWeightsToGpu().finish());
+    CL_CHECK(LoadWeightsToGpu()->finish());
 
     // Backpropagation algorithm.
     // For each layer, take the current backpropagated gradients (stored in
@@ -413,7 +417,7 @@ class Nnet {
         compute::ClBuffer gpu_new_weights = layer.weight_buffer().DeepClone();
 
         // Backprop layer weight updates.
-        std::string weight_kernel_name = layer.WeightGradientKernelName();
+        std::string weight_kernel_name = layer.WeightUpdateKernelName();
         cl::Kernel &weight_update = CacheFetchKernel(weight_kernel_name);
         CL_CHECK(weight_update.setArg(0, *gpu_layer_input.gpu_buffer()));
         CL_CHECK(weight_update.setArg(1, *layer.weight_buffer().gpu_buffer()));
@@ -428,7 +432,7 @@ class Nnet {
             cl::NDRange(layer.weight_buffer().size()), workgroup);
         if (result != CL_SUCCESS) {
           std::cerr << "Error enqueuing kernel "
-                    << layer.WeightGradientKernelName()
+                    << layer.WeightUpdateKernelName()
                     << " & error code: " << result << std::endl;
           std::exit(1);
         }
@@ -445,9 +449,9 @@ class Nnet {
     }
   }
 
-  cl::CommandQueue LoadWeightsToGpu() {
+  std::unique_ptr<cl::CommandQueue> LoadWeightsToGpu() {
     auto queue = std::make_unique<cl::CommandQueue>(
-        std::get<0>(cl_state.compilation_units), device);
+        std::get<0>(opencl_.compilation_units), opencl_.device);
 
     // Load all weights into the GPU (weights which are already in the GPU will
     // be skipped).
@@ -472,11 +476,11 @@ class Nnet {
       const std::unique_ptr<compute::ClBuffer> &in,
       const std::unique_ptr<compute::ClBuffer> &out,
       const std::unique_ptr<std::vector<compute::ClBuffer>> &out_gradients,
-      const std::unique_ptr<compute::ClBuffer>& input_gradients) {
+      const std::unique_ptr<compute::ClBuffer> &input_gradients) {
     cl::Device device = SelectDevice();
     CompileKernelsIfRequired();
     auto queue = std::make_unique<cl::CommandQueue>(
-        std::get<0>(cl_state.compilation_units), device);
+        std::get<0>(opencl_.compilation_units), device);
 
     std::unique_ptr<std::vector<compute::ClBuffer>> layer_outputs;
 
@@ -576,7 +580,7 @@ class Nnet {
     auto load_weights_promise = LoadWeightsToGpu();
 
     // Before we train, need to wait on weights to load.
-    CL_CHECK(load_weights_promise.finish());
+    CL_CHECK(load_weights_promise->finish());
 
     std::vector<std::unique_ptr<std::vector<compute::ClBuffer>>>
         batch_weight_gradients;
@@ -591,10 +595,21 @@ class Nnet {
     for (size_t i = 0; i < queues.size(); ++i) {
       queues[i].finish();
     }
-    // Combine all weights in batch_weight_gradients and then add them to layer
-    // weights.
-    // Now accumulate input bp gradients!
-    // return!
+
+    // Accumulate the gradients from every example in the batch.
+    queues.clear();
+    for (size_t layer = 0; i < model_.layers.size(); ++i) {
+      for (size_t example = 0; example < batch_weight_gradients.size();
+           ++example) {
+        queues.push_back(
+            VectorAccumulate(model_.layers[layer].weight_buffer(),
+                             batch_weight_gradients[example]->at(layer)));
+      }
+    }
+
+    for (size_t i = 0; i < queues.size(); ++i) {
+      queues[i].finish();
+    }
   }
 
   std::string WeightsToString() {
@@ -628,6 +643,36 @@ class Nnet {
                   << std::endl;
         std::exit(1);
     }
+  }
+
+  // a = a + b.
+  cl::CommandQueue VectorAccumulate(
+      const std::unique_ptr<compute::ClBuffer> &a,
+      const std::unique_ptr<compute::ClBuffer> &b) {
+    cl::Device device = SelectDevice();
+    CompileKernelsIfRequired();
+    auto queue = std::make_unique<cl::CommandQueue>(
+        std::get<0>(opencl_.compilation_units), device);
+    std::string accumulate_kernel_name = "vector_accumulate";
+    cl::Kernel &accumulate_kernel = CacheFetchKernel(accumulate_kernel_name);
+    CL_CHECK(accumulate_kernel.setArg(0, *a->gpu_buffer()));
+    CL_CHECK(accumulate_kernel.setArg(1, *b->gpu_buffer()));
+    auto workgroup = cl::NDRange(CalculateWorkgroupSize(a->size()));
+    cl_int result = queue.enqueueNDRangeKernel(
+        accumulate_kernel, cl::NullRange,
+        cl::NDRange(layer.GetDimensions().num_inputs), workgroup);
+    if (result != CL_SUCCESS) {
+      std::cerr << "Error enqueuing kernel " << accumulate_kernel_name
+                << " & error code: " << result << std::endl;
+      std::exit(1);
+    }
+  }
+
+  std::string FileToString(std::string filepath) {
+    std::ifstream input(filepath);
+    std::stringstream buffer;
+    buffer << input.rdbuf();
+    return buffer.str();
   }
 
   void XavierInitializeWeights() {
@@ -700,4 +745,4 @@ class Nnet {
 
 }  // namespace nnet
 
-endif /* NNET_H */
+#endif /* NNET_H */

@@ -25,12 +25,21 @@ double CalculateInputGradient_LAYERID(global double* I, global double* W,
   INPUT_GRADIENTS_HERE
 }
 
-kernel void weight_delta_LAYERID(
+kernel void new_weights_LAYERID(
     global double* inputs, global double* weights,
     const global double* output_gradient,  // back-propagated output gradient.
     global double* new_weights, global double* learning_rate) {
   size_t i = get_global_id(0);
-  new_weights[i] = - learning_rate[0] * CalculateWeightGradient_LAYERID(
+  new_weights[i] = weights[i] - learning_rate[0] * CalculateWeightGradient_LAYERID(
+                                           inputs, weights, output_gradient, i);
+}
+
+kernel void weight_deltas_LAYERID(
+    global double* inputs, global double* weights,
+    const global double* output_gradient,  // back-propagated output gradient.
+    global double* weight_deltas, global double* learning_rate) {
+  size_t i = get_global_id(0);
+  weight_deltas[i] = - learning_rate[0] * CalculateWeightGradient_LAYERID(
                                            inputs, weights, output_gradient, i);
 }
 

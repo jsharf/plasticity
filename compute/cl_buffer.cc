@@ -16,17 +16,17 @@ void ClBuffer::resize(size_t new_size, double default_value) {
   // not a super realistic situation and when it comes up we can optimize for it
   // quite easily.
   auto old_state = state_;
-  if (state_ == Buffer::GPU) {
+  if (state_ == GPU) {
     MoveToCpu();
   }
   cpu_buffer_.resize(new_size, default_value);
-  if (old_state == Buffer::GPU) {
+  if (old_state == GPU) {
     MoveToGpu();
   }
 }
 
 size_t ClBuffer::size() const {
-  if (state_ == Buffer::CPU) {
+  if (state_ == CPU) {
     return cpu_buffer_.size();
   } else {
     size_t gpu_size = 0;
@@ -47,7 +47,7 @@ size_t ClBuffer::size() const {
 
 void ClBuffer::MoveToCpu(const std::unique_ptr<cl::CommandQueue>& cq) {
   cl::CommandQueue& queue = (cq) ? *cq : *cq_;
-  if (state_ == Buffer::CPU) {
+  if (state_ == CPU) {
     return;
   }
   if (!gpu_buffer_) {
@@ -60,12 +60,12 @@ void ClBuffer::MoveToCpu(const std::unique_ptr<cl::CommandQueue>& cq) {
                                      sizeof(double) * size(), &cpu_buffer_[0]));
   }
   gpu_buffer_.reset(nullptr);
-  state_ = Buffer::CPU;
+  state_ = CPU;
 }
 
 void ClBuffer::MoveToGpu(const std::unique_ptr<cl::CommandQueue>& cq) {
   cl::CommandQueue& queue = (cq) ? *cq : *cq_;
-  if (state_ == Buffer::GPU) {
+  if (state_ == GPU) {
     return;
   }
   CHECK_NOTNULL(context_);
@@ -80,7 +80,7 @@ void ClBuffer::MoveToGpu(const std::unique_ptr<cl::CommandQueue>& cq) {
     gpu_buffer_ = std::make_unique<cl::Buffer>(*context_, CL_MEM_READ_WRITE, 1,
                                                nullptr, &buffer_init);
     CL_CHECK(buffer_init);
-    state_ = Buffer::GPU;
+    state_ = GPU;
     return;
   }
   gpu_buffer_ = std::make_unique<cl::Buffer>(*context_, CL_MEM_READ_WRITE,
@@ -89,11 +89,11 @@ void ClBuffer::MoveToGpu(const std::unique_ptr<cl::CommandQueue>& cq) {
   CL_CHECK(buffer_init);
   CL_CHECK(queue.enqueueWriteBuffer(*gpu_buffer_, CL_TRUE, 0,
                                     sizeof(double) * size(), &cpu_buffer_[0]));
-  state_ = Buffer::GPU;
+  state_ = GPU;
 }
 
 std::string ClBuffer::to_string() const {
-  if (state_ == Buffer::GPU) {
+  if (state_ == GPU) {
     std::cerr << "Error: to_string() used while buffer is in GPU." << std::endl;
     std::exit(1);
   }
@@ -108,7 +108,7 @@ std::string ClBuffer::to_string() const {
 }
 
 double& ClBuffer::operator[](size_t index) {
-  if (state_ == Buffer::GPU) {
+  if (state_ == GPU) {
     std::cerr << "Error: [] used while buffer is in GPU." << std::endl;
     std::exit(1);
   }
@@ -117,7 +117,7 @@ double& ClBuffer::operator[](size_t index) {
 }
 
 const double& ClBuffer::operator[](size_t index) const {
-  if (state_ == Buffer::GPU) {
+  if (state_ == GPU) {
     std::cerr << "Error: [] used while buffer is in GPU." << std::endl;
     std::exit(1);
   }

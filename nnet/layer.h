@@ -105,6 +105,10 @@ class Layer {
     return "input_delta_" + LayerSuffix();
   }
 
+  std::string WeightUpdateKernelName() const {
+    return "new_weights_" + LayerSuffix();
+  }
+
   std::string WeightGradientKernelName() const {
     return "weight_delta_" + LayerSuffix();
   }

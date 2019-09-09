@@ -1,12 +1,4 @@
 cc_library(
-    name = "buffer",
-    hdrs = ["buffer.h"],
-    copts = [
-        "--std=c++1z",
-    ],
-)
-
-cc_library(
     name = "cl_buffer",
     hdrs = ["cl_buffer.h"],
     srcs = ["cl_buffer.cc"],
@@ -15,7 +7,6 @@ cc_library(
     ],
     visibility = ["//math"],
     deps = [
-        ":buffer",
         "//clutil:util",
         "//math/geometry:dynamic_matrix",
     ],
