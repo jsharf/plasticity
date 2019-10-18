@@ -309,9 +309,10 @@ class Nnet {
     return error;
   }
 
-  void ErrorGradients(std::unique_ptr<compute::ClBuffer> &actual_output,
-                      std::unique_ptr<compute::ClBuffer> &expected,
-                      std::unique_ptr<compute::ClBuffer> &out_error_gradients) {
+  void ErrorGradients(
+      const std::unique_ptr<compute::ClBuffer> &actual_output,
+      const std::unique_ptr<compute::ClBuffer> &expected,
+      const std::unique_ptr<compute::ClBuffer> &out_error_gradients) {
     CompileKernelsIfRequired();
 
     actual_output->MoveToGpu();
@@ -521,7 +522,7 @@ class Nnet {
         auto workgroup = (layer.bp_train_workgroup_size() != 0)
                              ? cl::NDRange(layer.bp_train_workgroup_size())
                              : cl::NullRange;
-        cl_int result = queue.enqueueNDRangeKernel(
+        cl_int result = queue->enqueueNDRangeKernel(
             input_update, cl::NullRange,
             cl::NDRange(layer.GetDimensions().num_inputs), workgroup);
         if (result != CL_SUCCESS) {
@@ -542,7 +543,7 @@ class Nnet {
         cl::Kernel &weight_update = CacheFetchKernel(weight_kernel_name);
         CL_CHECK(weight_update.setArg(0, *gpu_layer_input.gpu_buffer()));
         CL_CHECK(weight_update.setArg(1, *layer.weight_buffer().gpu_buffer()));
-        CL_CHECK(weight_update.setArg(2, *backprop_gradients->gpu_buffer()));
+        CL_CHECK(weight_update.setArg(2, *backprop_gradients.gpu_buffer()));
         CL_CHECK(weight_update.setArg(3, *out_gradients->at(i)->gpu_buffer()));
         CL_CHECK(weight_update.setArg(4, *learning_rate_buffer_->gpu_buffer()));
         auto workgroup = (layer.weight_train_workgroup_size() != 0)
@@ -598,7 +599,7 @@ class Nnet {
 
     // Accumulate the gradients from every example in the batch.
     queues.clear();
-    for (size_t layer = 0; i < model_.layers.size(); ++i) {
+    for (size_t layer = 0; layer < model_.layers.size(); ++layer) {
       for (size_t example = 0; example < batch_weight_gradients.size();
            ++example) {
         queues.push_back(
@@ -646,21 +647,19 @@ class Nnet {
   }
 
   // a = a + b.
-  cl::CommandQueue VectorAccumulate(
-      const std::unique_ptr<compute::ClBuffer> &a,
-      const std::unique_ptr<compute::ClBuffer> &b) {
+  cl::CommandQueue VectorAccumulate(compute::ClBuffer &a,
+                                    compute::ClBuffer &b) {
     cl::Device device = SelectDevice();
     CompileKernelsIfRequired();
     auto queue = std::make_unique<cl::CommandQueue>(
         std::get<0>(opencl_.compilation_units), device);
     std::string accumulate_kernel_name = "vector_accumulate";
     cl::Kernel &accumulate_kernel = CacheFetchKernel(accumulate_kernel_name);
-    CL_CHECK(accumulate_kernel.setArg(0, *a->gpu_buffer()));
-    CL_CHECK(accumulate_kernel.setArg(1, *b->gpu_buffer()));
-    auto workgroup = cl::NDRange(CalculateWorkgroupSize(a->size()));
-    cl_int result = queue.enqueueNDRangeKernel(
-        accumulate_kernel, cl::NullRange,
-        cl::NDRange(layer.GetDimensions().num_inputs), workgroup);
+    CL_CHECK(accumulate_kernel.setArg(0, *a.gpu_buffer()));
+    CL_CHECK(accumulate_kernel.setArg(1, *b.gpu_buffer()));
+    auto workgroup = cl::NDRange(CalculateWorkgroupSize(a.size()));
+    cl_int result = queue->enqueueNDRangeKernel(
+        accumulate_kernel, cl::NullRange, cl::NDRange(a.size()), workgroup);
     if (result != CL_SUCCESS) {
       std::cerr << "Error enqueuing kernel " << accumulate_kernel_name
                 << " & error code: " << result << std::endl;
