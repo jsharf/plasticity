@@ -23,7 +23,7 @@ namespace compute {
       std::cerr << "Error running line " #line << std::endl; \
       std::cerr << "Code: " << res << std::endl;             \
       std::cerr << "Line no: " << __LINE__ << std::endl;     \
-      std::cerr << "File: " << __FILE__ << std::endl;     \
+      std::cerr << "File: " << __FILE__ << std::endl;        \
       std::exit(1);                                          \
     }                                                        \
   } while (0);
@@ -54,9 +54,9 @@ class ClBuffer {
       return ClBuffer(*this);
     } else {
       cl_int buffer_init;
-      auto gpu_buffer = std::make_unique<cl::Buffer>(*context_, CL_MEM_READ_WRITE,
-                                                 size() * sizeof(double),
-                                                 nullptr, &buffer_init);
+      auto gpu_buffer = std::make_unique<cl::Buffer>(
+          *context_, CL_MEM_READ_WRITE, size() * sizeof(double), nullptr,
+          &buffer_init);
       CL_CHECK(buffer_init);
       CL_CHECK(cq_->enqueueCopyBuffer(*gpu_buffer_, *gpu_buffer, 0, 0,
                                       size() * sizeof(double)));
@@ -64,25 +64,14 @@ class ClBuffer {
     }
   }
 
-  ClBuffer()
-      : state_(CPU), cpu_buffer_(0), cq_(nullptr), context_(nullptr) {
-      }
+  ClBuffer() : state_(CPU), cpu_buffer_(0), cq_(nullptr), context_(nullptr) {}
   ClBuffer(size_t size)
-      : state_(CPU),
-        cpu_buffer_(size),
-        cq_(nullptr),
-        context_(nullptr) {
-        }
+      : state_(CPU), cpu_buffer_(size), cq_(nullptr), context_(nullptr) {}
   ClBuffer(const std::vector<double> &values)
-      : state_(CPU),
-        cpu_buffer_(values),
-        cq_(nullptr),
-        context_(nullptr) {
-        }
+      : state_(CPU), cpu_buffer_(values), cq_(nullptr), context_(nullptr) {}
   ClBuffer(const std::vector<double> &values, cl::CommandQueue *cq,
            cl::Context *context)
-      : state_(CPU), cpu_buffer_(values), cq_(cq), context_(context) {
-  }
+      : state_(CPU), cpu_buffer_(values), cq_(cq), context_(context) {}
   ClBuffer(size_t size, cl::CommandQueue *cq, cl::Context *context)
       : state_(CPU), cpu_buffer_(size), cq_(cq), context_(context) {
     CHECK_NOTNULL(context_);
@@ -93,8 +82,12 @@ class ClBuffer {
     CHECK_NOTNULL(context_);
     CHECK_NOTNULL(cq_);
   }
-  ClBuffer(cl::CommandQueue *cq, cl::Context *context, std::unique_ptr<cl::Buffer>&& gpu_buffer)
-      : state_(GPU), gpu_buffer_(std::move(gpu_buffer)), cq_(cq), context_(context) {
+  ClBuffer(cl::CommandQueue *cq, cl::Context *context,
+           std::unique_ptr<cl::Buffer> &&gpu_buffer)
+      : state_(GPU),
+        gpu_buffer_(std::move(gpu_buffer)),
+        cq_(cq),
+        context_(context) {
     CHECK_NOTNULL(context_);
     CHECK_NOTNULL(cq_);
   }
@@ -142,16 +135,13 @@ class ClBuffer {
     MoveToGpu();
   }
 
-  void MoveToCpu();
-  void MoveToGpu();
-  void MoveToCpu(const std::unique_ptr<cl::CommandQueue>& cq);
-  void MoveToGpu(const std::unique_ptr<cl::CommandQueue>& cq);
+  void MoveToCpu(const std::unique_ptr<cl::CommandQueue> &cq = nullptr);
+  void MoveToGpu(const std::unique_ptr<cl::CommandQueue> &cq = nullptr);
 
   Location GetBufferLocation() { return state_; }
   size_t size() const;
-  void resize(
-      size_t new_size,
-      double default_value = std::numeric_limits<double>::quiet_NaN());
+  void resize(size_t new_size,
+              double default_value = std::numeric_limits<double>::quiet_NaN());
 
   // Only use these after MoveToCpu!
   double &operator[](size_t index);

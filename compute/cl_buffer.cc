@@ -15,6 +15,11 @@ void ClBuffer::resize(size_t new_size, double default_value) {
   // This is going to kill GPU performance when resizing GPU buffers, but it's
   // not a super realistic situation and when it comes up we can optimize for it
   // quite easily.
+  if (new_size == size()) {
+    // Fast return optimization when nothing needs to be done. Avoids costly
+    // GPU->CPU transition in some cases.
+    return;
+  }
   auto old_state = state_;
   if (state_ == GPU) {
     MoveToCpu();

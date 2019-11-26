@@ -247,12 +247,18 @@ TEST_CASE("Simple neural network output and gradient descent is validated",
   }
 
   SECTION("Verify back propagation of neural network", "[nnet]") {
+    std::cerr << "HIII" << std::endl;
     auto expected = test_net.MakeBuffer({0.01, 0.99});
+    std::cerr << "BEEE" << std::endl;
     auto input = test_net.MakeBuffer({0.05, 0.10});
+    std::cerr << "CE" << std::endl;
     test_net.SetLearningParameters(Nnet::LearningParameters{0.5});
+    std::cerr << "D" << std::endl;
     test_net.Train(input, expected);
+    std::cerr << "E" << std::endl;
 
     Architecture model = test_net.model();
+    std::cerr << "F" << std::endl;
 
     // Layer 1.
     //
