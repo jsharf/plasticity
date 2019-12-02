@@ -243,31 +243,6 @@ cc_library(
 )
 
 cc_binary(
-    name = "nnet_demo",
-    srcs = ["nnet_demo.cc"],
-    copts = [
-        "--std=c++1z",
-    ],
-    linkopts = select({
-        "//clutil:osx": ["-framework OpenCL"],
-        "//clutil:linux": [
-            "-lOpenCL",
-            "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
-        ],
-        "//conditions:default": [
-            "-lOpenCL",
-            "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
-        ],
-    }),
-    visibility = ["//math"],
-    deps = [
-        ":nnet",
-        "//math/geometry:dynamic_matrix",
-        "//math/symbolic",
-    ],
-)
-
-cc_binary(
     name = "circle_test",
     srcs = ["circle_test.cc"],
     copts = [

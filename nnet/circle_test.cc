@@ -35,6 +35,7 @@ int main() {
   }
 
   nnet::Nnet::LearningParameters params{.learning_rate = 0.3};
+  test_net.SetLearningParameters(params);
 
   for (const std::tuple<std::vector<double>, double>& example : examples) {
     auto input = test_net.MakeBuffer(std::get<0>(example));
@@ -47,7 +48,7 @@ int main() {
     std::cout << "Training w curr output: " << std::get<1>(example)
               << std::endl;
     auto expected_output = test_net.MakeBuffer({std::get<1>(example)});
-    test_net.Train(input, expected_output, params);
+    test_net.Train(input, expected_output);
   }
   std::cout << "done training!" << std::endl;
 
