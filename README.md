@@ -6,16 +6,17 @@ framework aims to give developers a simple interface to design and train neural
 networks on specialized hardware.
 
 Plasticity runs on OpenCL and can support various OpenCL backends.
-(ARM, Intel CPUs, NVIDIA & AMD GPUs, FPGAs, etc). Of note, OpenCL is developed
-on both NVIDIA's OpenCL backend and POCL.
+(ARM, Intel CPUs, NVIDIA & AMD GPUs, POCL, etc). Plasticity is being developed
+on both NVIDIA's OpenCL backend and POCL, and these are the two backends that
+are going to receive the most software support.
 
 Directory Structure
 -------------------
 
 ```
 codegen/ - Utility code to simplify generating the OpenCL kernels.
-filter/ - A Kalman filter implementation based on the symbolic library.
-geometry/ - Matrix, Vector, and Quaternion math routines.
+filter/ - A kalman filter implementation based on the symbolic library.
+geometry/ - Matrix, vector, and quaternion math routines.
 memory/ - A wrapper for OpenCL buffers.
 nnet/ - The neural network library.
 stats/ - Statistics-related coroutines and helper functions.
@@ -35,7 +36,7 @@ https://github.com/jsharf/clutil.
 Then, place clutil/ and this repo within the same parent directory and create a
 Bazel WORKSPACE file in the parent directory.
 
-Then, you should be able to run baze path/to/nnet:nnet_test to verify that unit
+Then, you should be able to run `bazel run path/to/nnet:nnet_test` to verify that unit
 tests pass.
 
 
@@ -114,7 +115,7 @@ Building
 Plasticity uses [Bazel](https://bazel.build/) as its build system. I personally
 recommend downloading [Bazelisk](https://github.com/bazelbuild/bazelisk) and using that to manage the version of Bazel on your machine. It takes some extra work, but manages Bazel updates for you so that you can always be up to date. Also, it's compatible with  .bazelversion files, so that projects can specify an exact version of Bazel to use for the build (to solve BUILD compatibility issues).
 
-You can build and run the unit tests with blaze build nnet:nnet_tests.
+You can build and run the unit tests with bazel build nnet:nnet_tests.
 
 Example Applications
 --------------------
