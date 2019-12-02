@@ -12,7 +12,7 @@ on both NVIDIA's OpenCL backend and POCL.
 Directory Structure
 -------------------
 
-'''
+```
 codegen/ - Utility code to simplify generating the OpenCL kernels.
 filter/ - A Kalman filter implementation based on the symbolic library.
 geometry/ - Matrix, Vector, and Quaternion math routines.
@@ -21,7 +21,7 @@ nnet/ - The neural network library.
 stats/ - Statistics-related coroutines and helper functions.
 symbolic/ - A symbolic math library with automatic differentiation.
 third_party/ - External 3rd-party code imported for this project.
-'''
+```
 
 Dependencies
 ------------
@@ -48,7 +48,7 @@ an interface as possible. For example,
 declares a deep convolutional neural network with this easily readable
 high-level code: 
 
-'''
+```C++
   nnet::Architecture model(kInputSize);
   model
       .AddConvolutionLayer(
@@ -107,7 +107,7 @@ high-level code:
       .AddSoftmaxLayer(10);
   std::cout << "Initializing network..." << std::endl;
   nnet::Nnet test_net(model, nnet::Nnet::Xavier, nnet::CrossEntropy);
-  '''
+```
 
 Building
 --------
