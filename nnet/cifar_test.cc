@@ -262,11 +262,12 @@ int main() {
   std::cout << "Moving samples to GPU..." << std::endl;
   std::vector<std::unique_ptr<compute::ClBuffer>> inputs;
   std::vector<std::unique_ptr<compute::ClBuffer>> outputs;
+  
   for (const auto& sample : samples) {
     auto input = sample.NormalizedInput(&test_net);
     auto expected = sample.OneHotEncodedOutput(&test_net);
-    // input->MoveToGpu();
-    // expected->MoveToGpu();
+    input->MoveToGpu();
+    expected->MoveToGpu();
     inputs.emplace_back(std::move(input));
     outputs.emplace_back(std::move(expected));
   }
@@ -303,6 +304,6 @@ int main() {
     }
   }
 
-  std::cout << std::endl;
+  std::cout << "Training completed!" << std::endl;
   return 0;
 }

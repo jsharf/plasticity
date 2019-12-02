@@ -57,6 +57,7 @@ class Nnet {
 
     eval_layer_outputs_ = std::make_unique<std::vector<compute::ClBuffer>>();
 
+    auto queue = MakeCommandQueue();
     size_t max_layer_output_size = 0;
     size_t max_layer_weight_size = 0;
     for (size_t i = 0; i < model_.layers.size(); ++i) {
@@ -123,7 +124,6 @@ class Nnet {
   // Intended mostly for testing or low-level hacks. Proceed with caution.
   Architecture &model() {
     for (size_t i = 0; i < model_.layers.size(); ++i) {
-      std::cout << model_.layers[i].weight_buffer().size() << std::endl;
       model_.layers[i].weight_buffer().MoveToCpu();
     }
     return model_;
@@ -214,7 +214,7 @@ class Nnet {
 
     // Create a queue (a queue of commands that the GPU will execute)
     // Assumes that all kernels compiled for same device.
-    cl::CommandQueue &queue = opencl_.queue;
+    auto queue = MakeCommandQueue();
 
     std::unique_ptr<compute::ClBuffer> outputs;
 
@@ -246,7 +246,7 @@ class Nnet {
       auto workgroup = (layer.eval_workgroup_size() != 0)
                            ? cl::NDRange(layer.eval_workgroup_size())
                            : cl::NullRange;
-      result = queue.enqueueNDRangeKernel(
+      result = queue->enqueueNDRangeKernel(
           evaluate, cl::NullRange,
           cl::NDRange(layer.GetDimensions().num_outputs), workgroup);
       if (result != CL_SUCCESS) {
@@ -265,7 +265,7 @@ class Nnet {
       *nnet_input->gpu_buffer() = outputs;
     }
 
-    queue.finish();
+    queue->finish();
     return std::move(nnet_input);
   }
 
@@ -361,7 +361,6 @@ class Nnet {
              const std::unique_ptr<compute::ClBuffer> &input_gradients) {
     cl::Device device = SelectDevice();
     CompileKernelsIfRequired();
-    cl::CommandQueue &queue = opencl_.queue;
 
     // Forward pass, store each layer's outputs as a column vector in
     // layer_outputs.
@@ -376,7 +375,7 @@ class Nnet {
     for (size_t i = 0; i < model_.layers.size(); ++i) {
       model_.layers[i].weight_buffer().MoveToGpu();
     }
-    CL_CHECK(LoadWeightsToGpu()->finish());
+    LoadWeightsToGpu();
 
     // Backpropagation algorithm.
     // For each layer, take the current backpropagated gradients (stored in
@@ -400,7 +399,7 @@ class Nnet {
         auto workgroup = (layer.bp_train_workgroup_size() != 0)
                              ? cl::NDRange(layer.bp_train_workgroup_size())
                              : cl::NullRange;
-        cl_int result = queue.enqueueNDRangeKernel(
+        cl_int result = opencl_.queue.enqueueNDRangeKernel(
             input_update, cl::NullRange,
             cl::NDRange(layer.GetDimensions().num_inputs), workgroup);
         if (result != CL_SUCCESS) {
@@ -409,6 +408,7 @@ class Nnet {
                     << " & error code: " << result << std::endl;
           std::exit(1);
         }
+        CL_CHECK(opencl_.queue.finish());
       } else {
         std::cerr
             << "Error, incorrect model config. Layer with zero inputs found: "
@@ -429,7 +429,7 @@ class Nnet {
         auto workgroup = (layer.weight_train_workgroup_size() != 0)
                              ? cl::NDRange(layer.weight_train_workgroup_size())
                              : cl::NullRange;
-        cl_int result = queue.enqueueNDRangeKernel(
+        cl_int result = opencl_.queue.enqueueNDRangeKernel(
             weight_update, cl::NullRange,
             cl::NDRange(layer.weight_buffer().size()), workgroup);
         if (result != CL_SUCCESS) {
@@ -438,6 +438,7 @@ class Nnet {
                     << " & error code: " << result << std::endl;
           std::exit(1);
         }
+        CL_CHECK(opencl_.queue.finish());
         layer.weight_buffer() = gpu_new_weights;
       }
 
@@ -451,17 +452,23 @@ class Nnet {
     }
   }
 
-  std::unique_ptr<cl::CommandQueue> LoadWeightsToGpu() {
-    auto queue = std::make_unique<cl::CommandQueue>(
-        std::get<0>(opencl_.compilation_units), opencl_.device);
+  cl::CommandQueue &command_queue() {
+    CompileKernelsIfRequired();
+    return opencl_.queue;
+  }
 
+  void LoadWeightsToGpu() {
     // Load all weights into the GPU (weights which are already in the GPU will
     // be skipped).
     for (size_t i = 0; i < model_.layers.size(); ++i) {
-      model_.layers[i].weight_buffer().MoveToGpu(queue);
+      model_.layers[i].weight_buffer().MoveToGpu();
     }
+  }
 
-    return queue;
+  std::unique_ptr<cl::CommandQueue> MakeCommandQueue() {
+    CompileKernelsIfRequired();
+    return std::make_unique<cl::CommandQueue>(
+        std::get<0>(opencl_.compilation_units), opencl_.device);
   }
 
   cl::CommandQueue CalculateGradients(
@@ -481,8 +488,7 @@ class Nnet {
       const std::unique_ptr<compute::ClBuffer> &input_gradients) {
     cl::Device device = SelectDevice();
     CompileKernelsIfRequired();
-    auto queue = std::make_unique<cl::CommandQueue>(
-        std::get<0>(opencl_.compilation_units), device);
+    auto queue = MakeCommandQueue();
 
     // Make sure out_gradients is the correct size.
     out_gradients->resize(model_.layers.size());
@@ -510,7 +516,7 @@ class Nnet {
       auto &layer = model_.layers[i];
       std::unique_ptr<compute::ClBuffer> next_backprop_gradients =
           MakeBuffer(layer.GetDimensions().num_inputs);
-      next_backprop_gradients->MoveToGpu(queue);
+      next_backprop_gradients->MoveToGpu();
       const compute::ClBuffer &gpu_layer_input =
           (i > 0) ? eval_layer_outputs_->at(i - 1) : *in;
 
@@ -572,7 +578,7 @@ class Nnet {
       backprop_gradients.swap(next_backprop_gradients);
     }
     if (input_gradients) {
-      input_gradients->MoveToGpu(queue);
+      input_gradients->MoveToGpu();
       *input_gradients->gpu_buffer() = *backprop_gradients->gpu_buffer();
     }
     return *queue;
@@ -585,18 +591,18 @@ class Nnet {
     cl::Device device = SelectDevice();
     CompileKernelsIfRequired();
 
-    auto load_weights_promise = LoadWeightsToGpu();
+    LoadWeightsToGpu();
 
-    // Before we train, need to wait on weights to load.
-    CL_CHECK(load_weights_promise->finish());
+    // Wait for weight loading to finish.
+    CL_CHECK(command_queue().finish());
 
     std::vector<std::unique_ptr<std::vector<compute::ClBuffer>>>
         batch_weight_gradients;
     // initialize batch_weight_gradients.
     std::vector<cl::CommandQueue> queues;
     for (int i : indices_to_train) {
-      batch_weight_gradients.emplace_back(std::make_unique <
-                                          std::vector<compute::ClBuffer>>());
+      batch_weight_gradients.emplace_back(
+          std::make_unique<std::vector<compute::ClBuffer>>());
       queues.push_back(
           CalculateGradients(ins[i], outs[i], batch_weight_gradients.back()));
     }
@@ -658,8 +664,7 @@ class Nnet {
                                     compute::ClBuffer &b) {
     cl::Device device = SelectDevice();
     CompileKernelsIfRequired();
-    auto queue = std::make_unique<cl::CommandQueue>(
-        std::get<0>(opencl_.compilation_units), device);
+    auto queue = MakeCommandQueue();
     std::string accumulate_kernel_name = "vector_accumulate";
     cl::Kernel &accumulate_kernel = CacheFetchKernel(accumulate_kernel_name);
     CL_CHECK(accumulate_kernel.setArg(0, *a.gpu_buffer()));
