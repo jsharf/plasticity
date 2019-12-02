@@ -10,6 +10,18 @@ Plasticity runs on OpenCL and can support various OpenCL backends.
 on NVIDIA's OpenCL backend and the POCL backend. These two backends are going to
 receive the most software support.
 
+Name
+----
+```
+Plasticity: the quality of being easily shaped or molded.
+```
+
+Neural Networks are universal function approximators. Their operation is molded
+by the training data and parameters to optimize for the given objective
+function. This flexibility compared to traditional algorithms is "plastic" --
+which is where this library gets its name from.
+
+
 Directory Structure
 -------------------
 
