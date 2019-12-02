@@ -7,8 +7,8 @@ networks on specialized hardware.
 
 Plasticity runs on OpenCL and can support various OpenCL backends.
 (ARM, Intel CPUs, NVIDIA & AMD GPUs, POCL, etc). Plasticity is being developed
-on both NVIDIA's OpenCL backend and POCL, and these are the two backends that
-are going to receive the most software support.
+on NVIDIA's OpenCL backend and the POCL backend. These two backends are going to
+receive the most software support.
 
 Directory Structure
 -------------------
