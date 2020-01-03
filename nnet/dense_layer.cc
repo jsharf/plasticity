@@ -1,4 +1,4 @@
-#include "math/nnet/dense_layer.h"
+#include "plasticity/nnet/dense_layer.h"
 
 #include <vector>
 #include <cassert>

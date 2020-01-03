@@ -1,9 +1,9 @@
 #define CATCH_CONFIG_MAIN
-#include "math/third_party/catch.h"
+#include "plasticity/third_party/catch.h"
 
-#include "math/nnet/nnet.h"
-#include "math/stats/normal.h"
-#include "math/symbolic/symbolic_util.h"
+#include "plasticity/nnet/nnet.h"
+#include "plasticity/stats/normal.h"
+#include "plasticity/symbolic/symbolic_util.h"
 
 #include <iostream>
 #include <memory>

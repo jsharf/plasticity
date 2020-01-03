@@ -1,5 +1,5 @@
-#include "math/nnet/layer.h"
-#include "math/nnet/nnet.h"
+#include "plasticity/nnet/layer.h"
+#include "plasticity/nnet/nnet.h"
 
 #include <fstream>
 #include <future>
@@ -129,7 +129,7 @@ std::string FileToString(std::string filepath) {
 
 std::string Layer::GenerateEvaluationKernel() const {
   std::string evaluate_source =
-      FileToString("math/nnet/kernels/evaluate.kernel.cl");
+      FileToString("plasticity/nnet/kernels/evaluate.kernel.cl");
 
   // Validate input dimensions.
   if ((GetDimensions().num_inputs == 0) || (GetDimensions().num_outputs == 0)) {
@@ -189,7 +189,7 @@ std::string Layer::WeightsToString() {
 
 std::string Layer::GenerateTrainingKernels() const {
   std::string train_source =
-      FileToString("math/nnet/kernels/back_prop.kernel.cl");
+      FileToString("plasticity/nnet/kernels/back_prop.kernel.cl");
 
   codegen::CudaGenerator input_gen;
   impl_->InputGradientCode(

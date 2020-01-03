@@ -1,5 +1,5 @@
 #include <sstream>
-#include "math/symbolic/numeric_value.h"
+#include "plasticity/symbolic/numeric_value.h"
 
 namespace symbolic {
 

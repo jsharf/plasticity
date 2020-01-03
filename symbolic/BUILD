@@ -14,7 +14,7 @@ cc_library(
     copts = [
         "-std=c++1z",
     ],
-    visibility = ["//math"],
+    visibility = ["//plasticity"],
 )
 
 cc_library(
@@ -26,10 +26,10 @@ cc_library(
     copts = [
         "-std=c++1z",
     ],
-    visibility = ["//math"],
+    visibility = ["//plasticity"],
     deps = [
         ":symbolic",
-        "//math/geometry:dynamic_matrix",
+        "//plasticity/geometry:dynamic_matrix",
     ],
 )
 
@@ -42,7 +42,7 @@ cc_binary(
     deps = [
         ":symbolic",
         ":symbolic_util",
-        "//math/third_party:catch2",
+        "//plasticity/third_party:catch2",
     ],
 )
 
@@ -55,6 +55,6 @@ cc_test(
     deps = [
         ":symbolic",
         ":symbolic_util",
-        "//math/third_party:catch2",
+        "//plasticity/third_party:catch2",
     ],
 )

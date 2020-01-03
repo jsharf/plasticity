@@ -1,13 +1,13 @@
 #ifndef CONVOLUTION_LAYER_H
 #define CONVOLUTION_LAYER_H
-#include "math/codegen/codegen.h"
-#include "math/geometry/dynamic_matrix.h"
-#include "math/nnet/layer_impl.h"
-#include "math/nnet/symbol_generator.h"
-#include "math/nnet/layer_dimensions.h"
-#include "math/stats/normal.h"
-#include "math/symbolic/expression.h"
-#include "math/symbolic/symbolic_util.h"
+#include "plasticity/codegen/codegen.h"
+#include "plasticity/geometry/dynamic_matrix.h"
+#include "plasticity/nnet/layer_impl.h"
+#include "plasticity/nnet/symbol_generator.h"
+#include "plasticity/nnet/layer_dimensions.h"
+#include "plasticity/stats/normal.h"
+#include "plasticity/symbolic/expression.h"
+#include "plasticity/symbolic/symbolic_util.h"
 
 #include <tuple>
 

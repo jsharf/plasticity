@@ -1,9 +1,9 @@
 #ifndef EXPRESSION_H
 #define EXPRESSION_H
 
-#include "math/symbolic/expression_node.h"
-#include "math/symbolic/integer.h"
-#include "math/symbolic/numeric_value.h"
+#include "plasticity/symbolic/expression_node.h"
+#include "plasticity/symbolic/integer.h"
+#include "plasticity/symbolic/numeric_value.h"
 
 #include <iostream>
 #include <limits>

@@ -1,7 +1,7 @@
-#include "math/geometry/dynamic_matrix.h"
-#include "math/stats/normal.h"
-#include "math/symbolic/expression.h"
-#include "math/symbolic/symbolic_util.h"
+#include "plasticity/geometry/dynamic_matrix.h"
+#include "plasticity/stats/normal.h"
+#include "plasticity/symbolic/expression.h"
+#include "plasticity/symbolic/symbolic_util.h"
 
 namespace nnet {
 

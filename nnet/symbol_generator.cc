@@ -1,4 +1,4 @@
-#include "math/nnet/symbol_generator.h"
+#include "plasticity/nnet/symbol_generator.h"
 
 namespace nnet {
 namespace internal {

@@ -1,4 +1,4 @@
-#include "math/nnet/convolution_layer.h"
+#include "plasticity/nnet/convolution_layer.h"
 
 #include <cassert>
 

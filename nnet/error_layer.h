@@ -1,10 +1,10 @@
 #ifndef ERROR_LAYER_H
 #define ERROR_LAYER_H
 
-#include "math/geometry/dynamic_matrix.h"
-#include "math/nnet/layer_dimensions.h"
-#include "math/symbolic/expression.h"
-#include "math/symbolic/symbolic_util.h"
+#include "plasticity/geometry/dynamic_matrix.h"
+#include "plasticity/nnet/layer_dimensions.h"
+#include "plasticity/symbolic/expression.h"
+#include "plasticity/symbolic/symbolic_util.h"
 
 namespace nnet {
 

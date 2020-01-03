@@ -1,11 +1,11 @@
 #ifndef SYMBOL_GENERATOR_H
 #define SYMBOL_GENERATOR_H
 
-#include "math/codegen/codegen_util.h"
-#include "math/nnet/layer_dimensions.h"
-#include "math/nnet/layer_impl.h"
-#include "math/symbolic/expression.h"
-#include "math/symbolic/symbolic_util.h"
+#include "plasticity/codegen/codegen_util.h"
+#include "plasticity/nnet/layer_dimensions.h"
+#include "plasticity/nnet/layer_impl.h"
+#include "plasticity/symbolic/expression.h"
+#include "plasticity/symbolic/symbolic_util.h"
 
 #include <map>
 #include <unordered_map>

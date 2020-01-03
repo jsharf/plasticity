@@ -1,7 +1,7 @@
 #ifndef NUMERIC_VALUE_H
 #define NUMERIC_VALUE_H
 
-#include "math/symbolic/expression_node.h"
+#include "plasticity/symbolic/expression_node.h"
 
 #include <experimental/optional>
 #include <iostream>

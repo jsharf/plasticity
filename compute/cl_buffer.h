@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "clutil/util.h"
-#include "math/geometry/dynamic_matrix.h"
+#include "plasticity/geometry/dynamic_matrix.h"
 
 // FYI for the future, this class might be a simpler interface if context is
 // inferred from the buffer and CommandQueue is just initialized from

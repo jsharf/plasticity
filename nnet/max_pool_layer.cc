@@ -1,5 +1,5 @@
-#include "math/nnet/max_pool_layer.h"
-#include "math/symbolic/symbolic_util.h"
+#include "plasticity/nnet/max_pool_layer.h"
+#include "plasticity/symbolic/symbolic_util.h"
 
 namespace nnet {
 

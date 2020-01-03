@@ -1,7 +1,7 @@
-#include "math/geometry/dynamic_matrix.h"
-#include "math/nnet/layer_dimensions.h"
-#include "math/nnet/nnet.h"
-#include "math/symbolic/expression.h"
+#include "plasticity/geometry/dynamic_matrix.h"
+#include "plasticity/nnet/layer_dimensions.h"
+#include "plasticity/nnet/nnet.h"
+#include "plasticity/symbolic/expression.h"
 
 #include <cassert>
 #include <fstream>

@@ -1,4 +1,4 @@
-#include "math/nnet/error_layer.h"
+#include "plasticity/nnet/error_layer.h"
 
 #include <fstream>
 
@@ -26,7 +26,7 @@ std::string FileToString(std::string filepath) {
 }
 
 std::string ErrorLayer::GenerateErrorKernels() const {
-  std::string error_source = FileToString("math/nnet/kernels/error.kernel.cl");
+  std::string error_source = FileToString("plasticity/nnet/kernels/error.kernel.cl");
 
   symbolic::Expression error = GenerateErrorComponent();
   symbolic::Expression gradient = error.Derive(O().to_string());

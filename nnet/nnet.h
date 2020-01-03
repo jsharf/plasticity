@@ -1,16 +1,16 @@
 #ifndef NNET_H
 #define NNET_H
 #include "clutil/util.h"
-#include "math/compute/cl_buffer.h"
-#include "math/geometry/dynamic_matrix.h"
-#include "math/nnet/architecture.h"
-#include "math/nnet/error_layer.h"
-#include "math/nnet/layer.h"
-#include "math/nnet/layer_dimensions.h"
-#include "math/nnet/symbol_generator.h"
-#include "math/stats/normal.h"
-#include "math/symbolic/expression.h"
-#include "math/symbolic/symbolic_util.h"
+#include "plasticity/compute/cl_buffer.h"
+#include "plasticity/geometry/dynamic_matrix.h"
+#include "plasticity/nnet/architecture.h"
+#include "plasticity/nnet/error_layer.h"
+#include "plasticity/nnet/layer.h"
+#include "plasticity/nnet/layer_dimensions.h"
+#include "plasticity/nnet/symbol_generator.h"
+#include "plasticity/stats/normal.h"
+#include "plasticity/symbolic/expression.h"
+#include "plasticity/symbolic/symbolic_util.h"
 
 #include <cmath>
 #include <fstream>
@@ -161,7 +161,7 @@ class Nnet {
     // Add the vector_add() kernel, for summing weight gradients together in
     // Batch training.
     kernel_sources.push_back(
-        FileToString("math/nnet/kernels/combine.kernel.cl"));
+        FileToString("plasticity/nnet/kernels/combine.kernel.cl"));
     std::cout << "Kernels generated. Compiling..." << std::endl;
     opencl_ = CompileCl(kernel_sources, opencl_.device);
     std::cout << "Done!" << std::endl;

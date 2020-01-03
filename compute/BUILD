@@ -5,10 +5,10 @@ cc_library(
     copts = [
         "--std=c++1z",
     ],
-    visibility = ["//math"],
+    visibility = ["//plasticity"],
     deps = [
         "//clutil:util",
-        "//math/geometry:dynamic_matrix",
+        "//plasticity/geometry:dynamic_matrix",
     ],
 )
 
@@ -26,7 +26,7 @@ cc_binary(
     deps = [
         ":cl_buffer",
         "//clutil:util",
-        "//math/third_party:catch2",
+        "//plasticity/third_party:catch2",
     ],
 )
 
@@ -45,10 +45,10 @@ cc_library(
     copts = [
         "--std=c++1z",
     ],
-    visibility = ["//math"],
+    visibility = ["//plasticity"],
     deps = [
         ":command_queue",
         "//clutil:util",
-        "//math/geometry:dynamic_matrix",
+        "//plasticity/geometry:dynamic_matrix",
     ],
 )

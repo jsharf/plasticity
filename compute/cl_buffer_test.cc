@@ -1,5 +1,5 @@
 #define CATCH_CONFIG_MAIN
-#include "math/third_party/catch.h"
+#include "plasticity/third_party/catch.h"
 
 #include <cstdlib>
 
@@ -10,7 +10,7 @@
 #include <unordered_map>
 
 #include "clutil/util.h"
-#include "math/compute/cl_buffer.h"
+#include "plasticity/compute/cl_buffer.h"
 
 namespace compute {
 

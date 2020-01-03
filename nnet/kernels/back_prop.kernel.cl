@@ -1,4 +1,4 @@
-// THIS FILE IS A TEMPLATE. The files in //math/nnet parse this to generate an
+// THIS FILE IS A TEMPLATE. The files in //plasticity/nnet parse this to generate an
 // OpenCl kernel.
 
 // Backprop weight update stage

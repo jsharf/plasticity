@@ -1,12 +1,12 @@
 #ifndef LAYER_IMPL_H
 #define LAYER_IMPL_H
 
-#include "math/codegen/codegen.h"
-#include "math/geometry/dynamic_matrix.h"
-#include "math/nnet/layer_dimensions.h"
-#include "math/stats/normal.h"
-#include "math/symbolic/expression.h"
-#include "math/symbolic/symbolic_util.h"
+#include "plasticity/codegen/codegen.h"
+#include "plasticity/geometry/dynamic_matrix.h"
+#include "plasticity/nnet/layer_dimensions.h"
+#include "plasticity/stats/normal.h"
+#include "plasticity/symbolic/expression.h"
+#include "plasticity/symbolic/symbolic_util.h"
 
 namespace nnet {
 

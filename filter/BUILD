@@ -4,10 +4,10 @@ cc_library(
     copts = [
         "-std=c++1z",
     ],
-    visibility = ["//math"],
+    visibility = ["//plasticity"],
     deps = [
-        "//math/geometry:matrix",
-        "//math/symbolic",
+        "//plasticity/geometry:matrix",
+        "//plasticity/symbolic",
     ],
 )
 
@@ -17,10 +17,10 @@ cc_library(
     copts = [
         "-std=c++1z",
     ],
-    visibility = ["//math"],
+    visibility = ["//plasticity"],
     deps = [
-        "//math/geometry:matrix",
-        "//math/symbolic",
+        "//plasticity/geometry:matrix",
+        "//plasticity/symbolic",
     ],
 )
 
@@ -32,8 +32,8 @@ cc_binary(
     ],
     deps = [
         ":kalman_filter",
-        "//math/geometry:matrix",
-        "//math/symbolic",
+        "//plasticity/geometry:matrix",
+        "//plasticity/symbolic",
     ],
 )
 
@@ -51,10 +51,10 @@ cc_binary(
         "//graphics:sdl_canvas",
         "//graphics:types",
         "//graphics:utah_data",
-        "//math/geometry:matrix",
-        "//math/geometry:matrix4",
-        "//math/geometry:vector",
-        "//math/symbolic",
+        "//plasticity/geometry:matrix",
+        "//plasticity/geometry:matrix4",
+        "//plasticity/geometry:vector",
+        "//plasticity/symbolic",
         "@linux_sdl//:sdl2_headers",
     ],
 )

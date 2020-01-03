@@ -1,7 +1,7 @@
-#include "math/geometry/dynamic_matrix.h"
-#include "math/nnet/layer_dimensions.h"
-#include "math/nnet/nnet.h"
-#include "math/symbolic/expression.h"
+#include "plasticity/geometry/dynamic_matrix.h"
+#include "plasticity/nnet/layer_dimensions.h"
+#include "plasticity/nnet/nnet.h"
+#include "plasticity/symbolic/expression.h"
 
 #include <cassert>
 #include <chrono>
@@ -230,11 +230,11 @@ int main() {
 
   // Read in the files.
   std::vector<string> training_files = {
-      "math/nnet/data/cifar-10-batches-bin/data_batch_1.bin",
-      "math/nnet/data/cifar-10-batches-bin/data_batch_2.bin",
-      "math/nnet/data/cifar-10-batches-bin/data_batch_3.bin",
-      "math/nnet/data/cifar-10-batches-bin/data_batch_4.bin",
-      "math/nnet/data/cifar-10-batches-bin/data_batch_5.bin",
+      "plasticity/nnet/data/cifar-10-batches-bin/data_batch_1.bin",
+      "plasticity/nnet/data/cifar-10-batches-bin/data_batch_2.bin",
+      "plasticity/nnet/data/cifar-10-batches-bin/data_batch_3.bin",
+      "plasticity/nnet/data/cifar-10-batches-bin/data_batch_4.bin",
+      "plasticity/nnet/data/cifar-10-batches-bin/data_batch_5.bin",
   };
 
   std::cout << "Reading in training files..." << std::endl;

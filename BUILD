@@ -1,10 +1,10 @@
 package_group(
-    name = "math",
+    name = "plasticity",
     includes = [
         ":math_users",
     ],
     packages = [
-        "//math/...",
+        "//plasticity/...",
     ],
 )
 

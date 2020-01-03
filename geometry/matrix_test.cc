@@ -2,8 +2,8 @@
 #include <memory>
 #include <string>
 
-#include "math/symbolic/expression.h"
-#include "math/symbolic/numeric_value.h"
+#include "plasticity/symbolic/expression.h"
+#include "plasticity/symbolic/numeric_value.h"
 #include "matrix.h"
 
 using std::string;

@@ -1,7 +1,7 @@
 #include <iostream>
 
-#include "math/filter/kalman_filter.h"
-#include "math/symbolic/expression.h"
+#include "plasticity/filter/kalman_filter.h"
+#include "plasticity/symbolic/expression.h"
 
 using symbolic::CreateExpression;
 

@@ -1,4 +1,4 @@
-#include "math/nnet/layer_dimensions.h"
+#include "plasticity/nnet/layer_dimensions.h"
 
 #include <algorithm>
 #include <iostream>

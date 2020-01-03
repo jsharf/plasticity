@@ -1,9 +1,9 @@
 #ifndef SYMBOLIC_UTIL_H
 #define SYMBOLIC_UTIL_H
 
-#include "math/geometry/dynamic_matrix.h"
-#include "math/symbolic/expression.h"
-#include "math/symbolic/numeric_value.h"
+#include "plasticity/geometry/dynamic_matrix.h"
+#include "plasticity/symbolic/expression.h"
+#include "plasticity/symbolic/numeric_value.h"
 
 namespace symbolic {
 

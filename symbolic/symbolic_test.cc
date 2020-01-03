@@ -1,5 +1,5 @@
 #define CATCH_CONFIG_MAIN
-#include "math/third_party/catch.h"
+#include "plasticity/third_party/catch.h"
 
 #include <cstdlib>
 
@@ -7,10 +7,10 @@
 #include <memory>
 #include <set>
 
-#include "math/symbolic/expression.h"
-#include "math/symbolic/integer.h"
-#include "math/symbolic/numeric_value.h"
-#include "math/symbolic/symbolic_util.h"
+#include "plasticity/symbolic/expression.h"
+#include "plasticity/symbolic/integer.h"
+#include "plasticity/symbolic/numeric_value.h"
+#include "plasticity/symbolic/symbolic_util.h"
 
 using symbolic::Expression;
 using symbolic::GteExpression;

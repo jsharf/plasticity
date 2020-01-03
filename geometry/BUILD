@@ -9,7 +9,7 @@ cc_library(
         "matrix4.h",
         "types.h",
     ],
-    visibility = ["//math"],
+    visibility = ["//plasticity"],
     deps = [
         ":vector",
     ],
@@ -23,7 +23,7 @@ cc_library(
     copts = [
         "-std=c++1z",
     ],
-    visibility = ["//math"],
+    visibility = ["//plasticity"],
 )
 
 cc_library(
@@ -34,7 +34,7 @@ cc_library(
     copts = [
         "-std=c++1z",
     ],
-    visibility = ["//math"],
+    visibility = ["//plasticity"],
 )
 
 cc_binary(
@@ -45,7 +45,7 @@ cc_binary(
     ],
     deps = [
         ":matrix",
-        "//math/symbolic",
+        "//plasticity/symbolic",
     ],
 )
 
@@ -57,7 +57,7 @@ cc_binary(
     ],
     deps = [
         ":dynamic_matrix",
-        "//math/symbolic",
+        "//plasticity/symbolic",
     ],
 )
 
@@ -68,5 +68,5 @@ cc_library(
         "types.h",
         "vector.h",
     ],
-    visibility = ["//math"],
+    visibility = ["//plasticity"],
 )

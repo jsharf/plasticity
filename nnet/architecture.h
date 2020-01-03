@@ -1,10 +1,10 @@
 #ifndef ARCHITECTURE_H
 #define ARCHITECTURE_H
 
-#include "math/nnet/layer.h"
-#include "math/nnet/layer_dimensions.h"
-#include "math/symbolic/expression.h"
-#include "math/symbolic/symbolic_util.h"
+#include "plasticity/nnet/layer.h"
+#include "plasticity/nnet/layer_dimensions.h"
+#include "plasticity/symbolic/expression.h"
+#include "plasticity/symbolic/symbolic_util.h"
 
 #include <vector>
 
