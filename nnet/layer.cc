@@ -217,14 +217,10 @@ std::string Layer::GenerateTrainingKernels() const {
 
   // Yes this is hacky.  It's a side project.
   // TODO(sharf): Use a real templating system for the kernels.
-  const size_t kNumberExpectedReplacements = 7;
-
-  for (size_t replacement_time = 0;
-       replacement_time < kNumberExpectedReplacements; ++replacement_time) {
+  while (true) {
     if (!FindAndReplace(&train_source, "LAYERID", LayerSuffix())) {
-      std::cerr << "Could not find template substring \"LAYERID\"."
-                << std::endl;
-      std::exit(1);
+      // Done replacing all cases of LAYERID
+      break;
     }
   }
 

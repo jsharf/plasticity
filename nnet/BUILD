@@ -253,10 +253,12 @@ cc_binary(
         "//clutil:linux": [
             "-lOpenCL",
             "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+            "-L/usr/lib/x86_64-linux-gnu/",
         ],
         "//conditions:default": [
             "-lOpenCL",
             "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+            "-L/usr/lib/x86_64-linux-gnu/",
         ],
     }),
     visibility = ["//plasticity"],
@@ -283,10 +285,12 @@ cc_binary(
         "//clutil:linux": [
             "-lOpenCL",
             "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+            "-L/usr/lib/x86_64-linux-gnu/",
         ],
         "//conditions:default": [
             "-lOpenCL",
             "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+            "-L/usr/lib/x86_64-linux-gnu/",
         ],
     }),
     visibility = ["//plasticity"],
@@ -316,10 +320,12 @@ cc_binary(
         "//clutil:linux": [
             "-lOpenCL",
             "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+            "-L/usr/lib/x86_64-linux-gnu/",
         ],
         "//conditions:default": [
             "-lOpenCL",
             "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+            "-L/usr/lib/x86_64-linux-gnu/",
         ],
     }) + [
         "-g",
@@ -360,10 +366,12 @@ cc_test(
             "-lOpenCL",
             "-lSegFault",
             "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+            "-L/usr/lib/x86_64-linux-gnu/",
         ],
         "//conditions:default": [
             "-lOpenCL",
             "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
+            "-L/usr/lib/x86_64-linux-gnu/",
         ],
     }),
     deps = [

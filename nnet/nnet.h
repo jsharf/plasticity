@@ -404,8 +404,6 @@ class Nnet {
                     << " & error code: " << result << std::endl;
           std::exit(1);
         }
-        CL_CHECK(opencl_.queue.finish());
-        std::exit(0);
       } else {
         std::cerr
             << "Error, incorrect model config. Layer with zero inputs found: "
@@ -435,7 +433,6 @@ class Nnet {
                     << " & error code: " << result << std::endl;
           std::exit(1);
         }
-        CL_CHECK(opencl_.queue.finish());
         layer.weight_buffer() = gpu_new_weights;
       }
 
