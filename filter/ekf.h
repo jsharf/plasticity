@@ -1,9 +1,9 @@
 #ifndef EKF_H
 #define EKF_H
 
-#include "plasticity/geometry/matrix.h"
-#include "plasticity/symbolic/expression.h"
-#include "plasticity/symbolic/numeric_value.h"
+#include "geometry/matrix.h"
+#include "symbolic/expression.h"
+#include "symbolic/numeric_value.h"
 
 namespace filter {
 

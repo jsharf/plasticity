@@ -1,4 +1,5 @@
-#include "plasticity/compute/command_queue.h"
+#include "compute/command_queue.h"
+#include "external/clutil/util.h"
 
 #include <iostream>
 

@@ -5,10 +5,10 @@ cc_library(
     copts = [
         "--std=c++1z",
     ],
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
-        "//clutil:util",
-        "//plasticity/geometry:dynamic_matrix",
+        "@clutil//:util",
+        "//geometry:dynamic_matrix",
     ],
 )
 
@@ -19,14 +19,14 @@ cc_binary(
         "-std=c++1z",
     ],
     linkopts = select({
-        "//clutil:osx": ["-framework OpenCL"],
-        "//clutil:linux": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
+        "@clutil//:osx": ["-framework OpenCL"],
+        "@clutil//:linux": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
         "//conditions:default": ["-lOpenCL", "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib"],
     }),
     deps = [
         ":cl_buffer",
-        "//clutil:util",
-        "//plasticity/third_party:catch2",
+        "@clutil//:util",
+        "//third_party:catch2",
     ],
 )
 
@@ -45,10 +45,10 @@ cc_library(
     copts = [
         "--std=c++1z",
     ],
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
         ":command_queue",
-        "//clutil:util",
-        "//plasticity/geometry:dynamic_matrix",
+        "@clutil//:util",
+        "//geometry:dynamic_matrix",
     ],
 )

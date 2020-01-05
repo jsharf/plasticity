@@ -1,7 +1,7 @@
-#include "plasticity/symbolic/symbolic_util.h"
+#include "symbolic/symbolic_util.h"
 
-#include "plasticity/symbolic/expression.h"
-#include "plasticity/symbolic/numeric_value.h"
+#include "symbolic/expression.h"
+#include "symbolic/numeric_value.h"
 
 #include <memory>
 

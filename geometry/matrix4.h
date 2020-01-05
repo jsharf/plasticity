@@ -1,8 +1,8 @@
 #ifndef Matrix4_H
 #define Matrix4_H
 
-#include "plasticity/geometry/types.h"
-#include "plasticity/geometry/vector.h"
+#include "geometry/types.h"
+#include "geometry/vector.h"
 
 class Matrix4 {
  public:

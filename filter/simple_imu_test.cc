@@ -4,16 +4,16 @@
 #include <sstream>
 #include <string>
 
-#include "plasticity/filter/kalman_filter.h"
-#include "plasticity/symbolic/expression.h"
+#include "filter/kalman_filter.h"
+#include "symbolic/expression.h"
 
-#include "graphics/camera_3d.h"
-#include "graphics/perspective_camera.h"
-#include "graphics/scene.h"
-#include "graphics/sdl_canvas.h"
-#include "graphics/types.h"
-#include "plasticity/geometry/matrix4.h"
-#include "plasticity/geometry/vector.h"
+#include "external/graphics/camera_3d.h"
+#include "external/graphics/perspective_camera.h"
+#include "external/graphics/scene.h"
+#include "external/graphics/sdl_canvas.h"
+#include "external/graphics/types.h"
+#include "geometry/matrix4.h"
+#include "geometry/vector.h"
 
 #include <SDL2/SDL.h>
 

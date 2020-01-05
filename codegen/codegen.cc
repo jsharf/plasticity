@@ -1,4 +1,4 @@
-#include "plasticity/codegen/codegen.h"
+#include "codegen/codegen.h"
 
 namespace codegen {
 

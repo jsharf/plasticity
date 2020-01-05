@@ -1,8 +1,8 @@
 #ifndef INTEGER_H
 #define INTEGER_H
 
-#include "plasticity/symbolic/expression_node.h"
-#include "plasticity/symbolic/numeric_value.h"
+#include "symbolic/expression_node.h"
+#include "symbolic/numeric_value.h"
 
 #include <cmath>
 #include <experimental/optional>

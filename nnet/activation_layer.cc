@@ -1,5 +1,5 @@
 #include <memory>
-#include "plasticity/nnet/activation_layer.h"
+#include "nnet/activation_layer.h"
 
 namespace nnet {
 

@@ -1,5 +1,5 @@
 #define CATCH_CONFIG_MAIN
-#include "plasticity/third_party/catch.h"
+#include "third_party/catch.h"
 
 #include <cstdlib>
 
@@ -9,8 +9,8 @@
 #include <tuple>
 #include <unordered_map>
 
-#include "clutil/util.h"
-#include "plasticity/compute/cl_buffer.h"
+#include "external/clutil/util.h"
+#include "compute/cl_buffer.h"
 
 namespace compute {
 

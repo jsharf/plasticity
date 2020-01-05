@@ -1,4 +1,4 @@
-#include "plasticity/compute/cl_buffer.h"
+#include "compute/cl_buffer.h"
 
 namespace compute {
 

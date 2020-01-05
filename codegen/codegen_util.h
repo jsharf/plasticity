@@ -1,6 +1,6 @@
 #ifndef CODEGEN_CODEGEN_UTIL_H
 #define CODEGEN_CODEGEN_UTIL_H
-#include "plasticity/codegen/codegen.h"
+#include "codegen/codegen.h"
 
 namespace codegen {
 

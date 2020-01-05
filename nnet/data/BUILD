@@ -10,6 +10,6 @@
 
 filegroup(
   name = "cifar-10",
-  visibility = ["//plasticity"],
+  visibility = ["//:plasticity"],
   srcs = glob(["cifar-10-batches-bin/*.bin"]),
 )

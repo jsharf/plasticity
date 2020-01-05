@@ -2,9 +2,9 @@
 #include <memory>
 #include <string>
 
-#include "plasticity/symbolic/expression.h"
-#include "plasticity/symbolic/numeric_value.h"
-#include "plasticity/geometry/dynamic_matrix.h"
+#include "symbolic/expression.h"
+#include "symbolic/numeric_value.h"
+#include "geometry/dynamic_matrix.h"
 
 using std::string;
 using symbolic::Expression;

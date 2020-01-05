@@ -1,5 +1,5 @@
 #define CATCH_CONFIG_MAIN
-#include "plasticity/third_party/catch.h"
+#include "third_party/catch.h"
 
 #include "codegen.h"
 

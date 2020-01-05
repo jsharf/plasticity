@@ -1,4 +1,4 @@
-#include "plasticity/nnet/softmax_layer.h"
+#include "nnet/softmax_layer.h"
 #include <memory>
 
 namespace nnet {

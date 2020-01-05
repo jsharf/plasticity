@@ -5,7 +5,7 @@ cc_library(
     copts = [
         "--std=c++1z",
     ],
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
     ],
 )
@@ -17,7 +17,7 @@ cc_library(
     copts = [
         "--std=c++1z",
     ],
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
         ":codegen",
     ],
@@ -31,6 +31,6 @@ cc_test(
     ],
     deps = [
         ":codegen",
-        "//plasticity/third_party:catch2",
+        "//third_party:catch2",
     ],
 )

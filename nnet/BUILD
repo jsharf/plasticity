@@ -4,12 +4,12 @@ cc_library(
     copts = [
         "--std=c++1z",
     ],
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
         ":layer",
         ":layer_dimensions",
-        "//plasticity/symbolic",
-        "//plasticity/symbolic:symbolic_util",
+        "//symbolic",
+        "//symbolic:symbolic_util",
     ],
 )
 
@@ -28,18 +28,18 @@ cc_library(
     linkopts = [
         "-pthread",
     ],
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
         ":architecture",
         ":error_layer",
         ":layer",
         ":layer_dimensions",
-        "//clutil:util",
-        "//plasticity/geometry:dynamic_matrix",
-        "//plasticity/compute:cl_buffer",
-        "//plasticity/stats:normal",
-        "//plasticity/symbolic",
-        "//plasticity/symbolic:symbolic_util",
+        "@clutil//:util",
+        "//geometry:dynamic_matrix",
+        "//compute:cl_buffer",
+        "//stats:normal",
+        "//symbolic",
+        "//symbolic:symbolic_util",
     ],
 )
 
@@ -57,7 +57,7 @@ cc_library(
     linkopts = [
         "-pthread",
     ],
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
         ":activation_layer",
         ":convolution_layer",
@@ -66,13 +66,13 @@ cc_library(
         ":layer_impl",
         ":max_pool_layer",
         ":softmax_layer",
-        "//clutil:util",
-        "//plasticity/codegen",
-        "//plasticity/geometry:dynamic_matrix",
-        "//plasticity/compute:cl_buffer",
-        "//plasticity/stats:normal",
-        "//plasticity/symbolic",
-        "//plasticity/symbolic:symbolic_util",
+        "@clutil//:util",
+        "//codegen",
+        "//geometry:dynamic_matrix",
+        "//compute:cl_buffer",
+        "//stats:normal",
+        "//symbolic",
+        "//symbolic:symbolic_util",
     ],
 )
 
@@ -83,13 +83,13 @@ cc_library(
     copts = [
         "--std=c++1z",
     ],
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
         ":layer_dimensions",
-        "//clutil:util",
-        "//plasticity/geometry:dynamic_matrix",
-        "//plasticity/symbolic",
-        "//plasticity/symbolic:symbolic_util",
+        "@clutil//:util",
+        "//geometry:dynamic_matrix",
+        "//symbolic",
+        "//symbolic:symbolic_util",
     ],
 )
 
@@ -100,14 +100,14 @@ cc_library(
     copts = [
         "--std=c++1z",
     ],
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
         ":layer_dimensions",
-        "//plasticity/codegen",
-        "//plasticity/geometry:dynamic_matrix",
-        "//plasticity/stats:normal",
-        "//plasticity/symbolic",
-        "//plasticity/symbolic:symbolic_util",
+        "//codegen",
+        "//geometry:dynamic_matrix",
+        "//stats:normal",
+        "//symbolic",
+        "//symbolic:symbolic_util",
     ],
 )
 
@@ -118,16 +118,16 @@ cc_library(
     copts = [
         "--std=c++1z",
     ],
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
         ":layer_dimensions",
         ":layer_impl",
-        "//plasticity/codegen",
-        "//plasticity/codegen:codegen_util",
-        "//plasticity/geometry:dynamic_matrix",
-        "//plasticity/stats:normal",
-        "//plasticity/symbolic",
-        "//plasticity/symbolic:symbolic_util",
+        "//codegen",
+        "//codegen:codegen_util",
+        "//geometry:dynamic_matrix",
+        "//stats:normal",
+        "//symbolic",
+        "//symbolic:symbolic_util",
     ],
 )
 
@@ -138,7 +138,7 @@ cc_library(
     copts = [
         "--std=c++1z",
     ],
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
     ],
 )
@@ -150,16 +150,16 @@ cc_library(
     copts = [
         "--std=c++1z",
     ],
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
         ":layer_dimensions",
         ":layer_impl",
         ":symbol_generator",
-        "//plasticity/codegen",
-        "//plasticity/geometry:dynamic_matrix",
-        "//plasticity/stats:normal",
-        "//plasticity/symbolic",
-        "//plasticity/symbolic:symbolic_util",
+        "//codegen",
+        "//geometry:dynamic_matrix",
+        "//stats:normal",
+        "//symbolic",
+        "//symbolic:symbolic_util",
     ],
 )
 
@@ -170,15 +170,15 @@ cc_library(
     copts = [
         "--std=c++1z",
     ],
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
         ":layer_dimensions",
         ":layer_impl",
         ":symbol_generator",
-        "//plasticity/codegen",
-        "//plasticity/geometry:dynamic_matrix",
-        "//plasticity/stats:normal",
-        "//plasticity/symbolic",
+        "//codegen",
+        "//geometry:dynamic_matrix",
+        "//stats:normal",
+        "//symbolic",
     ],
 )
 
@@ -189,16 +189,16 @@ cc_library(
     copts = [
         "--std=c++1z",
     ],
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
         ":layer_dimensions",
         ":layer_impl",
         ":symbol_generator",
-        "//plasticity/codegen",
-        "//plasticity/geometry:dynamic_matrix",
-        "//plasticity/stats:normal",
-        "//plasticity/symbolic",
-        "//plasticity/symbolic:symbolic_util",
+        "//codegen",
+        "//geometry:dynamic_matrix",
+        "//stats:normal",
+        "//symbolic",
+        "//symbolic:symbolic_util",
     ],
 )
 
@@ -209,16 +209,16 @@ cc_library(
     copts = [
         "--std=c++1z",
     ],
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
         ":layer_dimensions",
         ":layer_impl",
         ":symbol_generator",
-        "//plasticity/codegen",
-        "//plasticity/geometry:dynamic_matrix",
-        "//plasticity/stats:normal",
-        "//plasticity/symbolic",
-        "//plasticity/symbolic:symbolic_util",
+        "//codegen",
+        "//geometry:dynamic_matrix",
+        "//stats:normal",
+        "//symbolic",
+        "//symbolic:symbolic_util",
     ],
 )
 
@@ -229,16 +229,16 @@ cc_library(
     copts = [
         "--std=c++1z",
     ],
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
         ":convolution_layer",
         ":layer_dimensions",
         ":layer_impl",
-        "//plasticity/codegen",
-        "//plasticity/geometry:dynamic_matrix",
-        "//plasticity/stats:normal",
-        "//plasticity/symbolic",
-        "//plasticity/symbolic:symbolic_util",
+        "//codegen",
+        "//geometry:dynamic_matrix",
+        "//stats:normal",
+        "//symbolic",
+        "//symbolic:symbolic_util",
     ],
 )
 
@@ -249,8 +249,8 @@ cc_binary(
         "--std=c++1z",
     ],
     linkopts = select({
-        "//clutil:osx": ["-framework OpenCL"],
-        "//clutil:linux": [
+        "@clutil//:osx": ["-framework OpenCL"],
+        "@clutil//:linux": [
             "-lOpenCL",
             "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
             "-L/usr/lib/x86_64-linux-gnu/",
@@ -261,12 +261,12 @@ cc_binary(
             "-L/usr/lib/x86_64-linux-gnu/",
         ],
     }),
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
         ":layer",
         ":nnet",
-        "//plasticity/geometry:dynamic_matrix",
-        "//plasticity/symbolic",
+        "//geometry:dynamic_matrix",
+        "//symbolic",
     ],
 )
 
@@ -278,11 +278,11 @@ cc_binary(
         "-O3",
     ],
     data = [
-        "//plasticity/nnet/data:cifar-10",
+        "//nnet/data:cifar-10",
     ],
     linkopts = select({
-        "//clutil:osx": ["-framework OpenCL"],
-        "//clutil:linux": [
+        "@clutil//:osx": ["-framework OpenCL"],
+        "@clutil//:linux": [
             "-lOpenCL",
             "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
             "-L/usr/lib/x86_64-linux-gnu/",
@@ -293,13 +293,13 @@ cc_binary(
             "-L/usr/lib/x86_64-linux-gnu/",
         ],
     }),
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
         ":convolution_layer",
         ":layer",
         ":nnet",
-        "//plasticity/geometry:dynamic_matrix",
-        "//plasticity/symbolic",
+        "//geometry:dynamic_matrix",
+        "//symbolic",
     ],
 )
 
@@ -313,11 +313,11 @@ cc_binary(
         "-O3",
     ],
     data = [
-        "//plasticity/nnet/data:cifar-10",
+        "//nnet/data:cifar-10",
     ],
     linkopts = select({
-        "//clutil:osx": ["-framework OpenCL"],
-        "//clutil:linux": [
+        "@clutil//:osx": ["-framework OpenCL"],
+        "@clutil//:linux": [
             "-lOpenCL",
             "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
             "-L/usr/lib/x86_64-linux-gnu/",
@@ -331,13 +331,13 @@ cc_binary(
         "-g",
         "-pg",
     ],
-    visibility = ["//plasticity"],
+    visibility = ["//:plasticity"],
     deps = [
         ":convolution_layer",
         ":layer",
         ":nnet",
-        "//plasticity/geometry:dynamic_matrix",
-        "//plasticity/symbolic",
+        "//geometry:dynamic_matrix",
+        "//symbolic",
     ],
 )
 
@@ -345,10 +345,10 @@ genrule(
     name = "cifar_profile",
     srcs = [
         ":kernels",
-        "//plasticity/nnet/data:cifar-10",
+        "//nnet/data:cifar-10",
     ],
     outs = ["profile.dot", "profile.out"],
-    cmd = "$(execpath :cifar_test_gprof); gprof $(execpath :cifar_test_gprof) > $(@D)/profile.out; gprof2dot $(@D)/profile.out > $(@D)/profile.dot",
+    cmd = "$(execpath :cifar_test_gprof) --short; gprof $(execpath :cifar_test_gprof) > $(@D)/profile.out; gprof2dot $(@D)/profile.out > $(@D)/profile.dot",
     tools = [
         ":cifar_test_gprof",
     ],
@@ -361,8 +361,8 @@ cc_test(
         "--std=c++1z",
     ],
     linkopts = select({
-        "//clutil:osx": ["-framework OpenCL"],
-        "//clutil:linux": [
+        "@clutil//:osx": ["-framework OpenCL"],
+        "@clutil//:linux": [
             "-lOpenCL",
             "-lSegFault",
             "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
@@ -378,10 +378,10 @@ cc_test(
         ":layer",
         ":nnet",
         ":symbol_generator",
-        "//plasticity/geometry:dynamic_matrix",
-        "//plasticity/stats:normal",
-        "//plasticity/symbolic",
-        "//plasticity/symbolic:symbolic_util",
-        "//plasticity/third_party:catch2",
+        "//geometry:dynamic_matrix",
+        "//stats:normal",
+        "//symbolic",
+        "//symbolic:symbolic_util",
+        "//third_party:catch2",
     ],
 )

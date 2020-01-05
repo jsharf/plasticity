@@ -1,7 +1,7 @@
-#include "plasticity/geometry/dynamic_matrix.h"
-#include "plasticity/nnet/layer_dimensions.h"
-#include "plasticity/nnet/nnet.h"
-#include "plasticity/symbolic/expression.h"
+#include "geometry/dynamic_matrix.h"
+#include "nnet/layer_dimensions.h"
+#include "nnet/nnet.h"
+#include "symbolic/expression.h"
 
 #include <cassert>
 #include <chrono>
@@ -145,7 +145,14 @@ void PrintStatus(nnet::Nnet* test_net, const std::vector<Sample>& samples,
 }
 
 // Trains a neural network to learn if given point is in unit circle.
-int main() {
+int main(int argc, char *argv[]) {
+  // This option exists for profiling/debugging.
+  bool only_one_epoch = false;
+  if ((argc == 2) && (std::string(argv[1]) == "--short")) {
+      only_one_epoch = true;
+  }
+  const size_t kNumTrainingEpochs = (only_one_epoch) ? 1 : 4000;
+
   constexpr int kInputSize = kSampleSize;
 
   // This model taken from:
@@ -230,11 +237,11 @@ int main() {
 
   // Read in the files.
   std::vector<string> training_files = {
-      "plasticity/nnet/data/cifar-10-batches-bin/data_batch_1.bin",
-      "plasticity/nnet/data/cifar-10-batches-bin/data_batch_2.bin",
-      "plasticity/nnet/data/cifar-10-batches-bin/data_batch_3.bin",
-      "plasticity/nnet/data/cifar-10-batches-bin/data_batch_4.bin",
-      "plasticity/nnet/data/cifar-10-batches-bin/data_batch_5.bin",
+      "nnet/data/cifar-10-batches-bin/data_batch_1.bin",
+      "nnet/data/cifar-10-batches-bin/data_batch_2.bin",
+      "nnet/data/cifar-10-batches-bin/data_batch_3.bin",
+      "nnet/data/cifar-10-batches-bin/data_batch_4.bin",
+      "nnet/data/cifar-10-batches-bin/data_batch_5.bin",
   };
 
   std::cout << "Reading in training files..." << std::endl;
@@ -278,7 +285,6 @@ int main() {
   test_net.SetLearningParameters(params);
 
   int samples_so_far = 0;
-  const size_t kNumTrainingEpochs = 4000;
   auto start = std::chrono::high_resolution_clock::now();
   for (size_t epoch = 1; epoch <= kNumTrainingEpochs; ++epoch) {
     for (size_t i = 0; i < samples.size(); ++i) {

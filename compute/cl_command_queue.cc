@@ -1,4 +1,4 @@
-#include "plasticity/compute/cl_command_queue.h"
+#include "compute/cl_command_queue.h"
 
 namespace compute {
 

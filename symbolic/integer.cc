@@ -1,4 +1,4 @@
-#include "plasticity/symbolic/integer.h"
+#include "symbolic/integer.h"
 #include <sstream>
 
 namespace symbolic {

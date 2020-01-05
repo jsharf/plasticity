@@ -5,9 +5,9 @@
 #include <memory>
 #include <experimental/optional>
 
-#include "plasticity/symbolic/numeric_value.h"
-#include "plasticity/symbolic/expression.h"
-#include "plasticity/symbolic/symbolic_util.h"
+#include "symbolic/numeric_value.h"
+#include "symbolic/expression.h"
+#include "symbolic/symbolic_util.h"
 
 using symbolic::Expression;
 using symbolic::NumericValue;
