@@ -6,7 +6,7 @@ double CalculateErrorGradient(const global double* O, const global double* E, in
   return GRADIENT_EXPRESSION_HERE;
 }
 
-kernel void error(
+kernel void error_value(
     const global double* output, const global double* expected,
     global double* error_components) {
   size_t i = get_global_id(0);

@@ -59,8 +59,8 @@ void ClBuffer::MoveToCpu(const std::unique_ptr<cl::CommandQueue>& cq) {
     std::cerr << "Error, unexpected nullptr gpu_buffer_" << std::endl;
     std::exit(1);
   }
+  cpu_buffer_.resize(size());
   if (size() != 0) {
-    cpu_buffer_.resize(size());
     CL_CHECK(queue.enqueueReadBuffer(*gpu_buffer_, CL_TRUE, 0,
                                      sizeof(double) * size(), &cpu_buffer_[0]));
   }

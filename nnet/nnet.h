@@ -216,8 +216,6 @@ class Nnet {
     // Assumes that all kernels compiled for same device.
     auto queue = MakeCommandQueue();
 
-    std::unique_ptr<compute::ClBuffer> outputs;
-
     inputs->MoveToGpu();
 
     std::unique_ptr<compute::ClBuffer> nnet_input =
@@ -266,6 +264,7 @@ class Nnet {
     }
 
     queue->finish();
+    // input = output of previous layer (see above).
     return std::move(nnet_input);
   }
 
@@ -372,9 +371,6 @@ class Nnet {
 
     // Load all weights into the GPU (weights which are already in the GPU will
     // be skipped).
-    for (size_t i = 0; i < model_.layers.size(); ++i) {
-      model_.layers[i].weight_buffer().MoveToGpu();
-    }
     LoadWeightsToGpu();
 
     // Backpropagation algorithm.
@@ -409,6 +405,7 @@ class Nnet {
           std::exit(1);
         }
         CL_CHECK(opencl_.queue.finish());
+        std::exit(0);
       } else {
         std::cerr
             << "Error, incorrect model config. Layer with zero inputs found: "

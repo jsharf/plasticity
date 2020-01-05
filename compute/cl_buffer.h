@@ -51,7 +51,7 @@ class ClBuffer {
   // GPU.
   ClBuffer DeepClone() {
     if (state_ == CPU) {
-      return ClBuffer(*this);
+      return ClBuffer(cpu_buffer_, cq_, context_);
     } else {
       cl_int buffer_init;
       auto gpu_buffer = std::make_unique<cl::Buffer>(
@@ -97,11 +97,15 @@ class ClBuffer {
         cq_(other.cq_),
         context_(other.context_) {
     if (other.state_ == GPU) {
-      gpu_buffer_ = std::make_unique<cl::Buffer>(*other.gpu_buffer_);
-    }
-    if (other.gpu_buffer_) {
       CHECK_NOTNULL(context_);
       CHECK_NOTNULL(cq_);
+      cl_int buffer_init;
+      gpu_buffer_ = std::make_unique<cl::Buffer>(
+          *context_, CL_MEM_READ_WRITE, other.size() * sizeof(double), nullptr,
+          &buffer_init);
+      CL_CHECK(buffer_init);
+      CL_CHECK(cq_->enqueueCopyBuffer(*other.gpu_buffer_, *gpu_buffer_, 0, 0,
+                                      other.size() * sizeof(double)));
     }
   }
   ClBuffer(ClBuffer &&other)

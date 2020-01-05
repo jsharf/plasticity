@@ -28,7 +28,7 @@ class ErrorLayer {
   // pass of back prop.
   std::string GenerateErrorKernels() const;
 
-  std::string ErrorKernelName() const { return "error"; }
+  std::string ErrorKernelName() const { return "error_value"; }
 
   std::string GradientKernelName() const { return "error_gradients"; }
 
