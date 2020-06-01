@@ -42,6 +42,7 @@ cc_binary(
     srcs = ["simple_imu_test.cc"],
     copts = [
         "-std=c++1z",
+        "-Iexternal/",
     ],
     deps = [
         ":kalman_filter",

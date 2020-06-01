@@ -11,8 +11,12 @@ git_repository(
 git_repository(
   name = "graphics",
   remote = "https://github.com/jsharf/graphics.git",
-  commit = "12221472376747a8bb8cbd31bfe1d578f777e107",
+  commit = "9cb250e7f363dd4e9475a1d3330f057e0a69136c",
+  shallow_since = "1590996368 -0700"
 )
+
+load("@graphics//:workspace.bzl", graphics = "repo")
+graphics()
 
 #
 # SDL

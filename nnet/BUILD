@@ -341,47 +341,6 @@ cc_binary(
     ],
 )
 
-cc_binary(
-    name = "cifar_test_gprof_short",
-    srcs = ["cifar_test.cc"],
-    copts = [
-        "--std=c++1z",
-        "-g",
-        "-pg",
-        "-O3",
-    ],
-    data = [
-        "//nnet/data:cifar-10",
-    ],
-    args = [
-        "--short",
-    ],
-    linkopts = select({
-        "@clutil//:osx": ["-framework OpenCL"],
-        "@clutil//:linux": [
-            "-lOpenCL",
-            "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
-            "-L/usr/lib/x86_64-linux-gnu/",
-        ],
-        "//conditions:default": [
-            "-lOpenCL",
-            "-L/usr/local/cuda-8.0/targets/x86_64-linux/lib",
-            "-L/usr/lib/x86_64-linux-gnu/",
-        ],
-    }) + [
-        "-g",
-        "-pg",
-    ],
-    visibility = ["//:plasticity"],
-    deps = [
-        ":convolution_layer",
-        ":layer",
-        ":nnet",
-        "//geometry:dynamic_matrix",
-        "//symbolic",
-    ],
-)
-
 genrule(
     name = "cifar_profile",
     srcs = [
@@ -389,9 +348,9 @@ genrule(
         "//nnet/data:cifar-10",
     ],
     outs = ["profile.dot", "profile.out"],
-    cmd = "$(execpath :cifar_test_gprof_short); gprof $(execpath :cifar_test_gprof_short) > $(@D)/profile.out; gprof2dot $(@D)/profile.out > $(@D)/profile.dot",
+    cmd = "$(execpath :cifar_test_gprof) --short; gprof $(execpath :cifar_test_gprof) > $(@D)/profile.out; gprof2dot $(@D)/profile.out > $(@D)/profile.dot",
     tools = [
-        ":cifar_test_gprof_short",
+        ":cifar_test_gprof",
     ],
 )
 

@@ -99,5 +99,12 @@ cc_library(
       for d in DEFS_LINUX
     ]
   }),
+  linkopts = select({
+    '//conditions:default': [],
+    ':linux_x86_64': [
+      "-ldl",
+      "-pthread",
+    ]
+  }),
   visibility = ['//visibility:public'],
 )
