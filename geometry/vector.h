@@ -3,7 +3,7 @@
 
 #include <cmath>
 
-#include "types.h"
+#include "geometry/types.h"
 
 struct Vector2 {
   Vector2() : i(0), j(0) {}
