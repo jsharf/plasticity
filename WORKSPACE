@@ -11,8 +11,8 @@ git_repository(
 git_repository(
   name = "graphics",
   remote = "https://github.com/jsharf/graphics.git",
-  commit = "9cb250e7f363dd4e9475a1d3330f057e0a69136c",
-  shallow_since = "1590996368 -0700"
+  commit = "01db82e53e437919404c2f370c7d7170fb73405a",
+  shallow_since = "1590998638 -0700"
 )
 
 load("@graphics//:workspace.bzl", graphics = "repo")
