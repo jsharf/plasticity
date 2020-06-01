@@ -55,6 +55,6 @@ cc_binary(
         "//geometry:matrix4",
         "//geometry:vector",
         "//symbolic",
-        "@linux_sdl//:sdl2_headers",
+        "@linux_sdl//:sdl2",
     ],
 )

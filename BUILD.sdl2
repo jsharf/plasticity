@@ -1,0 +1,103 @@
+# This BUILD file contains the instructions to build SDL2 in the Bazel build
+# system. This was taken from the Google CED repository.
+# https://github.com/google/ced/blob/master/BUILD.SDL2
+config_setting(
+  name = "darwin",
+  values = {"cpu": "darwin"},
+)
+
+config_setting(
+  name = "darwin_x86_64",
+  values = {"cpu": "darwin_x86_64"},
+)
+
+config_setting(
+  name = "linux_x86_64",
+  values = {"cpu": "k8"},
+)
+
+cc_library(
+  name = 'includarama',
+  textual_hdrs = glob(['src/**']),
+  includes = ['include'],
+)
+
+objc_library(
+  name = 'cocomo',
+  hdrs = glob(['include/*.h']),
+  srcs = glob([
+    'src/**/*.m',
+  ], exclude=[
+    'src/**/iphoneos/**',
+  ]),
+  deps = [':includarama'],
+  sdk_frameworks = [
+    'Cocoa',
+    'CoreAudio',
+  ],
+  copts = ['-fno-objc-arc'],
+)
+
+DEFS_LINUX = [
+  'SDL_config_h_',
+  'HAVE_STDARG_H=1',
+  'HAVE_STDDEF_H=1',
+  'HAVE_STDINT_H=1',
+  'HAVE_ALLOCA_H=1',
+  'HAVE_GCC_SYNC_LOCK_TEST_AND_SET=1',
+  'SDL_AUDIO_DRIVER_DUMMY=1',
+  'SDL_JOYSTICK_DISABLED=1',
+  'SDL_HAPTIC_DISABLED=1',
+  'SDL_LOADSO_DLOPEN=1',
+  'SDL_THREAD_PTHREAD=1',
+  'SDL_THREAD_PTHREAD_RECURSIVE_MUTEX=1',
+  'SDL_TIMER_UNIX',
+  'SDL_FILESYSTEM_DUMMY=1',
+  'SDL_VIDEO_DRIVER_DUMMY=1',
+  'SDL_VIDEO_DRIVER_X11=1',
+  'SDL_VIDEO_DRIVER_X11_SUPPORTS_GENERIC_EVENTS=1',
+  'SDL_VIDEO_DRIVER_X11_DYNAMIC=\\"/usr/lib/x86_64-linux-gnu/libX11.so.6\\"',
+  'SDL_VIDEO_DRIVER_X11_DYNAMIC_XEXT=\\"/usr/lib/x86_64-linux-gnu/libXext.so.6\\"',
+  'SDL_VIDEO_DRIVER_X11_DYNAMIC_XINERAMA=\\"/usr/lib/x86_64-linux-gnu/libXinerama.so.1\\"',
+  'SDL_VIDEO_DRIVER_X11_DYNAMIC_XINPUT2=\\"/usr/lib/x86_64-linux-gnu/libXi.so.6\\"',
+  'SDL_VIDEO_DRIVER_X11_DYNAMIC_XRANDR=\\"/usr/lib/x86_64-linux-gnu/libXrandr.so.2\\"',
+  'SDL_VIDEO_DRIVER_X11_DYNAMIC_XSS=\\"/usr/lib/x86_64-linux-gnu/libXss.so.1\\"',
+  'SDL_VIDEO_DRIVER_X11_DYNAMIC_XVIDMODE=\\"/usr/lib/x86_64-linux-gnu/libXxf86vm.so.1\\"',
+  'SDL_VIDEO_DRIVER_X11_XDBE=1',
+  'SDL_VIDEO_OPENGL_GLX=1',
+  '__LINUX__',
+  'HAVE_NANOSLEEP',
+  'HAVE_CLOCK_GETTIME',
+  'HAVE_SEM_TIMEDWAIT',
+]
+
+cc_library(
+  name = 'sdl2',
+  hdrs = glob(['include/*.h']),
+  srcs = glob([
+    'src/*.h',
+    'src/*.c',
+    'src/**/*.h',
+    'src/**/*.c'
+  ], exclude=[
+    'src/**/windows/**',
+    'src/**/qnx/**',
+    'src/**/linux/**',
+    'src/thread/generic/**',
+  ]),
+  deps = [
+    ':includarama',
+  ] + select({
+    ':darwin': [':cocomo'],
+    ':darwin_x86_64': [':cocomo'],
+    '//conditions:default': [],
+  }),
+  copts = select({
+    '//conditions:default': [],
+    ':linux_x86_64': [
+      '-D%s' % d
+      for d in DEFS_LINUX
+    ]
+  }),
+  visibility = ['//visibility:public'],
+)

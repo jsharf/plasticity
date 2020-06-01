@@ -30,25 +30,25 @@ cc_binary(
     ],
 )
 
-cc_library(
-    name = "command_queue",
-    hdrs = ["command_queue.h"],
-    copts = [
-        "--std=c++1z",
-    ],
-)
-
-cc_library(
-    name = "cl_command_queue",
-    hdrs = ["cl_command_queue.h"],
-    srcs = ["cl_command_queue.cc"],
-    copts = [
-        "--std=c++1z",
-    ],
-    visibility = ["//:plasticity"],
-    deps = [
-        ":command_queue",
-        "@clutil//:util",
-        "//geometry:dynamic_matrix",
-    ],
-)
+#cc_library(
+#    name = "command_queue",
+#    hdrs = ["command_queue.h"],
+#    copts = [
+#        "--std=c++1z",
+#    ],
+#)
+#
+#cc_library(
+#    name = "cl_command_queue",
+#    hdrs = ["cl_command_queue.h"],
+#    srcs = ["cl_command_queue.cc"],
+#    copts = [
+#        "--std=c++1z",
+#    ],
+#    visibility = ["//:plasticity"],
+#    deps = [
+#        ":command_queue",
+#        "@clutil//:util",
+#        "//geometry:dynamic_matrix",
+#    ],
+#)
