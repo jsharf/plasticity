@@ -11,7 +11,7 @@ git_repository(
 git_repository(
   name = "graphics",
   remote = "https://github.com/jsharf/graphics.git",
-  commit = "fa602869f0a2a65ff0a97c6aee3a87b306c85aaf",
+  commit = "3bd434bf02990686deba440a3b34b0bf9bf2d05b",
   shallow_since = "1590998638 -0700"
 )
 
