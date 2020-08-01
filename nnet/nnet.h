@@ -1,13 +1,16 @@
 #ifndef NNET_H
 #define NNET_H
-#include "external/clutil/util.h"
 #include "compute/cl_buffer.h"
+#include "external/clutil/util.h"
 #include "geometry/dynamic_matrix.h"
 #include "nnet/architecture.h"
 #include "nnet/error_layer.h"
 #include "nnet/layer.h"
 #include "nnet/layer_dimensions.h"
 #include "nnet/symbol_generator.h"
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
 #include "stats/normal.h"
 #include "symbolic/expression.h"
 #include "symbolic/symbolic_util.h"
@@ -22,6 +25,8 @@
 namespace nnet {
 
 typedef double Number;
+
+constexpr const char *kWeightFileFormatVersion = "dev";
 
 // Creates a neural network symbolically. Networks are modeled with the
 // nnet::Architecture struct.
@@ -580,6 +585,13 @@ class Nnet {
 
   void BatchTrain(std::vector<std::unique_ptr<compute::ClBuffer>> &ins,
                   std::vector<std::unique_ptr<compute::ClBuffer>> &outs,
+                  std::set<int> indices_to_train) {
+    std::unique_ptr<compute::ClBuffer> _(nullptr);
+    return BatchTrain(ins, outs, indices_to_train, _);
+  }
+
+  void BatchTrain(std::vector<std::unique_ptr<compute::ClBuffer>> &ins,
+                  std::vector<std::unique_ptr<compute::ClBuffer>> &outs,
                   std::set<int> indices_to_train,
                   const std::unique_ptr<compute::ClBuffer> &input_gradients) {
     cl::Device device = SelectDevice();
@@ -598,7 +610,7 @@ class Nnet {
       batch_weight_gradients.emplace_back(
           std::make_unique<std::vector<compute::ClBuffer>>());
       queues.push_back(
-          CalculateGradients(ins[i], outs[i], batch_weight_gradients.back()));
+          CalculateGradients(ins[i], outs[i], batch_weight_gradients.back(), input_gradients));
     }
     for (size_t i = 0; i < queues.size(); ++i) {
       queues[i].finish();
@@ -620,18 +632,124 @@ class Nnet {
     }
   }
 
-  std::string WeightsToString() {
-    std::stringstream output;
-    output << "{";
-    for (size_t i = 0; i < model_.layers.size(); ++i) {
-      output << model_.layers[i].WeightsToString();
-      if (i != model_.layers.size() - 1) {
-        output << ",";
-      }
-      output << std::endl;
+  bool LoadWeightsFromString(const std::string &weight_string) {
+    rapidjson::Document d;
+    d.Parse(weight_string.c_str());
+
+    // Some helper routines
+    auto validate_string = [&d](const std::string &field) -> bool {
+      return (d.HasMember(field.c_str()) && d[field.c_str()].IsString());
+    };
+    auto validate_int = [&d](const std::string &field) -> bool {
+      return (d.HasMember(field.c_str()) && d[field.c_str()].IsInt());
+    };
+    auto validate_array = [&d](const std::string &field) -> bool {
+      return (d.HasMember(field.c_str()) && d[field.c_str()].IsArray());
+    };
+
+    // Validate file version.
+    if (!validate_string("version")) {
+      std::cerr << "Missing version field!";
+      return false;
     }
-    output << "}";
-    return output.str();
+
+    if (d["version"].GetString() != kWeightFileFormatVersion) {
+      std::cerr << "Weight file format mismatch! " << d["version"].GetString() << " != (expected) " << kWeightFileFormatVersion << std::endl;
+      return false;
+    }
+
+    if (!validate_int("number_of_layers")) {
+      std::cerr << "missing number_of_layers (or wrong type)" << std::endl;
+      return false;
+    }
+    if (d["number_of_layers"] != model_.layers.size()) {
+      std::cerr << "Unexpected number of layers, model provided does not match weight file." << std::endl;
+      return false;
+    }
+
+    if (!validate_array("layers")) {
+      std::cerr << "missing layers (or wrong type)" << std::endl;
+      return false;
+    }
+    const auto &layers = d["layers"].GetArray();
+    if (layers.Size() != model_.layers.size()) {
+      std::cerr << "number_of_layers matches, but the provided number of layers was not the same." << std::endl;
+      return false;
+    }
+
+    int layer_index = 0;
+    for (auto &layer : layers) {
+      if (!layer.HasMember("name")) {
+        std::cerr << "Missing name" << std::endl;
+        return false;
+      }
+      const std::string &expected_name = model_.layers[layer_index].LayerSuffix();
+      if (layer["name"].GetString() != expected_name) {
+        std::cerr << "Model name mismatch. " << layer["name"].GetString() << " != (expected) " << expected_name;
+        return false;
+      }
+      if (!layer.HasMember("index")) {
+        std::cerr << "Missing layer index" << std::endl;
+        return false;
+      }
+      if (layer["index"].GetInt() != layer_index) {
+        std::cerr << "Layer index mismatch: " << layer["index"].GetInt() << " != (expected) " << layer_index << std::endl;
+        return false;
+      }
+
+      if (!layer.HasMember("weights") || !layer["weights"].IsArray()) {
+        std::cerr << "Layer missing weights (or wrong type)." << std::endl;
+        return false;
+      }
+
+      const auto &weights = layer["weights"].GetArray();
+      if (weights.Size() != model_.layers[layer_index].weight_buffer().size()) {
+        std::cerr << "layer size mismatch!" << std::endl;
+        return false;
+      }
+      int weight_index = 0;
+      for (auto &weight : weights) {
+        if (!weight.IsDouble()) {
+          std::cerr << "Weight is not a double!" << std::endl;
+          return false;
+        }
+        model_.layers[layer_index].W(weight_index) = weight.GetDouble();
+        weight_index++;
+      }
+
+      layer_index++;
+    }
+    return true;
+  }
+
+  std::string WeightsToString() {
+    rapidjson::StringBuffer output;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(output);
+    writer.StartObject();
+    writer.Key("version");
+    writer.String(kWeightFileFormatVersion);
+    writer.Key("number_of_layers");
+    writer.Uint(model_.layers.size());
+    writer.Key("layers");
+    writer.StartArray();
+    for (size_t l = 0; l < model_.layers.size(); ++l) {
+      writer.StartObject();
+      writer.Key("name");
+      writer.String(model_.layers[l].LayerSuffix().c_str());
+      writer.Key("index");
+      writer.Uint(l);
+      const size_t number_of_weights = model_.layers[l].weight_buffer().size();
+      writer.Key("weights");
+      writer.StartArray();
+      for (size_t w = 0; w < number_of_weights; ++w) {
+        writer.Double(model_.layers[l].W(w));
+      }
+      writer.EndArray();
+      writer.EndObject();
+    }
+    writer.EndArray();
+    writer.EndObject();
+    return output.GetString();
   }
 
  private:

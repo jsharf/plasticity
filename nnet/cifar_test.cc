@@ -17,6 +17,23 @@ constexpr size_t kNumExamples = 100;
 // bytes.
 constexpr size_t kRecordSize = kSampleSize + 1;
 
+inline constexpr char kSaveDirectory[] = "/home/sharf/cifar10/";
+
+bool file_exists(const std::string &path) {
+  std::ifstream f(path.c_str());
+  return f.good();
+}
+
+std::string CalculateWeightFileName() {
+  int frame_index = 1;
+  std::string candidate_name;
+  do {
+    candidate_name = std::string(kSaveDirectory) + "weights_" + std::to_string(frame_index) + ".json";
+    frame_index++;
+  } while(file_exists(candidate_name));
+  return candidate_name;
+}
+
 std::string LabelToString(uint8_t label);
 
 struct Sample {
@@ -284,13 +301,23 @@ int main(int argc, char *argv[]) {
   nnet::Nnet::LearningParameters params{.learning_rate = 0.001};
   test_net.SetLearningParameters(params);
 
+  // constexpr int kBatchSize=50;
+
   int samples_so_far = 0;
   auto start = std::chrono::high_resolution_clock::now();
   for (size_t epoch = 1; epoch <= kNumTrainingEpochs; ++epoch) {
-    for (size_t i = 0; i < samples.size(); ++i) {
+    for (size_t i = 0; i < samples.size(); i += 1) {
       auto& input = inputs[i];
       auto& expected = outputs[i];
+      // SGD
       test_net.Train(input, expected);
+      
+      // Minibatch.
+      // std::vector<int> batch(kBatchSize);
+      // std::generate(batch.begin(), batch.end(), std::rand);
+      // std::set<int> batch_set(batch.begin(), batch.end());
+      // test_net.BatchTrain(inputs, outputs, batch_set);
+
       samples_so_far++;
       if (samples_so_far % 100000 == 0) {
         PrintStatus(&test_net, samples, 1000);
@@ -309,6 +336,15 @@ int main(int argc, char *argv[]) {
       }
     }
   }
+
+  const std::string filename = CalculateWeightFileName();
+  const std::string weights = test_net.WeightsToString();
+  // Save a frame.
+  std::ofstream frame_file;
+  std::cout << "Writing frame: " << filename << std::endl;
+  frame_file.open(filename, std::ios::out);
+  frame_file << weights;
+  frame_file.close();
 
   std::cout << "Training completed!" << std::endl;
   return 0;

@@ -175,7 +175,7 @@ std::string Layer::WeightsToString() {
   weights_.MoveToCpu();
   std::stringstream output;
   output.precision(std::numeric_limits<double>::max_digits10);
-  output << "\"layer_" << LayerSuffix() << "\": [" << std::endl;
+  output << "weights:" << "\": [" << std::endl;
   for (size_t i = 0; i < weights_.size(); ++i) {
     output << weights_[i];
     if (i != weights_.size() - 1) {
