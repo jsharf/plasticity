@@ -22,6 +22,9 @@ struct Architecture {
       size_t prev_output = layers[i - 1].GetDimensions().num_outputs;
       size_t curr_input = layers[i].GetDimensions().num_inputs;
       if (prev_output != curr_input) {
+        std::cerr << "Dimension mismatch between output of layer " << i - 1
+                  << " (" << prev_output << ") and input of layer " << i << " ("
+                  << curr_input << ")." << std::endl;
         return false;
       }
     }

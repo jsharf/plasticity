@@ -134,9 +134,13 @@ class Nnet {
     return model_;
   }
 
-  const Layer &layer(size_t layer) {
+  Layer &layer(size_t layer) {
     model_.layers[layer].weight_buffer().MoveToCpu();
     return model_.layers[layer];
+  }
+
+  size_t number_of_layers() const {
+    return model_.layers.size();
   }
 
   void CompileKernelsIfRequired() {
@@ -653,7 +657,7 @@ class Nnet {
       return false;
     }
 
-    if (d["version"].GetString() != kWeightFileFormatVersion) {
+    if (std::string(d["version"].GetString()) != std::string(kWeightFileFormatVersion)) {
       std::cerr << "Weight file format mismatch! " << d["version"].GetString() << " != (expected) " << kWeightFileFormatVersion << std::endl;
       return false;
     }

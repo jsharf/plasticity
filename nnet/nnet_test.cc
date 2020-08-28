@@ -1090,4 +1090,62 @@ TEST_CASE("Cifar model gradient test", "[cifar]") {
   }
 }
 
+TEST_CASE("Save File Format is validated.", "[nnet]") {
+  // This test saves a model's weights to JSON and then parses them back to the
+  // network and verifies that the weights are all the same.
+  constexpr double EPSILON = 0.000001;
+
+
+  constexpr size_t kInputSize = 3;
+  constexpr size_t kLayerSize = 9;
+
+  Architecture model(kInputSize);
+  model.AddDenseLayer(kLayerSize, symbolic::Relu);
+  model.AddDenseLayer(kLayerSize, symbolic::Relu);
+  model.AddConvolutionLayer({3, 3, 1}, {2, 2, 1, 1, 0, 2});
+  model.AddDenseLayer(kLayerSize, symbolic::Relu);
+  model.AddSoftmaxLayer(9);
+
+  // Use the model to generate a neural network.
+  Nnet test_net(model, Nnet::NoWeightInit, CrossEntropy);
+
+  DenseSymbolGenerator s(Dimensions{3, 3});
+
+  // Populate weights.
+  // Node 1 edges.
+  test_net.GetWeight(1, s.WeightNumber(0, 0)) = 0.1;
+  test_net.GetWeight(1, s.WeightNumber(0, 1)) = 0.3;
+  test_net.GetWeight(1, s.WeightNumber(0, 2)) = 0.4;
+  test_net.GetWeight(1, s.WeightNumber(0)) = 1;  // bias.
+  // Node 2 edges.
+  test_net.GetWeight(1, s.WeightNumber(1, 0)) = 0.2;
+  test_net.GetWeight(1, s.WeightNumber(1, 1)) = 0.2;
+  test_net.GetWeight(1, s.WeightNumber(1, 2)) = 0.3;
+  test_net.GetWeight(1, s.WeightNumber(1)) = 1;  // bias.
+  // Node 3 edges.
+  test_net.GetWeight(1, s.WeightNumber(2, 0)) = 0.3;
+  test_net.GetWeight(1, s.WeightNumber(2, 1)) = 0.7;
+  test_net.GetWeight(1, s.WeightNumber(2, 2)) = 0.9;
+  test_net.GetWeight(1, s.WeightNumber(2)) = 1;  // bias.
+
+  SECTION("Verify Save/Load") {
+    std::string weights = test_net.WeightsToString();
+    Nnet loaded_net(model, Nnet::NoWeightInit, CrossEntropy);
+    REQUIRE(loaded_net.LoadWeightsFromString(weights));
+
+    for (size_t l = 0; l < test_net.number_of_layers(); ++l) {
+      const size_t layer_size = test_net.layer(l).weight_buffer().size();
+      for (size_t i = 0; i < layer_size; ++i) {
+        CAPTURE(l);
+        CAPTURE(i);
+        CHECK(test_net.layer(l).W(i) ==
+                Approx(loaded_net.layer(l).W(i)).epsilon(EPSILON));
+      }
+    }
+
+    std::string resaved_weights = loaded_net.WeightsToString();
+    REQUIRE(resaved_weights == weights);
+  }
+}
+
 }  // namespace nnet

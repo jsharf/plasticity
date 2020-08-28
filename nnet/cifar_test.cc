@@ -134,6 +134,16 @@ std::string OneHotEncodedOutputToString(
   return LabelToString(max_index);
 }
 
+void SaveWeightsToFile(nnet::Nnet* test_net, const std::string &weight_file_path) {
+  const std::string weights = test_net->WeightsToString();
+  // Save a frame.
+  std::ofstream weight_file;
+  std::cout << "Saving weights to file: " << weight_file_path << std::endl;
+  weight_file.open(weight_file_path, std::ios::out);
+  weight_file << test_net->WeightsToString();
+  weight_file.close();
+}
+
 void PrintStatus(nnet::Nnet* test_net, const std::vector<Sample>& samples,
                  size_t num_examples) {
   std::cout << "Network Weights: " << std::endl;
@@ -165,10 +175,15 @@ void PrintStatus(nnet::Nnet* test_net, const std::vector<Sample>& samples,
 int main(int argc, char *argv[]) {
   // This option exists for profiling/debugging.
   bool only_one_epoch = false;
-  if ((argc == 2) && (std::string(argv[1]) == "--short")) {
+  std::string weight_file_path = "";
+  if (argc == 2) {
+    if(std::string(argv[1]) == "--short") {
       only_one_epoch = true;
+    } else {
+      weight_file_path = std::string(argv[1]);
+    }
   }
-  const size_t kNumTrainingEpochs = (only_one_epoch) ? 1 : 4000;
+  const size_t kNumTrainingEpochs = (only_one_epoch) ? 1 : 100000;
 
   constexpr int kInputSize = kSampleSize;
 
@@ -252,6 +267,22 @@ int main(int argc, char *argv[]) {
   std::cout << "Initializing network..." << std::endl;
   nnet::Nnet test_net(model, nnet::Nnet::Xavier, nnet::CrossEntropy);
 
+  // Load weights if applicable.
+  if (!weight_file_path.empty()) {
+    std::ifstream weight_file(weight_file_path.c_str());
+    std::stringstream buffer;
+    buffer << weight_file.rdbuf();
+    std::string weight_string = buffer.str();
+    if (weight_string.empty()) {
+      std::cout << "Provided weight file is empty. Initializing with random weights" << std::endl;
+    } else {
+      if (!test_net.LoadWeightsFromString(weight_string)) {
+        std::cerr << "Failed to load weights from file: " << weight_file_path.c_str() << std::endl;
+        return 1;
+      }
+    }
+  }
+
   // Read in the files.
   std::vector<string> training_files = {
       "nnet/data/cifar-10-batches-bin/data_batch_1.bin",
@@ -298,7 +329,7 @@ int main(int argc, char *argv[]) {
   std::cout << "Entire dataset of " << inputs.size()
             << " examples is now stored on GPU!" << std::endl;
 
-  nnet::Nnet::LearningParameters params{.learning_rate = 0.001};
+  nnet::Nnet::LearningParameters params{.learning_rate = 0.0001};
   test_net.SetLearningParameters(params);
 
   // constexpr int kBatchSize=50;
@@ -321,6 +352,7 @@ int main(int argc, char *argv[]) {
       samples_so_far++;
       if (samples_so_far % 100000 == 0) {
         PrintStatus(&test_net, samples, 1000);
+        SaveWeightsToFile(&test_net, weight_file_path);
       }
       if (samples_so_far % 5000 == 0) {
         std::cout << "Progress: " << samples_so_far - 1 << " / "
@@ -336,15 +368,6 @@ int main(int argc, char *argv[]) {
       }
     }
   }
-
-  const std::string filename = CalculateWeightFileName();
-  const std::string weights = test_net.WeightsToString();
-  // Save a frame.
-  std::ofstream frame_file;
-  std::cout << "Writing frame: " << filename << std::endl;
-  frame_file.open(filename, std::ios::out);
-  frame_file << weights;
-  frame_file.close();
 
   std::cout << "Training completed!" << std::endl;
   return 0;
