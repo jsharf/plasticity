@@ -6,7 +6,7 @@
 #include <memory>
 #include <utility>
 
-#include "external/clutil/util.h"
+#include "clutil/util.h"
 #include "geometry/dynamic_matrix.h"
 
 // FYI for the future, this class might be a simpler interface if context is

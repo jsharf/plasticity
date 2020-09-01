@@ -1,7 +1,7 @@
 #ifndef NNET_H
 #define NNET_H
 #include "compute/cl_buffer.h"
-#include "external/clutil/util.h"
+#include "clutil/util.h"
 #include "geometry/dynamic_matrix.h"
 #include "nnet/architecture.h"
 #include "nnet/error_layer.h"

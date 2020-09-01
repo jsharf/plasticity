@@ -4,6 +4,7 @@ cc_library(
     srcs = ["cl_buffer.cc"],
     copts = [
         "--std=c++1z",
+        "-Iexternal/",
     ],
     visibility = ["//:plasticity"],
     deps = [

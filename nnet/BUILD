@@ -22,6 +22,7 @@ cc_library(
     name = "nnet",
     hdrs = ["nnet.h"],
     copts = [
+        "-Iexternal",
         "--std=c++1z",
     ],
     data = [":kernels"],
@@ -54,6 +55,7 @@ cc_library(
     ],
     copts = [
         "--std=c++1z",
+        "-Iexternal",
     ],
     linkopts = [
         "-pthread",
@@ -248,6 +250,7 @@ cc_binary(
     name = "circle_test",
     srcs = ["circle_test.cc"],
     copts = [
+        "-Iexternal",
         "--std=c++1z",
     ],
     linkopts = select({
@@ -278,6 +281,7 @@ cc_binary(
     copts = [
         "--std=c++1z",
         "-O3",
+        "-Iexternal",
     ],
     data = [
         "//nnet/data:cifar-10",
@@ -313,6 +317,7 @@ cc_binary(
         "-g",
         "-pg",
         "-O3",
+        "-Iexternal",
     ],
     data = [
         "//nnet/data:cifar-10",
@@ -361,6 +366,7 @@ cc_test(
     srcs = ["nnet_test.cc"],
     copts = [
         "--std=c++1z",
+        "-Iexternal",
     ],
     linkopts = select({
         "@clutil//:osx": ["-framework OpenCL"],
