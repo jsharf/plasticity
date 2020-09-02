@@ -802,7 +802,7 @@ class Nnet {
     // In plasticity, the kernel source files show up with filepaths WRT
     // project runfiles. But in external dependencies, they show up under
     // "external/".
-    filepath = "external/" + filepath;
+    filepath = "external/plasticity/" + filepath;
   }
     std::ifstream input(filepath);
     std::stringstream buffer;

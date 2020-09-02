@@ -125,7 +125,7 @@ std::string FileToString(std::string filepath) {
     // In plasticity, the kernel source files show up with filepaths WRT
     // project runfiles. But in external dependencies, they show up under
     // "external/".
-    filepath = "external/" + filepath;
+    filepath = "external/plasticity/" + filepath;
   }
   std::ifstream input(filepath);
   if (!input.is_open()) {
