@@ -119,7 +119,17 @@ bool FindAndReplace(std::string *text, std::string find, std::string replace) {
 }
 
 std::string FileToString(std::string filepath) {
+  std::ifstream test(filepath);
+  if (!test.is_open()) {
+    // This is a hack due to Bazel's broken handling of external dependencies.
+    // In plasticity, the kernel source files show up with filepaths WRT
+    // project runfiles. But in external dependencies, they show up under
+    // "external/".
+    filepath = "external/" + filepath;
+  }
   std::ifstream input(filepath);
+  if (!input.is_open()) {
+  }
   std::stringstream buffer;
   buffer << input.rdbuf();
   return buffer.str();
