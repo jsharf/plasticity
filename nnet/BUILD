@@ -16,6 +16,7 @@ cc_library(
 filegroup(
     name = "kernels",
     srcs = glob(["kernels/*"]),
+    visibility = ["//:plasticity"],
 )
 
 cc_library(
