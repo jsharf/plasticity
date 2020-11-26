@@ -1,5 +1,11 @@
+workspace(name = "plasticity")
+load("//third_party/nasm:workspace.bzl", nasm = "repo")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("//third_party/jpeg:workspace.bzl", jpeg = "repo")
+
+nasm()
+jpeg()
 
 git_repository(
   name = "clutil",
@@ -12,7 +18,7 @@ git_repository(
   name = "graphics",
   remote = "https://github.com/jsharf/graphics.git",
   commit = "3bd434bf02990686deba440a3b34b0bf9bf2d05b",
-  shallow_since = "1590998638 -0700"
+  shallow_since = "1593769723 -0700",
 )
 
 load("@graphics//:workspace.bzl", graphics = "repo")
@@ -22,7 +28,7 @@ git_repository(
   name = "rapidjson",
   remote = "https://github.com/bazelregistry/rapidjson.git",
   commit = "930febe52f53ad1ddb5ad60ed861835f7559269f",
-  shallow_since = "1593371139 -0700"
+  shallow_since = "1593371139 -0700",
 )
 
 #

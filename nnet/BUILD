@@ -19,6 +19,12 @@ filegroup(
     visibility = ["//:plasticity"],
 )
 
+filegroup(
+    name = "cifar_weights",
+    srcs = glob(["cifar_results/*"]),
+    visibility = ["//:plasticity"],
+)
+
 cc_library(
     name = "nnet",
     hdrs = ["nnet.h"],
@@ -284,8 +290,10 @@ cc_binary(
         "-O3",
         "-Iexternal",
     ],
+    defines = ["CL_TARGET_OPENCL_VERSION=120"],
     data = [
         "//nnet/data:cifar-10",
+        ":cifar_weights",
     ],
     linkopts = select({
         "@clutil//:osx": ["-framework OpenCL"],
@@ -307,6 +315,7 @@ cc_binary(
         ":nnet",
         "//geometry:dynamic_matrix",
         "//symbolic",
+        "@libjpeg_turbo//:turbojpeg",
     ],
 )
 

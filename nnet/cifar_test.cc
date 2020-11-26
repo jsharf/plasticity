@@ -2,6 +2,7 @@
 #include "nnet/layer_dimensions.h"
 #include "nnet/nnet.h"
 #include "symbolic/expression.h"
+#include "external/libjpeg_turbo/turbojpeg.h"
 
 #include <cassert>
 #include <chrono>
@@ -9,6 +10,12 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <cstdlib>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 constexpr size_t kSampleSize = 32 * 32 * 3;
 constexpr size_t kOutputSize = 10;
@@ -35,6 +42,15 @@ std::string CalculateWeightFileName() {
 }
 
 std::string LabelToString(uint8_t label);
+
+struct Jpeg {
+  int width;
+  int height;
+  int subsample;
+  int quality;  // 0 to 100.
+  uint8_t *data;
+  size_t data_size;
+};
 
 struct Sample {
   char label;
@@ -81,6 +97,44 @@ struct Sample {
   }
 };
 
+Jpeg encode_jpeg(uint8_t *data, size_t width, size_t height) {
+  tjhandle operation = tjInitCompress();
+  assert(operation != nullptr);
+  int pixelFormat = TJPF_RGB;
+  Jpeg jpeg;
+  jpeg.subsample = TJSAMP_444;
+  jpeg.quality = 100;
+  jpeg.data = nullptr;
+  if (tjCompress2(operation, data, width, 0, height, pixelFormat, &jpeg.data, &jpeg.data_size, jpeg.subsample, jpeg.quality, 0) < 0) {
+    std::cout << "tjCompress2 failed: " << tjGetErrorStr() << std::endl;
+    std::exit(0);
+  }
+  tjDestroy(operation);
+  return jpeg;
+}
+
+void WriteCifarImageToFile(const std::string &directory, const Sample &sample) {
+  uint8_t rgbimage[kSampleSize];
+  std::cout << "Dir: " << directory << std::endl;
+  for (size_t i = 0; i < 1024; i++) {
+    const int32_t rgbimage_offset = i * 3;
+    rgbimage[rgbimage_offset] = sample.pixels[i];
+    rgbimage[rgbimage_offset + 1] = sample.pixels[1024 + i];
+    rgbimage[rgbimage_offset + 2] = sample.pixels[2048 + i];
+  }
+  Jpeg jpeg = encode_jpeg(rgbimage, 32, 32);
+  std::string path = directory + "/XXXXXX.jpg";
+  const int fd = mkstemps(path.data(), 4);
+  assert(fd >= 0);
+  size_t offset = 0;
+  while (offset < jpeg.data_size) {
+    const int numbytes = write(fd, jpeg.data + offset, jpeg.data_size - offset);
+    offset += numbytes;
+  }
+  close(fd);
+  return;
+}
+
 enum Label : uint8_t {
   AIRPLANE = 0,
   AUTOMOBILE,
@@ -117,7 +171,7 @@ std::string LabelToString(uint8_t label) {
     case TRUCK:
       return "Truck";
     default:
-      return "Unknown?!?";
+      return "Unknown";
   }
 }
 
@@ -132,6 +186,22 @@ std::string OneHotEncodedOutputToString(
   }
 
   return LabelToString(max_index);
+}
+
+void LoadCifarFile(const std::string &file, std::vector<Sample>
+*out_samples) {
+  std::ifstream training_file(file.c_str());
+  std::stringstream buffer;
+  buffer << training_file.rdbuf();
+  std::string sample_buffer = buffer.str();
+  std::cout << "Loading file " << file << "..." << std::endl;
+  for (size_t sample_index = 0; sample_index < sample_buffer.size();
+       sample_index += kRecordSize) {
+    if (sample_index + kRecordSize <= sample_buffer.size()) {
+      out_samples->push_back(
+          Sample(static_cast<char*>(&sample_buffer[sample_index])));
+    }
+  }
 }
 
 void SaveWeightsToFile(nnet::Nnet* test_net, const std::string &weight_file_path) {
@@ -176,14 +246,26 @@ int main(int argc, char *argv[]) {
   // This option exists for profiling/debugging.
   bool only_one_epoch = false;
   std::string weight_file_path = "";
-  if (argc == 2) {
-    if(std::string(argv[1]) == "--short") {
-      only_one_epoch = true;
-    } else {
-      weight_file_path = std::string(argv[1]);
+  std::set<std::string> options;
+  std::vector<std::string> pos_args;
+  for (int i = 1; i < argc; i++) {
+    const std::string arg = argv[i];
+    if (arg.find("--") == 0) {
+      options.insert(arg);
+    }
+    else {
+      pos_args.push_back(arg);
     }
   }
-  const size_t kNumTrainingEpochs = (only_one_epoch) ? 1 : 100000;
+  if(options.count("--short") == 1) {
+    only_one_epoch = true;
+  }
+  if (pos_args.size() >= 1) {
+    weight_file_path = pos_args[0];
+  }
+  const size_t kNumTrainingEpochs = (only_one_epoch) ? 0 : 100000;
+
+  std::cout << "Number of Epochs: " << kNumTrainingEpochs << std::endl;
 
   constexpr int kInputSize = kSampleSize;
 
@@ -269,6 +351,7 @@ int main(int argc, char *argv[]) {
 
   // Load weights if applicable.
   if (!weight_file_path.empty()) {
+    std::cout << "Loading weights from file " << weight_file_path << std::endl;
     std::ifstream weight_file(weight_file_path.c_str());
     std::stringstream buffer;
     buffer << weight_file.rdbuf();
@@ -291,23 +374,16 @@ int main(int argc, char *argv[]) {
       "nnet/data/cifar-10-batches-bin/data_batch_4.bin",
       "nnet/data/cifar-10-batches-bin/data_batch_5.bin",
   };
+  std::string test_file = "nnet/data/cifar-10-batches-bin/test_batch.bin";
+  std::vector <Sample> test_batch;
+  LoadCifarFile(test_file, &test_batch);
 
   std::cout << "Reading in training files..." << std::endl;
   std::vector<Sample> samples;
   for (const string& file : training_files) {
-    std::ifstream training_file(file.c_str());
-    std::stringstream buffer;
-    buffer << training_file.rdbuf();
-    std::string sample_buffer = buffer.str();
-    std::cout << "Loading file " << file << "..." << std::endl;
-    for (size_t sample_index = 0; sample_index < sample_buffer.size();
-         sample_index += kRecordSize) {
-      if (sample_index + kRecordSize <= sample_buffer.size()) {
-        samples.push_back(
-            Sample(static_cast<char*>(&sample_buffer[sample_index])));
-      }
-    }
+    LoadCifarFile(file, &samples);
   }
+
   std::cout << "Loaded " << samples.size() << " Samples from disk!"
             << std::endl;
   if (samples.size() == 0) {
@@ -319,6 +395,14 @@ int main(int argc, char *argv[]) {
   std::vector<std::unique_ptr<compute::ClBuffer>> outputs;
   
   for (const auto& sample : samples) {
+    auto input = sample.NormalizedInput(&test_net);
+    auto expected = sample.OneHotEncodedOutput(&test_net);
+    input->MoveToGpu();
+    expected->MoveToGpu();
+    inputs.emplace_back(std::move(input));
+    outputs.emplace_back(std::move(expected));
+  }
+  for (const auto& sample : test_batch) {
     auto input = sample.NormalizedInput(&test_net);
     auto expected = sample.OneHotEncodedOutput(&test_net);
     input->MoveToGpu();
@@ -370,5 +454,28 @@ int main(int argc, char *argv[]) {
   }
 
   std::cout << "Training completed!" << std::endl;
+
+  char kTempDirectory[] = "/tmp/cifarsort.XXXXXX";
+  std::string tempdir(mkdtemp(kTempDirectory));
+  std::cout << "Sorting & outputing files to: " << tempdir << std::endl;
+  assert(0 == mkdir((tempdir + "/Airplane").c_str(), 0766));
+  assert(0 == mkdir((tempdir + "/Automobile").c_str(), 0766));
+  assert(0 == mkdir((tempdir + "/Bird").c_str(), 0766));
+  assert(0 == mkdir((tempdir + "/Cat").c_str(), 0766));
+  assert(0 == mkdir((tempdir + "/Deer").c_str(), 0766));
+  assert(0 == mkdir((tempdir + "/Dog").c_str(), 0766));
+  assert(0 == mkdir((tempdir + "/Frog").c_str(), 0766));
+  assert(0 == mkdir((tempdir + "/Horse").c_str(), 0766));
+  assert(0 == mkdir((tempdir + "/Ship").c_str(), 0766));
+  assert(0 == mkdir((tempdir + "/Truck").c_str(), 0766));
+  assert(0 == mkdir((tempdir + "/Unknown").c_str(), 0766));
+  std::cout << "samples: " << test_batch.size() << std::endl;
+  for (size_t i = 0; i < test_batch.size(); ++i) {
+    std::string nnet_output = OneHotEncodedOutputToString(
+        test_net.Evaluate(test_batch[i].NormalizedInput(&test_net)));
+    std::string directory = (tempdir + "/" + nnet_output);
+    std::cout << "Saving to: " << directory << std::endl; 
+    WriteCifarImageToFile(directory, test_batch[i]);
+  }
   return 0;
 }
