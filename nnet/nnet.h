@@ -622,15 +622,20 @@ class Nnet {
 
     // Accumulate the gradients from every example in the batch.
     queues.clear();
-    for (size_t layer = 0; layer < model_.layers.size(); ++layer) {
-      for (size_t example = 0; example < batch_weight_gradients.size();
-           ++example) {
-        queues.push_back(
-            VectorAccumulate(model_.layers[layer].weight_buffer(),
-                             batch_weight_gradients[example]->at(layer)));
+    for (size_t example = 0; example < batch_weight_gradients.size();
+         ++example) {
+      for (size_t layer = 0; layer < model_.layers.size(); ++layer) {
+          queues.push_back(
+              VectorAccumulate(model_.layers[layer].weight_buffer(),
+                               batch_weight_gradients[example]->at(layer))); 
+      }
+      // You can parallelize for each example to accumulate the weight deltas
+      // for all weights. But if you accumulate multiple examples in parallel, you
+      // get a race condition. Block before moving on to next example.
+      for (size_t i = 0; i < queues.size(); ++i) {
+        queues[i].finish();
       }
     }
-
     for (size_t i = 0; i < queues.size(); ++i) {
       queues[i].finish();
     }
@@ -793,6 +798,7 @@ class Nnet {
                 << " & error code: " << result << std::endl;
       std::exit(1);
     }
+    return queue;
   }
 
   std::string FileToString(std::string filepath) {
