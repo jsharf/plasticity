@@ -19,7 +19,7 @@ class SoftmaxLayer : public LayerImpl {
       : Super(Dimensions{size, size}, layer_index) {}
 
   void GenerateOutputCode(const symbolic::Expression &index,
-                          codegen::Generator *cg) const;
+                          codegen::Generator *cg) const override;
 
   void InputGradientCode(const symbolic::Expression &input_index,
                          codegen::Generator *cg) const override;

@@ -148,11 +148,8 @@ class Nnet {
       return;
     }
     opencl_.device = SelectDevice();
-    std::cout << "Generating and compiling OpenCl kernels. This takes a while"
-              << " the first time..." << std::endl;
     std::vector<std::future<std::string>> kernel_futures;
     for (const Layer &layer : model_.layers) {
-      std::cerr << "/";
       kernel_futures.push_back(std::async(
           std::launch::async, &Layer::GenerateEvaluationKernel, &layer));
       kernel_futures.push_back(std::async(
@@ -164,16 +161,13 @@ class Nnet {
     // Wait for kernels to be ready.
     std::vector<std::string> kernel_sources;
     for (auto &kernel_future : kernel_futures) {
-      std::cerr << "\\";
       kernel_sources.push_back(kernel_future.get());
     }
     // Add the vector_add() kernel, for summing weight gradients together in
     // Batch training.
     kernel_sources.push_back(
         FileToString("nnet/kernels/combine.kernel.cl"));
-    std::cout << "Kernels generated. Compiling..." << std::endl;
     opencl_ = CompileCl(kernel_sources, opencl_.device);
-    std::cout << "Done!" << std::endl;
   }
 
   static bool ClDevicesAreEqual(const cl::Device &a, const cl::Device &b) {
@@ -220,6 +214,7 @@ class Nnet {
       const std::unique_ptr<compute::ClBuffer> &inputs,
       std::unique_ptr<std::vector<compute::ClBuffer>> &out_layer_outputs) {
     CompileKernelsIfRequired();
+    ClaimOwnership(inputs);
 
     // Create a queue (a queue of commands that the GPU will execute)
     // Assumes that all kernels compiled for same device.
@@ -274,7 +269,7 @@ class Nnet {
 
     queue->finish();
     // input = output of previous layer (see above).
-    return std::move(nnet_input);
+    return nnet_input;
   }
 
   void PrintColumnVector(std::string label, Matrix<Number> colvec) {
@@ -326,6 +321,7 @@ class Nnet {
 
     actual_output->MoveToGpu();
     expected->MoveToGpu();
+    out_error_gradients->MoveToGpu();
 
     // Resize the provided buffer if needed.
     if (out_error_gradients->size() < error_.size()) {
@@ -364,19 +360,32 @@ class Nnet {
     learning_rate_buffer_->MoveToGpu();
   }
 
+  // Very customized version of Train.
+  // input_gradients: backprop gradients propagated towards the input (this is
+  // how deep dream visuals are accomplished).
+  // initial_backprop_gradients: The gradients used to start backprop. Usually
+  // this is the objective function, like some error fn applied on the network's
+  // output. This version of Train() lets you specify a custom gradient.
   void Train(std::unique_ptr<compute::ClBuffer> &in,
              std::unique_ptr<compute::ClBuffer> &o,
-             const std::unique_ptr<compute::ClBuffer> &input_gradients) {
+             const std::unique_ptr<compute::ClBuffer> &input_gradients,
+             const std::unique_ptr<compute::ClBuffer> &initial_backprop_gradients) {
     cl::Device device = SelectDevice();
     CompileKernelsIfRequired();
+
+    // Make sure all buffers are using the correct context & command queue.
+    ClaimOwnership(in);
+    ClaimOwnership(o);
+    ClaimOwnership(input_gradients);
+    ClaimOwnership(initial_backprop_gradients);
 
     // Forward pass, store each layer's outputs as a column vector in
     // layer_outputs.
     std::unique_ptr<compute::ClBuffer> actual_output =
         Evaluate(in, eval_layer_outputs_);
 
-    // Generate output gradients (first part of backprop).
-    ErrorGradients(actual_output, o, backprop_gradients_);
+    initial_backprop_gradients->MoveToGpu();
+    *backprop_gradients_ = *initial_backprop_gradients;
 
     // Load all weights into the GPU (weights which are already in the GPU will
     // be skipped).
@@ -452,7 +461,27 @@ class Nnet {
     if (input_gradients) {
       input_gradients->MoveToGpu();
       *input_gradients->gpu_buffer() = *backprop_gradients_->gpu_buffer();
+      input_gradients->MoveToCpu();
     }
+  }
+
+  // Customized version of Train().
+  // input_gradients: Output parameter, the gradient back-propagated against the
+  // input.
+  void Train(std::unique_ptr<compute::ClBuffer> &in,
+             std::unique_ptr<compute::ClBuffer> &o,
+             const std::unique_ptr<compute::ClBuffer> &input_gradients) {
+    cl::Device device = SelectDevice();
+    CompileKernelsIfRequired();
+  
+    // Forward pass, store each layer's outputs as a column vector in
+    // layer_outputs.
+    std::unique_ptr<compute::ClBuffer> actual_output =
+        Evaluate(in, eval_layer_outputs_);
+
+    // Generate output gradients (first part of backprop).
+    ErrorGradients(actual_output, o, backprop_gradients_);
+    Train(in, o, input_gradients, backprop_gradients_);
   }
 
   cl::CommandQueue &command_queue() {
@@ -504,7 +533,7 @@ class Nnet {
         Evaluate(in, layer_outputs);
 
     // Generate output gradients (first part of backprop).
-    std::unique_ptr<compute::ClBuffer> backprop_gradients;
+    auto backprop_gradients = MakeBuffer(0);  // ErrorGradients will resize this.
     ErrorGradients(actual_output, out, backprop_gradients);
 
     // Wait on Eval() and ErrorGradients to finish.
@@ -798,7 +827,7 @@ class Nnet {
                 << " & error code: " << result << std::endl;
       std::exit(1);
     }
-    return queue;
+    return *queue;
   }
 
   std::string FileToString(std::string filepath) {
@@ -837,8 +866,6 @@ class Nnet {
   size_t input_size() const { return model_.input_size(); }
 
   Architecture model_;
-
-  SymbolGenerator generator_;
   ErrorLayer error_;
 
   cl::Kernel &CacheFetchKernel(const std::string &kernel_name) {
@@ -879,6 +906,19 @@ class Nnet {
     cl_state.queue =
         cl::CommandQueue(std::get<0>(cl_state.compilation_units), device);
     return cl_state;
+  }
+
+  // Claims ownership over a compute buffer by moving it through the CPU into a
+  // the appropriate cl context (and registering this network's command queue).
+  void ClaimOwnership(const std::unique_ptr<compute::ClBuffer> &buffer) {
+    if (!buffer) return;  // If empty, do nothing.
+    compute::ClBuffer::Location original_location = buffer->GetBufferLocation();
+    buffer->MoveToCpu();
+    buffer->RegisterClBackend(&opencl_.queue, 
+                              &std::get<0>(opencl_.compilation_units));
+    if (original_location == compute::ClBuffer::GPU) {
+      buffer->MoveToGpu();
+    }
   }
 
   OpenClState opencl_;

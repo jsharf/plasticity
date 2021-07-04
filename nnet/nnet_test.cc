@@ -272,6 +272,80 @@ TEST_CASE("Simple neural network output and gradient descent is validated",
     CHECK(model.layers[3].W(s.WeightNumber(1, 0)) == Approx(0.511301270));
     CHECK(model.layers[3].W(s.WeightNumber(1, 1)) == Approx(0.561370121));
   }
+
+  SECTION("Verify that two halves of the neural network can interoperate", "[nnet]") {
+    // Creates two models, A and B, that each represent half of the above neural
+    // network. Confirm that you can backprop between them.
+    constexpr size_t kInputSize = 2;
+    constexpr size_t kLayerSize = 2;
+    constexpr size_t kOutputSize = 2;
+
+    Architecture model_a(kInputSize);
+    model_a.AddDenseLayer(kLayerSize, symbolic::Sigmoid);
+    Architecture model_b(kLayerSize);
+    model_b.AddDenseLayer(kOutputSize, symbolic::Sigmoid);
+
+    // All of the layers have identical dimensions (input = output = 2) so we
+    // can use the same symbol generator for each.
+    DenseSymbolGenerator s(Dimensions{2, 2});
+
+    // Layer 1.
+    //
+    // Node 1 edges.
+    model_a.layers[1].W(s.WeightNumber(0, 0)) = 0.15;
+    model_a.layers[1].W(s.WeightNumber(0, 1)) = 0.2;
+    model_a.layers[1].W(s.WeightNumber(0)) = 0.35;  // bias.
+    // Node 2 edges.
+    model_a.layers[1].W(s.WeightNumber(1, 0)) = 0.25;
+    model_a.layers[1].W(s.WeightNumber(1, 1)) = 0.3;
+    model_a.layers[1].W(s.WeightNumber(1)) = 0.35;  // bias.
+
+    // Layer 2.
+    //
+    // Node 1 edges.
+    model_b.layers[1].W(s.WeightNumber(0, 0)) = 0.4;
+    model_b.layers[1].W(s.WeightNumber(0, 1)) = 0.45;
+    model_b.layers[1].W(s.WeightNumber(0)) = 0.60;  // bias.
+    // Node 2 edges.
+    model_b.layers[1].W(s.WeightNumber(1, 0)) = 0.5;
+    model_b.layers[1].W(s.WeightNumber(1, 1)) = 0.55;
+    model_b.layers[1].W(s.WeightNumber(1)) = 0.60;  // bias.
+
+    // Use the model to generate a neural network.
+    Nnet test_net_a(model_a, Nnet::NoWeightInit, MeanSquared);
+    Nnet test_net_b(model_b, Nnet::NoWeightInit, MeanSquared);
+
+    auto expected = test_net_b.MakeBuffer({0.01, 0.99});
+    auto input = test_net_a.MakeBuffer({0.05, 0.10});
+    test_net_a.SetLearningParameters(Nnet::LearningParameters{0.5});
+    test_net_b.SetLearningParameters(Nnet::LearningParameters{0.5});
+    auto intermediate = test_net_a.Evaluate(input);
+    auto input_gradients = test_net_b.MakeBuffer(0);
+    test_net_b.Train(intermediate, expected, input_gradients);
+    auto _ = test_net_b.MakeBuffer(0);
+    test_net_a.Train(input, intermediate, _, input_gradients);
+
+    Architecture model_a_trained = test_net_a.model();
+    Architecture model_b_trained = test_net_b.model();
+
+    // Layer 1.
+    //
+    // Node 1 edges.
+    CHECK(model_a_trained.layers[1].W(s.WeightNumber(0, 0)) == Approx(0.149780716));
+    CHECK(model_a_trained.layers[1].W(s.WeightNumber(0, 1)) == Approx(0.19956143));
+    // Node 2 edges.
+    CHECK(model_a_trained.layers[1].W(s.WeightNumber(1, 0)) == Approx(0.24975114));
+    CHECK(model_a_trained.layers[1].W(s.WeightNumber(1, 1)) == Approx(0.29950229));
+
+    // Layer 2.
+    //
+    // Node 1 edges.
+    CHECK(model_b_trained.layers[1].W(s.WeightNumber(0, 0)) == Approx(0.35891648));
+    CHECK(model_b_trained.layers[1].W(s.WeightNumber(0, 1)) == Approx(0.408666186));
+    // Node 2 edges.
+    CHECK(model_b_trained.layers[1].W(s.WeightNumber(1, 0)) == Approx(0.511301270));
+    CHECK(model_b_trained.layers[1].W(s.WeightNumber(1, 1)) == Approx(0.561370121));
+  }
 }
 
 TEST_CASE("Just testing a single max_pool layer", "[maxpool]") {
@@ -996,11 +1070,8 @@ TEST_CASE("Cifar model gradient test", "[cifar]") {
               3,   // filter z depth size.
               1,   // stride.
               2,   // padding.
-              16,  // number of filters.
+              4,  // number of filters.
           })
-      .AddMaxPoolLayer(
-          /* Input size */ nnet::VolumeDimensions{32, 32, 16},
-          /* Output size */ nnet::AreaDimensions{16, 16})
       .AddConvolutionLayer(
           {
               16,  // width
@@ -1013,11 +1084,8 @@ TEST_CASE("Cifar model gradient test", "[cifar]") {
               16,  // filter z depth size.
               1,   // stride.
               2,   // padding.
-              20,  // number of filters.
+              5,  // number of filters.
           })
-      .AddMaxPoolLayer(
-          /* Input size */ nnet::VolumeDimensions{16, 16, 20},
-          /* output size */ nnet::AreaDimensions{8, 8})
       .AddConvolutionLayer(
           {
               8,   // width
@@ -1030,10 +1098,8 @@ TEST_CASE("Cifar model gradient test", "[cifar]") {
               20,  // filter z depth size.
               1,   // stride.
               2,   // padding.
-              20,  // number of filters.
+              5,  // number of filters.
           })
-      .AddMaxPoolLayer(/* Input size */ {8, 8, 20},
-                       /* output size */ {4, 4})
       // No activation function, the next layer is softmax which functions as an
       // activation function
       .AddDenseLayer(10, symbolic::Identity)

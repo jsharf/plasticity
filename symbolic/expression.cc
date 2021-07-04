@@ -224,7 +224,7 @@ std::unique_ptr<NumericValue> IfExpression::TryEvaluate() const {
   }
 
   bool truthy =
-      abs(conditional_result->real()) > std::numeric_limits<double>::epsilon();
+      fabs(conditional_result->real()) > std::numeric_limits<double>::epsilon();
 
   if (truthy) {
     return a_.Evaluate();
@@ -473,7 +473,7 @@ std::unique_ptr<NumericValue> NotExpression::TryEvaluate() const {
   }
 
   bool truthy =
-      abs(child_result->real()) > std::numeric_limits<double>::epsilon();
+      fabs(child_result->real()) > std::numeric_limits<double>::epsilon();
 
   return std::make_unique<Integer>((truthy) ? 0 : 1);
 }

@@ -1,0 +1,62 @@
+build:opt --compilation_mode=opt
+build:opt --copt=-Wframe-larger-than=16384
+
+build --client_env=CC=clang
+
+build:dbg --compilation_mode=dbg
+build:dbg --copt=-Werror=return-stack-address
+
+build:windows_opt --compilation_mode=opt
+build:windows_dbg --compilation_mode=dbg
+
+build:asan --strip=never
+build:asan --copt=-fsanitize=address
+build:asan --copt=-O0
+build:asan --copt=-fno-omit-frame-pointer
+build:asan --copt=-DGPR_NO_DIRECT_SYSCALLS
+build:asan --copt=-DGRPC_ASAN
+build:asan --copt=-DADDRESS_SANITIZER  # used by absl
+build:asan --linkopt=-fsanitize=address
+build:asan --action_env=ASAN_OPTIONS=detect_leaks=1:color=always
+build:asan --test_env=ASAN_OPTIONS
+build:asan --test_env=LSAN_OPTIONS
+build:asan --test_env=ASAN_SYMBOLIZER_PATH
+build:asan --test_env=LSAN_SYMBOLIZER_PATH
+
+
+# We have a separate ASAN config for Mac OS to workaround a couple of bugs:
+# 1. https://github.com/bazelbuild/bazel/issues/6932
+#    _FORTIFY_SOURCE=1 is enabled by default on Mac OS, which breaks ASAN.
+#    We workaround it by setting _FORTIFY_SOURCE=0 and ignoring macro redefined
+#    warnings.
+# 2. https://github.com/google/sanitizers/issues/1026
+#    LSAN is not supported by the version of Clang that ships with Mac OS, so
+#    we disable it.
+build:asan_macos --strip=never
+build:asan_macos --copt=-fsanitize=address
+build:asan_macos --copt -Wno-macro-redefined
+build:asan_macos --copt -D_FORTIFY_SOURCE=0
+build:asan_macos --copt=-fsanitize=address
+build:asan_macos --copt=-O0
+build:asan_macos --copt=-fno-omit-frame-pointer
+build:asan_macos --copt=-DGPR_NO_DIRECT_SYSCALLS
+build:asan_macos --linkopt=-fsanitize=address
+build:asan_macos --action_env=ASAN_OPTIONS=detect_leaks=0
+
+build:msan --strip=never
+build:msan --copt=-fsanitize=memory
+build:msan --copt=-O0
+build:msan --copt=-fsanitize-memory-track-origins
+build:msan --copt=-fsanitize-memory-use-after-dtor
+build:msan --copt=-fno-omit-frame-pointer
+build:msan --copt=-DGPR_NO_DIRECT_SYSCALLS
+build:msan --linkopt=-fsanitize=memory
+build:msan --action_env=MSAN_OPTIONS=poison_in_dtor=1
+
+build:tsan --strip=never
+build:tsan --copt=-fsanitize=thread
+build:tsan --copt=-fno-omit-frame-pointer
+build:tsan --copt=-DGPR_NO_DIRECT_SYSCALLS
+build:tsan --copt=-DGRPC_TSAN
+build:tsan --linkopt=-fsanitize=thread
+build:tsan --test_env=TSAN_OPTIONS=report_atomic_races=0
