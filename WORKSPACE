@@ -10,8 +10,8 @@ jpeg()
 git_repository(
   name = "clutil",
   remote = "https://github.com/jsharf/clutil.git",
-  commit = "5b05715412458f05fc2731dbc27621042499f434",
-  shallow_since = "1578262118 -0800",
+  commit = "a2d52e9cdd2e937abe697b8cc1adba67e7bfdd38",
+  shallow_since = "1627839003 -0400",
 )
 
 git_repository(
