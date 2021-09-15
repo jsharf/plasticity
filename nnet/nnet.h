@@ -459,9 +459,7 @@ class Nnet {
       backprop_gradients_.swap(next_backprop_gradients_);
     }
     if (input_gradients) {
-      input_gradients->MoveToGpu();
-      *input_gradients->gpu_buffer() = *backprop_gradients_->gpu_buffer();
-      input_gradients->MoveToCpu();
+      *input_gradients = *backprop_gradients_;
     }
   }
 
