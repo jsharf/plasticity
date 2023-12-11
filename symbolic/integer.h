@@ -5,7 +5,7 @@
 #include "symbolic/numeric_value.h"
 
 #include <cmath>
-#include <experimental/optional>
+#include <optional>
 #include <iostream>
 #include <set>
 #include <string>
